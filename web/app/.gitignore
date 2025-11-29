@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+
+# Flask
+instance/
+*.db
+*.sqlite3
+
+# Docker
+*.log
+
+# VSCode
+.vscode/
+
+# Entorno
+.env
+.env.*
+
+# Cache
+.cache/

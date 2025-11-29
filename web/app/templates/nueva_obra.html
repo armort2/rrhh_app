@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Obra · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Nueva Obra</h1>
+            <p class="card-subtitle">
+                Registra una nueva obra para asociar trabajadores y documentación.
+            </p>
+        </div>
+    </div>
+
+    <form method="post" class="form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="codigo">Código</label>
+                <input type="text" id="codigo" name="codigo" required placeholder="Ej: QNTO-01">
+            </div>
+
+            <div class="form-group">
+                <label for="nombre">Nombre de la obra</label>
+                <input type="text" id="nombre" name="nombre" required placeholder="Nombre descriptivo de la obra">
+            </div>
+
+            <div class="form-group">
+                <label for="centro_costo">Centro de costo</label>
+                <input type="text" id="centro_costo" name="centro_costo" placeholder="Ej: QUINTERO">
+            </div>
+
+            <div class="form-group">
+                <label for="comuna">Comuna</label>
+                <input type="text" id="comuna" name="comuna" placeholder="Comuna donde se ejecuta la obra">
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado</label>
+                <select id="estado" name="estado">
+                    <option value="ACTIVA" selected>ACTIVA</option>
+                    <option value="CERRADA">CERRADA</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('main.lista_obras') }}" class="btn btn-secondary">⬅ Volver</a>
+            <button type="submit" class="btn btn-primary">Guardar obra</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Obras · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Obras</h1>
+            <p class="card-subtitle">
+                Gestión de obras y centros de costo asociados.
+            </p>
+        </div>
+        <div>
+            <a class="btn btn-primary" href="{{ url_for('main.nueva_obra') }}">
+                ➕ Nueva obra
+            </a>
+        </div>
+    </div>
+
+    {% if obras %}
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Centro de costo</th>
+                        <th>Comuna</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for o in obras %}
+                    <tr>
+                        <td>{{ o.codigo }}</td>
+                        <td>{{ o.nombre }}</td>
+                        <td>{{ o.centro_costo or "-" }}</td>
+                        <td>{{ o.comuna or "-" }}</td>
+                        <td>
+                            <span class="badge {% if o.estado == 'ACTIVA' %}badge-success{% else %}badge-muted{% endif %}">
+                                {{ o.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-state">
+            Todavía no hay obras creadas. Crea la primera usando el botón
+            <strong>“Nueva obra”</strong>.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

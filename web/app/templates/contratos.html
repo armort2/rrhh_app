@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Contratos · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Contratos</h1>
+            <p class="card-subtitle">
+                Vista global de contratos por empleador, obra y estado.
+            </p>
+        </div>
+    </div>
+
+    <!-- ==========================
+         FILTROS
+    =========================== -->
+    <form method="get" class="form form-filtros mb-3">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="empleador_id">Empleador</label>
+                <select id="empleador_id" name="empleador_id">
+                    <option value="">Todos</option>
+                    {% for e in empleadores %}
+                        <option value="{{ e.id }}"
+                            {% if filtro_empleador_id == e.id %}selected{% endif %}>
+                            {{ e.razon_social }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="obra_id">Obra</label>
+                <select id="obra_id" name="obra_id">
+                    <option value="">Todas</option>
+                    {% for o in obras %}
+                        <option value="{{ o.id }}"
+                            {% if filtro_obra_id == o.id %}selected{% endif %}>
+                            {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado contrato</label>
+                <select id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="VIGENTE"   {% if filtro_estado == "VIGENTE" %}selected{% endif %}>Vigente</option>
+                    <option value="TERMINADO" {% if filtro_estado == "TERMINADO" %}selected{% endif %}>Terminado</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+            <a href="{{ url_for('main.lista_contratos') }}" class="btn btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    <!-- ==========================
+         TABLA CONTRATOS
+    =========================== -->
+    {% if contratos %}
+        <div class="table-wrapper">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Trabajador</th>
+                        <th>RUT</th>
+                        <th>Empleador</th>
+                        <th>Obra</th>
+                        <th>Cargo</th>
+                        <th>Tipo</th>
+                        <th>Inicio</th>
+                        <th>Término</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in contratos %}
+                        <tr>
+                            <td>
+                                {{ c.trabajador.nombres }} {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno }}
+                            </td>
+                            <td>{{ c.trabajador.rut }}</td>
+                            <td>
+                                {% if c.empleador %}
+                                    {{ c.empleador.razon_social }}
+                                {% else %}
+                                    <span class="text-muted">Sin empleador</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.obra %}
+                                    {{ c.obra.nombre }}
+                                    {% if c.obra.centro_costo %}
+                                        <br><small class="text-muted">{{ c.obra.centro_costo }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Sin obra</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.cargo %}
+                                    {{ c.cargo.nombre }}
+                                {% else %}
+                                    <span class="text-muted">No asignado</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ c.tipo_contrato or "-" }}</td>
+                            <td>
+                                {% if c.fecha_inicio %}
+                                    {{ c.fecha_inicio.strftime("%d-%m-%Y") }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.fecha_termino %}
+                                    {{ c.fecha_termino.strftime("%d-%m-%Y") }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.estado_contrato == "VIGENTE" %}
+                                    <span class="badge badge-success">Vigente</span>
+                                {% elif c.estado_contrato == "TERMINADO" %}
+                                    <span class="badge badge-danger">Terminado</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ c.estado_contrato }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-right">
+                                <a href="{{ url_for('main.detalle_trabajador', trabajador_id=c.trabajador.id) }}"
+                                   class="btn btn-sm btn-link">
+                                    Ver trabajador
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted">
+            No hay contratos que cumplan con los filtros seleccionados.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

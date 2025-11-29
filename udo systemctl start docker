@@ -1,0 +1,14 @@
+[0;1;31m×[0m docker.service - Docker Application Container Engine
+     Loaded: loaded (]8;;file://vmi2815769/usr/lib/systemd/system/docker.service/usr/lib/systemd/system/docker.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;31mfailed[0m (Result: exit-code) since Fri 2025-11-28 21:38:27 -03; 2min 16s ago
+   Duration: 12min 19.902s
+TriggeredBy: [0;1;31m×[0m docker.socket
+       Docs: ]8;;https://docs.docker.comhttps://docs.docker.com]8;;
+    Process: 22489 ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock [0;1;31m(code=exited, status=1/FAILURE)[0m
+   Main PID: 22489 (code=exited, status=1/FAILURE)
+        CPU: 79ms
+
+nov 28 21:38:27 vmi2815769 systemd[1]: docker.service: Scheduled restart job, restart counter is at 3.
+nov 28 21:38:27 vmi2815769 systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mdocker.service: Start request repeated too quickly.[0m
+nov 28 21:38:27 vmi2815769 systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mdocker.service: Failed with result 'exit-code'.[0m
+nov 28 21:38:27 vmi2815769 systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start docker.service - Docker Application Container Engine.[0m

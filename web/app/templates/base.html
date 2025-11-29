@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}GRUPO CS - RRHH{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner container">
+            <div class="brand">
+                {% if false %}
+                <!-- Solo para evitar error si aún no subes el logo -->
+                {% endif %}
+                <div class="brand-logo">
+                    <img src="{{ url_for('static', filename='img/logo-grupo-cs.png') }}" alt="Grupo CS" onerror="this.style.display='none'">
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">GRUPO CS</span>
+                    <span class="brand-subtitle">Sistema de Gestión RRHH</span>
+                </div>
+            </div>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('main.index') }}">Trabajadores</a>
+                <a href="{{ url_for('main.lista_obras') }}">Obras</a>
+                <a href="{{ url_for('main.lista_contratos') }}">Contratos</a>
+                <!-- Más secciones después: Obras, Reportes, Contratos, etc. -->
+            </nav>
+        </div>
+    </header>
+
+    <main class="page">
+        <div class="container">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for m in messages %}
+                            <div class="flash">{{ m }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-inner">
+            <span>© {{ 2025 }} Grupo CS · Sistema Interno RRHH</span>
+            <span class="footer-right">Desarrollado con cariño por Armandini & Don GPTito 🫡</span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Trabajador · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Nuevo Trabajador</h1>
+            <p class="card-subtitle">
+                Ingresa la información maestra del trabajador. Estos datos alimentarán contratos, anexos y reportería.
+            </p>
+        </div>
+    </div>
+
+    <form method="post" class="form form-sectioned">
+
+        <!-- ==========================
+             DATOS BÁSICOS
+        =========================== -->
+        <h2 class="section-title">Datos básicos</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="rut">RUT</label>
+                <input type="text" id="rut" name="rut" required placeholder="12.345.678-9">
+            </div>
+
+            <div class="form-group">
+                <label for="nombres">Nombres</label>
+                <input type="text" id="nombres" name="nombres" required placeholder="Nombres del trabajador">
+            </div>
+
+            <div class="form-group">
+                <label for="ap_paterno">Apellido paterno</label>
+                <input type="text" id="ap_paterno" name="ap_paterno" required placeholder="Apellido paterno">
+            </div>
+
+            <div class="form-group">
+                <label for="ap_materno">Apellido materno</label>
+                <input type="text" id="ap_materno" name="ap_materno" required placeholder="Apellido materno">
+            </div>
+
+            <div class="form-group">
+                <label for="obra_id">Obra actual</label>
+                <select id="obra_id" name="obra_id" required>
+                    <option value="">Selecciona una obra</option>
+                    {% for o in obras %}
+                        <option value="{{ o.id }}">
+                            {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- ==========================
+             DATOS PERSONALES
+        =========================== -->
+        <h2 class="section-title">Datos personales</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                <input type="date" id="fecha_nacimiento" name="fecha_nacimiento">
+            </div>
+
+            <div class="form-group">
+                <label for="nacionalidad">Nacionalidad</label>
+                <input type="text" id="nacionalidad" name="nacionalidad" placeholder="Ej: Chilena">
+            </div>
+
+            <div class="form-group">
+                <label for="sexo">Sexo</label>
+                <select id="sexo" name="sexo">
+                    <option value="">No especificar</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Femenino</option>
+                    <option value="X">Otro / Prefiere no decir</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado_civil">Estado civil</label>
+                <select id="estado_civil" name="estado_civil">
+                    <option value="">No especificar</option>
+                    <option value="SOLTERO">Soltero(a)</option>
+                    <option value="CASADO">Casado(a)</option>
+                    <option value="DIVORCIADO">Divorciado(a)</option>
+                    <option value="VIUDO">Viudo(a)</option>
+                    <option value="CONVIVIENTE">Conviviente civil</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="num_cargas_familiares">N° cargas familiares</label>
+                <input type="number" min="0" id="num_cargas_familiares" name="num_cargas_familiares" placeholder="0">
+            </div>
+        </div>
+
+        <!-- ==========================
+             CONTACTO
+        =========================== -->
+        <h2 class="section-title">Contacto</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="direccion">Dirección</label>
+                <input type="text" id="direccion" name="direccion" placeholder="Calle, número, depto">
+            </div>
+
+            <div class="form-group">
+                <label for="comuna">Comuna</label>
+                <input type="text" id="comuna" name="comuna" placeholder="Comuna de residencia">
+            </div>
+
+            <div class="form-group">
+                <label for="telefono">Teléfono</label>
+                <input type="text" id="telefono" name="telefono" placeholder="+56 9 .... ....">
+            </div>
+
+            <div class="form-group">
+                <label for="telefono_emergencia">Teléfono de emergencia</label>
+                <input type="text" id="telefono_emergencia" name="telefono_emergencia" placeholder="Contacto de emergencia">
+            </div>
+
+            <div class="form-group">
+                <label for="correo">Correo electrónico</label>
+                <input type="email" id="correo" name="correo" placeholder="correo@ejemplo.cl">
+            </div>
+        </div>
+
+        <!-- ==========================
+             DATOS BANCARIOS
+        =========================== -->
+        <h2 class="section-title">Datos bancarios</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="banco_id">Banco</label>
+                <select id="banco_id" name="banco_id">
+                    <option value="">Sin banco / Pago en efectivo</option>
+                    {% for b in bancos %}
+                        <option value="{{ b.id }}">
+                            {% if b.codigo_sbif %}
+                                {{ b.codigo_sbif }} - {{ b.nombre }}
+                            {% else %}
+                                {{ b.nombre }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_cuenta">Tipo de cuenta</label>
+                <select id="tipo_cuenta" name="tipo_cuenta">
+                    <option value="">No especificar</option>
+                    <option value="CORRIENTE">Cuenta corriente</option>
+                    <option value="VISTA">Cuenta vista</option>
+                    <option value="AHORRO">Cuenta de ahorro</option>
+                    <option value="CTA_RUT">Cuenta RUT</option>
+                </select>
+                <small>Si eliges Cuenta RUT, el número se completará automáticamente desde el RUT.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="cuenta_numero">Número de cuenta</label>
+                <input type="text" id="cuenta_numero" name="cuenta_numero"
+                       placeholder="Ej: 123456789">
+            </div>
+        </div>
+
+                <h3 class="section-subtitle">Pago a cuenta de tercero (opcional)</h3>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="pago_tercero_activo" name="pago_tercero_activo" value="1">
+                Autorización a cuenta de tercero
+            </label>
+            <small>Usar solo cuando exista poder simple o notarial del trabajador.</small>
+        </div>
+
+        <div id="bloque_pago_tercero" class="form-grid" style="display: none;">
+            <div class="form-group">
+                <label for="pago_tercero_rut">RUT del tercero</label>
+                <input type="text" id="pago_tercero_rut" name="pago_tercero_rut"
+                       placeholder="Ej: 12.345.678-9">
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_nombre">Nombre completo del tercero</label>
+                <input type="text" id="pago_tercero_nombre" name="pago_tercero_nombre"
+                       placeholder="Nombre completo del titular de la cuenta">
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_banco_id">Banco del tercero</label>
+                <select id="pago_tercero_banco_id" name="pago_tercero_banco_id">
+                    <option value="">Selecciona banco</option>
+                    {% for b in bancos %}
+                        <option value="{{ b.id }}">
+                            {% if b.codigo_sbif %}
+                                {{ b.codigo_sbif }} - {{ b.nombre }}
+                            {% else %}
+                                {{ b.nombre }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_tipo_cuenta">Tipo de cuenta del tercero</label>
+                <select id="pago_tercero_tipo_cuenta" name="pago_tercero_tipo_cuenta">
+                    <option value="">No especificar</option>
+                    <option value="CORRIENTE">Cuenta corriente</option>
+                    <option value="VISTA">Cuenta vista</option>
+                    <option value="AHORRO">Cuenta de ahorro</option>
+                    <option value="CTA_RUT">Cuenta RUT</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_cuenta_numero">Número de cuenta del tercero</label>
+                <input type="text" id="pago_tercero_cuenta_numero" name="pago_tercero_cuenta_numero"
+                       placeholder="Ej: 123456789">
+            </div>
+        </div>
+
+        <!-- ==========================
+             PREVISIONAL
+        =========================== -->
+        <h2 class="section-title">Previsional</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="afp_id">AFP</label>
+                <select id="afp_id" name="afp_id">
+                    <option value="">Selecciona AFP</option>
+                    {% for a in afps %}
+                        <option value="{{ a.id }}">{{ a.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="salud_id">Salud</label>
+                <select id="salud_id" name="salud_id">
+                    <option value="">Selecciona salud</option>
+                    {% for s in entidades_salud %}
+                        <option value="{{ s.id }}">
+                            {{ s.nombre }} ({{ s.tipo }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>FONASA o ISAPRE según corresponda.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="uf_plan_salud">Plan de salud (UF)</label>
+                <input type="text" id="uf_plan_salud" name="uf_plan_salud" placeholder="Ej: 3.20">
+                <small>Solo aplica si el trabajador tiene ISAPRE.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="caja_compensacion_id">Caja de compensación</label>
+                <select id="caja_compensacion_id" name="caja_compensacion_id">
+                    <option value="">Sin caja / No registra</option>
+                    {% for c in cajas %}
+                        <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>Condiciones especiales</label>
+                <div class="checkbox-row">
+                    <label><input type="checkbox" name="es_extranjero"> Extranjero</label>
+                    <label><input type="checkbox" name="es_discapacitado"> Discapacidad</label>
+                    <label><input type="checkbox" name="es_pensionado"> Pensionado</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================
+             APV Y CAV
+        =========================== -->
+        <h2 class="section-title">Ahorro Previsional Voluntario (APV)</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="apv_activo" name="apv_activo">
+                    El trabajador tiene APV
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="apv_modalidad">Modalidad APV</label>
+                <select id="apv_modalidad" name="apv_modalidad">
+                    <option value="">Sin APV / No aplica</option>
+                    <option value="PORCENTAJE">Porcentaje</option>
+                    <option value="MONTO">Monto fijo</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="apv_valor">Valor APV</label>
+                <input type="text" id="apv_valor" name="apv_valor" placeholder="Ej: 3.00 (si es %) o 50000 (si es monto)">
+            </div>
+
+            <div class="form-group">
+                <label for="apv_institucion">Institución APV</label>
+                <input type="text" id="apv_institucion" name="apv_institucion" placeholder="Institución o administrador del APV">
+            </div>
+        </div>
+
+        <h2 class="section-title">Cuenta de Ahorro Voluntario (CAV)</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="cav_activo" name="cav_activo">
+                    El trabajador tiene CAV
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="cav_modalidad">Modalidad CAV</label>
+                <select id="cav_modalidad" name="cav_modalidad">
+                    <option value="">Sin CAV / No aplica</option>
+                    <option value="PORCENTAJE">Porcentaje</option>
+                    <option value="MONTO">Monto fijo</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="cav_valor">Valor CAV</label>
+                <input type="text" id="cav_valor" name="cav_valor" placeholder="Ej: 2.50 (si es %) o 30000 (si es monto)">
+            </div>
+
+            <div class="form-group">
+                <label for="cav_institucion">Institución CAV</label>
+                <input type="text" id="cav_institucion" name="cav_institucion" placeholder="Institución o administrador de la CAV">
+            </div>
+        </div>
+
+
+        <!-- ==========================
+             CARGO (buscador + lista)
+        =========================== -->
+        <h2 class="section-title">Cargo</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="cargo_search">Cargo del trabajador</label>
+                <input
+                    type="text"
+                    id="cargo_search"
+                    list="lista_cargos"
+                    autocomplete="off"
+                    placeholder="Escribe para buscar, ej: albañil, maestro, gerente..."
+                    required
+                />
+
+                <datalist id="lista_cargos">
+                    {% for c in cargos %}
+                        <option value="{{ c.id }} - {{ c.nombre }}" data-id="{{ c.id }}"></option>
+                    {% endfor %}
+                </datalist>
+
+                <!-- Este es el valor real que se envía al servidor -->
+                <input type="hidden" name="cargo_id" id="cargo_id">
+
+                <small>
+                    Al hacer clic se despliega la lista completa; al escribir, se filtran los cargos.
+                    Debes escoger uno de la lista.
+                </small>
+            </div>
+        </div>
+
+
+        
+        <!-- ==========================
+             ESTADO LABORAL
+        =========================== -->
+        <h2 class="section-title">Estado laboral</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="estado_trabajador">Estado del trabajador</label>
+                <select id="estado_trabajador" name="estado_trabajador">
+                    <option value="VIGENTE" selected>Vigente</option>
+                    <option value="DESVINCULADO">Desvinculado</option>
+                    <option value="SUSPENDIDO">Suspendido</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_trabajador">Tipo de trabajador</label>
+                <select id="tipo_trabajador" name="tipo_trabajador">
+                    <option value="">No especificar</option>
+                    <option value="DIRECTO">Directo</option>
+                    <option value="SUBCONTRATO">Subcontrato</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_ingreso_empresa">Fecha de ingreso a la empresa</label>
+                <input type="date" id="fecha_ingreso_empresa" name="fecha_ingreso_empresa">
+            </div>
+        </div>
+
+        <!-- ==========================
+             ACCIONES
+        =========================== -->
+        <div class="form-actions">
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">⬅ Volver</a>
+            <button type="submit" class="btn btn-primary">Guardar trabajador</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const inputCargo   = document.getElementById("cargo_search");
+    const hiddenCargo  = document.getElementById("cargo_id");
+    const datalist     = document.getElementById("lista_cargos");
+
+    if (!inputCargo || !hiddenCargo || !datalist) return;
+
+    function sincronizarCargoId() {
+        const valor = inputCargo.value.trim();
+        if (!valor) {
+            hiddenCargo.value = "";
+            return;
+        }
+
+        const opciones = Array.from(datalist.options);
+        // Buscamos una coincidencia EXACTA con el texto del input
+        const encontrada = opciones.find(opt => opt.value === valor);
+
+        if (encontrada) {
+            hiddenCargo.value = encontrada.getAttribute("data-id") || "";
+        } else {
+            // Si el usuario escribió algo que no calza con la lista,
+            // dejamos vacío para que el backend lo detecte.
+            hiddenCargo.value = "";
+        }
+    }
+
+    inputCargo.addEventListener("change", sincronizarCargoId);
+    inputCargo.addEventListener("blur", sincronizarCargoId);
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const rutInput      = document.getElementById("rut");
+    const tipoCuentaSel = document.getElementById("tipo_cuenta");
+    const cuentaNumInp  = document.getElementById("cuenta_numero");
+
+    if (!rutInput || !tipoCuentaSel || !cuentaNumInp) return;
+
+    function actualizarCuentaRut() {
+        if (tipoCuentaSel.value === "CTA_RUT") {
+            const rut = rutInput.value || "";
+            const soloDigitos = rut.replace(/[^0-9]/g, "");
+            if (soloDigitos.length >= 2) {
+                const base = soloDigitos.slice(0, -1); // sin DV
+                cuentaNumInp.value = base;
+            }
+            cuentaNumInp.readOnly = true;
+        } else {
+            cuentaNumInp.readOnly = false;
+        }
+    }
+
+    tipoCuentaSel.addEventListener("change", actualizarCuentaRut);
+    rutInput.addEventListener("blur", function () {
+        if (tipoCuentaSel.value === "CTA_RUT") {
+            actualizarCuentaRut();
+        }
+    });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const chkTercero   = document.getElementById("pago_tercero_activo");
+    const bloqueTercero = document.getElementById("bloque_pago_tercero");
+
+    if (!chkTercero || !bloqueTercero) return;
+
+    const inputsTercero = bloqueTercero.querySelectorAll("input, select");
+
+    function actualizarBloqueTercero() {
+        if (chkTercero.checked) {
+            bloqueTercero.style.display = "grid";
+        } else {
+            bloqueTercero.style.display = "none";
+            // Limpiamos los campos cuando se desactiva
+            inputsTercero.forEach(el => {
+                if (el.tagName === "SELECT") {
+                    el.value = "";
+                } else {
+                    el.value = "";
+                }
+            });
+        }
+    }
+
+    chkTercero.addEventListener("change", actualizarBloqueTercero);
+    actualizarBloqueTercero();
+});
+</script>
+
+{% endblock %}

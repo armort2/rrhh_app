@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo contrato{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Nuevo contrato</h1>
+            {% if trabajador %}
+                <p class="card-subtitle">
+                    Trabajador: <strong>{{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}</strong>
+                    · RUT: {{ trabajador.rut }}
+                </p>
+            {% else %}
+                <p class="card-subtitle">
+                    Crea un nuevo contrato laboral para un trabajador.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="post" class="form form-sectioned">
+
+        {% if trabajador %}
+            <input type="hidden" name="trabajador_id" value="{{ trabajador.id }}">
+        {% endif %}
+
+        <!-- ==========================
+             BLOQUE PRINCIPAL
+        =========================== -->
+        <h2 class="section-title">Datos del contrato</h2>
+        <div class="form-grid">
+
+            <!-- Empleador -->
+            <div class="form-group">
+                <label for="empleador_id">Empleador</label>
+                <select id="empleador_id" name="empleador_id" required>
+                    <option value="">Selecciona empleador</option>
+                    {% for e in empleadores %}
+                        <option value="{{ e.id }}"
+                            {% if empleador_default_id and empleador_default_id == e.id %}selected{% endif %}>
+                            {{ e.razon_social }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Obra -->
+            <div class="form-group">
+                <label for="obra_id">Obra</label>
+                <select id="obra_id" name="obra_id" required>
+                    <option value="">Selecciona obra</option>
+                    {% for o in obras %}
+                        <option value="{{ o.id }}"
+                            {% if obra_default_id and obra_default_id == o.id %}selected{% endif %}>
+                            {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Cargo -->
+            <div class="form-group">
+                <label for="cargo_id">Cargo</label>
+                <select id="cargo_id" name="cargo_id" required>
+                    <option value="">Selecciona cargo</option>
+                    {% for c in cargos %}
+                        <option value="{{ c.id }}">
+                            {{ c.id }} - {{ c.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>Puedes refinar más adelante la lógica de cargos por obra o por empleador.</small>
+            </div>
+
+            <!-- Tipo de contrato -->
+            <div class="form-group">
+                <label for="tipo_contrato">Tipo de contrato</label>
+                <select id="tipo_contrato" name="tipo_contrato" required>
+                    <option value="">Selecciona tipo</option>
+                    <option value="INDEFINIDO">Indefinido</option>
+                    <option value="PLAZO_FIJO">Plazo fijo</option>
+                    <option value="FAENA">Por faena</option>
+                    <option value="PART_TIME">Part time</option>
+                </select>
+            </div>
+
+            <!-- Fechas -->
+            <div class="form-group">
+                <label for="fecha_inicio">Fecha inicio</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_termino">Fecha término</label>
+                <input type="date" id="fecha_termino" name="fecha_termino">
+                <small>Solo para plazo fijo o faena. Para indefinido puedes dejarlo en blanco.</small>
+            </div>
+
+            <!-- Jornada -->
+            <div class="form-group">
+                <label for="jornada">Jornada</label>
+                <input type="text" id="jornada" name="jornada" placeholder="Ej: Lunes a viernes de 08:00 a 17:30">
+            </div>
+
+            <div class="form-group">
+                <label for="horas_semanales">Horas semanales</label>
+                <input type="number" min="1" max="60" id="horas_semanales" name="horas_semanales" placeholder="Ej: 45">
+            </div>
+
+            <!-- Sueldos y asignaciones -->
+            <div class="form-group">
+                <label for="sueldo_base">Sueldo base ($)</label>
+                <input type="text" id="sueldo_base" name="sueldo_base" placeholder="Ej: 650000">
+            </div>
+
+            <div class="form-group">
+                <label for="asignacion_movilizacion">Asignación movilización ($)</label>
+                <input type="text" id="asignacion_movilizacion" name="asignacion_movilizacion" placeholder="Ej: 30000">
+            </div>
+
+            <div class="form-group">
+                <label for="asignacion_colacion">Asignación colación ($)</label>
+                <input type="text" id="asignacion_colacion" name="asignacion_colacion" placeholder="Ej: 50000">
+            </div>
+
+            <div class="form-group">
+                <label for="asignacion_herramientas">Asignación herramientas ($)</label>
+                <input type="text" id="asignacion_herramientas" name="asignacion_herramientas" placeholder="Ej: 15000">
+            </div>
+
+            <!-- Estado contrato -->
+            <div class="form-group">
+                <label for="estado_contrato">Estado contrato</label>
+                <select id="estado_contrato" name="estado_contrato">
+                    <option value="VIGENTE" selected>Vigente</option>
+                    <option value="TERMINADO">Terminado</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ==========================
+             ACCIONES
+        =========================== -->
+        <div class="form-actions">
+            {% if trabajador %}
+                <a href="{{ url_for('main.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-secondary">
+                    ⬅ Volver a la ficha del trabajador
+                </a>
+            {% else %}
+                <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                    ⬅ Volver al inicio
+                </a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">Guardar contrato</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

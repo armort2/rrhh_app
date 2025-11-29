@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    container_name: rrhh_db
+    environment:
+      POSTGRES_DB: rrhh_db
+      POSTGRES_USER: rrhh_user
+      POSTGRES_PASSWORD: rrhh_super_segura
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  web:
+    build: ./web
+    container_name: rrhh_web
+    environment:
+      DATABASE_URL: postgresql+psycopg2://rrhh_user:rrhh_super_segura@db:5432/rrhh_db
+      FLASK_ENV: development
+      SECRET_KEY: cambia_esto_por_algo_mas_largo
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

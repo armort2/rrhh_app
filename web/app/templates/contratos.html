@@ -56,7 +56,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Aplicar filtros</button>
-            <a href="{{ url_for('main.lista_contratos') }}" class="btn btn-secondary">Limpiar</a>
+            <a href="{{ url_for('contratos.lista_contratos') }}" class="btn btn-secondary">Limpiar</a>
         </div>
     </form>
 
@@ -136,7 +136,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-right">
-                                <a href="{{ url_for('main.detalle_trabajador', trabajador_id=c.trabajador.id) }}"
+                                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id) }}"
                                    class="btn btn-sm btn-link">
                                     Ver trabajador
                                 </a>

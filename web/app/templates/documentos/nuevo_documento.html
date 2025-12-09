@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo documento · Contrato {{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Nuevo documento laboral</h1>
+            <p class="card-subtitle">
+                Contrato #{{ contrato.id }} ·
+                Trabajador:
+                {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+                · Empleador:
+                {% if contrato.empleador %}
+                    {{ contrato.empleador.razon_social }}
+                {% else %}
+                    -
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="tipo">Tipo de documento</label>
+                    <select name="tipo" id="tipo" required>
+                        <option value="">-- Selecciona --</option>
+                        {% for t in tipos_documento %}
+                            <option value="{{ t }}">{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="nombre_archivo">Nombre del archivo</label>
+                    <input type="text" id="nombre_archivo" name="nombre_archivo"
+                           placeholder="Ej: Contrato_indefinido_2025-11-29.pdf" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="ruta_archivo">Ruta / enlace al archivo en Nextcloud</label>
+                    <input type="text" id="ruta_archivo" name="ruta_archivo"
+                        placeholder="Ej: https://nextcloud.grupo-cs.cl/apps/files/?dir=/DOCUMENTACION%20LABORAL/.../contrato.pdf">
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}"
+                   class="btn btn-secondary">
+                    ⬅ Volver sin guardar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    💾 Guardar documento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

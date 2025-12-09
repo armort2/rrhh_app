@@ -44,11 +44,23 @@ body {
 /* Topbar */
 
 .topbar {
-    background-color: #171717;
-    color: #f8f8f8;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    background: #0c304f; /* tono corporativo oscuro */
+    color: #ffffff;
+    border-bottom: 3px solid #1aa36f; /* acento tipo “corporativo verde” */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* estas clases siguen por si las usa algún template viejo */
 .topbar-inner {
     display: flex;
     align-items: center;
@@ -64,7 +76,13 @@ body {
 }
 
 .brand-logo img {
-    height: 42px;
+    height: 60px;
+    width: auto;
+    display: block;
+}
+
+.logo {
+    height: 36px;
     width: auto;
     display: block;
 }
@@ -309,6 +327,7 @@ body {
     padding: 12px 0 18px;
     font-size: 12px;
     color: var(--cs-muted);
+    background-color: var(--cs-surface);
 }
 
 .footer-inner {
@@ -321,9 +340,43 @@ body {
     font-style: italic;
 }
 
+/* Sistema / layout principal */
+
+.content {
+    padding: 16px 20px;
+}
+
+/* Sistema */
+
+.system-name {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.system-tagline {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.topbar-right .user-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.topbar-right .user-name {
+    font-weight: 600;
+    margin-left: 4px;
+}
+
 /* Responsive */
 
 @media (max-width: 700px) {
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
     .topbar-inner {
         flex-direction: column;
         align-items: flex-start;
@@ -344,4 +397,124 @@ body {
         flex-direction: column;
         align-items: flex-start;
     }
+}
+
+/* Dashboard de inicio */
+
+.dashboard-hero {
+    margin-bottom: 24px;
+}
+
+.dashboard-title {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: var(--cs-red);
+}
+
+.dashboard-subtitle {
+    margin: 4px 0;
+    font-size: 14px;
+    color: var(--cs-muted);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.dashboard-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dashboard-actions {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Mini dashboard (KPIs) */
+
+.dashboard-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.kpi-card {
+    background-color: var(--cs-surface);
+    border-radius: var(--cs-radius);
+    border: 1px solid var(--cs-border);
+    box-shadow: var(--cs-shadow);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.kpi-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--cs-muted);
+}
+
+.kpi-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--cs-red);
+}
+
+.kpi-muted .kpi-value {
+    color: #bbb;
+}
+
+/* Filtros en la sección de trabajadores */
+
+.filter-form {
+    margin-bottom: 16px;
+}
+
+.filter-form .form-grid {
+    margin-bottom: 8px;
+}
+
+/* Paginación */
+
+.pagination-wrapper {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.page-link {
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid #D5C8B7;
+    text-decoration: none;
+    color: var(--cs-brown);
+    background-color: #F8F1E7;
+}
+
+.page-link:hover {
+    background-color: #E9DECF;
+}
+
+.page-link.current {
+    background: linear-gradient(135deg, var(--cs-red), var(--cs-orange));
+    color: #fff;
+    border-color: transparent;
+    font-weight: 600;
 }

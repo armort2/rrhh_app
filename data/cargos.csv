@@ -1,0 +1,103 @@
+﻿id,nombre
+101,Jornalero de Obra
+102,Maestro Albañil
+103,Ayudante de Albañil
+104,Maestro Carpintero
+105,Ayudante de Carpintero
+106,Maestro Carpintero Obra Gruesa
+107,Ayudante Carpintero Obra Gruesa
+108,Maestro Carpintero Terminaciones
+109,Ayudante Carpintero Terminaciones
+110,Maestro Terminaciones
+111,Ayudante Terminaciones
+112,Maestro Pintor
+113,Ayudante de Pintor
+114,Maestro Pintor - Yesero
+115,Maestro Ceramista
+116,Ayudante de Ceramista
+117,Gásfiter
+118,Ayudante de Gásfiter
+119,Rondín - Día
+120,Rondín - Nochero
+121,Rondín Part Time - Día
+122,Rondín Part Time - Noche
+123,Maestro de Andamios
+124,Ayudante de Andamios
+125,Maestro Soldador
+126,Ayudante de Soldador
+127,Alumno(a) en Práctica
+128,Canguero
+129,Canguero - Pulidor
+130,Jornalero de Obra y Mantención de Instalaciones Sanitarias
+131,Llavera y encargada de aseo
+132,Maestro Eléctrico
+133,Maestro de Terminaciones
+134,Mantención y Operador Maquinaria Pesada
+135,Operador Control Interno Preventivo Diurno
+136,Operador de Furgón y Ayudante Terminaciones Post Venta
+137,Encargado de Mantención
+138,Ayudante de Mantención
+139,Operador Maquinaria Pesada
+140,Maestro Andamiero
+141,Ayudante de Andamiero
+142,Maestro Concretero
+143,Jornalero de montaje
+144,Portería de Obra
+145,Jornalero de Obra y Bodega
+146,Asistente Depto. Administración y Prevención
+147,Encargada de llaves
+148,Ayudante de trazador
+149,Trazador
+150,Encargada de limpieza
+151,Nivelador
+152,Jornal Concretero
+153,Maestro Enfierrador
+154,Encargada de aseo
+155,Ayudante de Eléctrico
+156,Maestro Carpintero Terminaciones P.V.
+157,Rigger
+158,Operador Pluma Torre
+159,Pulidor
+160,Ayudante de Terminaciones y Aseo P.V.
+161,Operador Control Interno Preventivo Nocturno
+162,Operador Control Interno Preventivo Diurno - Part Time
+163,Operador Control Interno Preventivo Nocturno - Part Time
+164,Maestro Carpintero 2da Terminaciones
+165,Maestro Carpintero 2da Obra Gruesa
+201,Administrador de Obra
+202,Jefe de Obra
+203,Jefe Oficina Técnica
+204,Ayudante Oficina Técnica
+205,Administrativo de Obra
+206,Ayudante Administrativo
+207,Prevencionista de Riesgos
+208,Ayudante de Prevención de Riesgos
+209,Asistente de Obra
+210,Supervisor de Obra
+211,Supervisor de Hormigones
+212,Supervisor de Andamios
+213,Control de Calidad
+214,Operador Camión Pluma
+215,Encargado de Bodega
+216,Ayudante de Bodega
+217,Encargada de compras
+218,Jefe de Terreno
+219,Supervisor de Urbanización
+220,Jefe de Bodega
+221,Encargado Oficina Técnica
+222,Operador Retro Excavadora
+223,Operador Camión Tolva
+224,Capataz de Andamios
+225,Técnico Topográfico
+226,Capataz de Obra
+227,Chofer de camión y Operador de maquinaria pesada
+228,Jefe de seguridad
+229,Ayudante de Oficina Técnica y Calidad
+230,Practicante - Ingeniería en Construcción
+301,Gerente General
+302,Gerente de Procesos
+303,Jefe Departamento Administrativo
+304,Jefe Recursos Humanos
+305,Jefe Departamento de Prevención de Riesgos
+306,Encargado de Bodegas y Pago a Proveedores
+307,Jefe Departamento Post Venta

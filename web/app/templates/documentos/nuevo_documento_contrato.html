@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo documento · Contrato #{{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Registrar documento</h1>
+            <p class="card-subtitle">
+                Contrato #{{ contrato.id }} ·
+                {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+                ({{ contrato.trabajador.rut }})<br>
+                {% if contrato.empleador %}
+                    Empleador: {{ contrato.empleador.razon_social }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="tipo_documento">Tipo de documento / carpeta</label>
+                    <select name="tipo_documento" id="tipo_documento" required>
+                        <option value="">-- Selecciona tipo --</option>
+                        {% for value, label in documento_tipos %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fecha_documento">Fecha del documento</label>
+                    <input type="date" name="fecha_documento" id="fecha_documento">
+                    <small class="text-muted">
+                        Si la dejas en blanco, se usará la fecha de inicio del contrato.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="extension">Formato del archivo</label>
+                    <select name="extension" id="extension">
+                        <option value="pdf">PDF</option>
+                        <option value="docx">Word (.docx)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="estado">Estado del documento</label>
+                    <select name="estado" id="estado">
+                        <option value="VIGENTE">Vigente</option>
+                        <option value="REEMPLAZADO">Reemplazado</option>
+                        <option value="ANULADO">Anulado</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="enlace_nextcloud">Enlace al archivo en Nextcloud</label>
+                    <input type="url" name="enlace_nextcloud" id="enlace_nextcloud"
+                           placeholder="Pega aquí el enlace compartido (opcional)">
+                    <small class="text-muted">
+                        Más adelante podemos automatizar la subida del archivo; por ahora puedes pegar aquí el link.
+                    </small>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}"
+                   class="btn btn-secondary">
+                    ⬅ Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    💾 Guardar documento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

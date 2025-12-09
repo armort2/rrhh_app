@@ -1,26 +1,43 @@
-import os
+# web/app/__init__.py
+
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
+from .config import DevConfig
+from .extensions import db
 
-def create_app():
+
+def create_app(config_class=DevConfig):
     app = Flask(__name__)
+    
+    app.config["SYSTEM_NAME"] = "Sistema Grupo CS"
+    app.config["SYSTEM_TAGLINE"] = "Gestión de Recursos Humanos"
 
-    # Configuración básica
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev_key")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+    app.config.from_object(config_class)
     db.init_app(app)
 
-    # Registrar rutas
-    from .routes import main_bp
-    app.register_blueprint(main_bp)
+    # Blueprints centralizados en app.blueprints
+    from .blueprints import (
+        core_bp,
+        trabajadores_bp,
+        contratos_bp,
+        obras_bp,
+    )
+    from .blueprints.documentos import documentos_bp
 
-    # Crear tablas (por ahora, solo un ejemplo mínimo)
-    from .models import Trabajador
+    app.register_blueprint(core_bp)
+    app.register_blueprint(trabajadores_bp)
+    app.register_blueprint(contratos_bp)
+    app.register_blueprint(obras_bp)
+    app.register_blueprint(documentos_bp)
+
+    from .models import Trabajador  # fuerza carga de modelos
+
     with app.app_context():
         db.create_all()
+
+    # Registrar comandos CLI
+    from .cli import register_cli
+    register_cli(app)
+
 
     return app

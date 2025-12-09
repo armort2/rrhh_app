@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Trabajadores · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Trabajadores</h1>
+            <p class="card-subtitle">
+                Gestión de trabajadores por obra, estado y búsqueda por nombre o RUT.
+            </p>
+        </div>
+        <div class="card-actions">
+            <a href="{{ url_for('trabajadores.nuevo_trabajador') }}" class="btn btn-primary">
+                ➕ Nuevo trabajador
+            </a>
+        </div>
+    </div>
+
+    <!-- ==========================
+         FILTROS / BUSCADOR
+    =========================== -->
+    <form method="get" class="form form-filtros mb-3">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="q">Buscar por RUT o nombre</label>
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ filtro_q or '' }}"
+                    placeholder="Ej: 12.345.678-9, Juan, Pérez..."
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="obra_id">Obra</label>
+                <select id="obra_id" name="obra_id">
+                    <option value="">Todas</option>
+                    {% for o in obras %}
+                        <option value="{{ o.id }}"
+                            {% if filtro_obra_id == o.id %}selected{% endif %}>
+                            {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado trabajador</label>
+                <select id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="VIGENTE" {% if filtro_estado == "VIGENTE" %}selected{% endif %}>Vigente</option>
+                    <option value="DESVINCULADO" {% if filtro_estado == "DESVINCULADO" %}selected{% endif %}>Desvinculado</option>
+                    <option value="SUSPENDIDO" {% if filtro_estado == "SUSPENDIDO" %}selected{% endif %}>Suspendido</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+            <a href="{{ url_for('core.index') }}" class="btn btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    <!-- ==========================
+         TABLA TRABAJADORES
+    =========================== -->
+    {% if trabajadores %}
+        <div class="table-wrapper">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Trabajador</th>
+                        <th>RUT</th>
+                        <th>Obra</th>
+                        <th>Estado</th>
+                        <th>Tipo</th>
+                        <th>Ingreso empresa</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in trabajadores %}
+                        <tr>
+                            <td>
+                                {{ t.nombres }} {{ t.ap_paterno }} {{ t.ap_materno }}
+                            </td>
+                            <td>{{ t.rut }}</td>
+                            <td>
+                                {% if t.obra %}
+                                    {{ t.obra.nombre }}
+                                    {% if t.obra.centro_costo %}
+                                        <br><small class="text-muted">{{ t.obra.centro_costo }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Sin obra</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if t.estado_trabajador == "VIGENTE" %}
+                                    <span class="badge badge-success">Vigente</span>
+                                {% elif t.estado_trabajador == "DESVINCULADO" %}
+                                    <span class="badge badge-danger">Desvinculado</span>
+                                {% elif t.estado_trabajador == "SUSPENDIDO" %}
+                                    <span class="badge badge-warning">Suspendido</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ t.estado_trabajador }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ t.tipo_trabajador or "-" }}</td>
+                            <td>
+                                {% if t.fecha_ingreso_empresa %}
+                                    {{ t.fecha_ingreso_empresa.strftime("%d-%m-%Y") }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-right">
+                                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=t.id) }}"
+                                    class="btn btn-sm btn-link">
+                                    🔍 Ver ficha
+                                </a>
+                                    <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=t.id) }}"
+                                    class="btn btn-sm btn-link">
+                                    ➕ Contrato
+                                </a>
+                            </td>
+
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted">
+            No se encontraron trabajadores con los filtros aplicados.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

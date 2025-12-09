@@ -145,12 +145,13 @@
         =========================== -->
         <div class="form-actions">
             {% if trabajador %}
-                <a href="{{ url_for('main.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-secondary">
-                    ⬅ Volver a la ficha del trabajador
+                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-secondary">
+                    🔙 Volver a la ficha del trabajador
                 </a>
+
             {% else %}
                 <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
-                    ⬅ Volver al inicio
+                    🏠 Volver al inicio
                 </a>
             {% endif %}
             <button type="submit" class="btn btn-primary">Guardar contrato</button>

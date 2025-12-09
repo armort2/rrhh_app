@@ -1,5 +1,11 @@
 from sqlalchemy.sql import func
-from . import db
+from .extensions import db
+from .config import (
+    normalizar_nombre_trabajador,
+    NEXTCLOUD_BASE_PATH,
+    generar_nombre_documento,
+)
+from datetime import date
 
 
 # ==========================
@@ -276,6 +282,94 @@ class Trabajador(db.Model):
     # Relación con contratos
     contratos = db.relationship("Contrato", back_populates="trabajador", lazy=True)
 
+    # ==========================
+    # Helpers de documentación / Nextcloud
+    # ==========================
+
+    @property
+    def carpeta_nombre(self) -> str:
+        """
+        Nombre estándar de carpeta del trabajador en Nextcloud.
+        Ej: 12345710-2_PAILLALEVE_GUINEO_HECTOR_DAVID
+        """
+        return normalizar_nombre_trabajador(
+            self.rut,
+            self.nombres,
+            self.ap_paterno,
+            self.ap_materno,
+        )
+
+    @property
+    def empleador_preferente(self):
+        """
+        Determina el empleador "principal" del trabajador
+        EXCLUSIVAMENTE en función de sus contratos:
+
+        1) Primero, busca contratos VIGENTES con empleador.
+           - Toma el más reciente según fecha_inicio.
+        2) Si no hay vigentes, busca cualquier contrato con empleador.
+           - También toma el más reciente.
+
+        Si no hay contratos con empleador asociado, devuelve None.
+        """
+        if not self.contratos:
+            return None
+
+        # 1) Contratos vigentes con empleador
+        contratos_vigentes = [
+            c for c in self.contratos
+            if c.estado_contrato == "VIGENTE" and c.empleador is not None
+        ]
+
+        if contratos_vigentes:
+            contratos_ordenados = sorted(
+                contratos_vigentes,
+                key=lambda c: (c.fecha_inicio or date.min),
+                reverse=True,
+            )
+            return contratos_ordenados[0].empleador
+
+        # 2) Si no hay vigentes, tomar cualquier contrato con empleador
+        contratos_con_empleador = [
+            c for c in self.contratos
+            if c.empleador is not None
+        ]
+
+        if contratos_con_empleador:
+            contratos_ordenados = sorted(
+                contratos_con_empleador,
+                key=lambda c: (c.fecha_inicio or date.min),
+                reverse=True,
+            )
+            return contratos_ordenados[0].empleador
+
+        # Ningún contrato tiene empleador
+        return None
+
+    def ruta_nextcloud(self, empleador_nombre: str) -> str:
+        """
+        Devuelve la ruta lógica donde deberían guardarse sus documentos
+        para un empleador dado.
+        """
+        return NEXTCLOUD_BASE_PATH.format(
+            empleador=empleador_nombre,
+            carpeta_trabajador=self.carpeta_nombre,
+        )
+
+    @property
+    def ruta_nextcloud_preferente(self) -> str | None:
+        """
+        Usa el empleador_preferente (derivado de los contratos) para
+        construir la ruta lógica en Nextcloud.
+
+        Si el trabajador no tiene contratos con empleador asociado,
+        devuelve None.
+        """
+        emp = self.empleador_preferente
+        if not emp:
+            return None
+        return self.ruta_nextcloud(emp.razon_social)
+
     def __repr__(self):
         return f"<Trabajador {self.rut} - {self.nombres} {self.ap_paterno}>"
 
@@ -322,31 +416,105 @@ class Contrato(db.Model):
     creado_en = db.Column(db.DateTime(timezone=True), server_default=func.now())
     actualizado_en = db.Column(db.DateTime(timezone=True), onupdate=func.now())
 
+    # Relación con documentos laborales
+    documentos = db.relationship(
+        "DocumentoLaboral",
+        back_populates="contrato",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
+
     def __repr__(self):
         return f"<Contrato {self.id} Trabajador={self.trabajador_id}>"
     
+
+# ==========================
+# Documentos laborales
+# ==========================
+
 class DocumentoLaboral(db.Model):
     __tablename__ = "documentos_laborales"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Siempre ligado a un contrato específico
     contrato_id = db.Column(db.Integer, db.ForeignKey("contratos.id"), nullable=False)
-    contrato = db.relationship("Contrato", backref="documentos_laborales", lazy=True)
+    contrato = db.relationship("Contrato", back_populates="documentos")
 
-    # Clasificación del documento
-    tipo_documento = db.Column(db.String(50), nullable=False)
-    # Ej: "CONTRATO", "ANEXO", "FINIQUITO", "CARTA_AVISO", "AMONESTACION"
+    # carpeta / tipo según Nextcloud: CONTRATOS, ANEXOS, etc.
+    tipo = db.Column(db.String(50), nullable=False)
 
-    fecha_documento = db.Column(db.Date, nullable=False, default=func.current_date())
-    descripcion = db.Column(db.String(255), nullable=True)
+    nombre_archivo = db.Column(db.String(255), nullable=False)
+    ruta_archivo = db.Column(db.String(500), nullable=True)  # enlace Nextcloud (opcional)
 
-    # Ruta donde quedó guardado el PDF / DOCX (por ejemplo en Nextcloud)
-    ruta_archivo = db.Column(db.String(500), nullable=True)
+    estado = db.Column(db.String(20), nullable=False, default="VIGENTE")
+    fecha_creacion = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
-    # Auditoría básica
-    creado_en = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    creado_por = db.Column(db.String(50), nullable=True)
+    # ==========================
+    # Fábricas / helpers de creación
+    # ==========================
+
+    @classmethod
+    def crear_para_contrato(
+        cls,
+        contrato,
+        tipo: str,
+        fecha_ref: date | None = None,
+        extension: str = "pdf",
+        ruta_archivo: str | None = None,
+        estado: str = "VIGENTE",
+    ):
+        if not contrato or not contrato.trabajador:
+            raise ValueError("Se requiere un contrato con trabajador asociado.")
+
+        trabajador = contrato.trabajador
+        ap_paterno = trabajador.ap_paterno or ""
+
+        if fecha_ref is None:
+            fecha_ref = contrato.fecha_inicio
+
+        nombre_archivo = generar_nombre_documento(
+            tipo=tipo,
+            ap_paterno=ap_paterno,
+            fecha_ref=fecha_ref,
+            extension=extension,
+        )
+
+        return cls(
+            contrato_id=contrato.id,
+            tipo=tipo,
+            nombre_archivo=nombre_archivo,
+            ruta_archivo=ruta_archivo,
+            estado=estado,
+        )
+
+    # ==========================
+    # Helpers de ruta
+    # ==========================
+
+    @property
+    def carpeta_destino(self) -> str | None:
+        """
+        Carpeta lógica en Nextcloud, ej:
+        .../TRABAJADORES/<CARPETA_TRABAJADOR>/CONTRATOS
+        """
+        if not self.contrato or not self.contrato.trabajador or not self.contrato.empleador:
+            return None
+
+        base = self.contrato.trabajador.ruta_nextcloud(
+            self.contrato.empleador.razon_social
+        )
+        return f"{base}/{self.tipo.upper()}"
+
+    @property
+    def ruta_completa(self) -> str | None:
+        """
+        Ruta lógica completa: carpeta + nombre archivo.
+        """
+        carpeta = self.carpeta_destino
+        if not carpeta:
+            return None
+        return f"{carpeta}/{self.nombre_archivo}"
 
     def __repr__(self):
-        return f"<DocumentoLaboral {self.tipo_documento} contrato={self.contrato_id}>"
+        return f"<DocumentoLaboral {self.id} Contrato={self.contrato_id} Tipo={self.tipo}>"

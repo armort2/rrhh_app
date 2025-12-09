@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos del contrato {{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Documentos del Contrato #{{ contrato.id }}</h1>
+            <p class="card-subtitle">
+                Trabajador: {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }}
+                · Empleador: {{ contrato.empleador.razon_social if contrato.empleador else '-' }}
+            </p>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        {% if contrato.documentos %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tipo</th>
+                            <th>Archivo</th>
+                            <th>Estado</th>
+                            <th>Creado en</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for d in contrato.documentos %}
+                        <tr>
+                            <td>{{ d.id }}</td>
+                            <td>{{ d.tipo }}</td>
+                            <td>{{ d.nombre_archivo }}</td>
+                            <td>{{ d.estado }}</td>
+                            <td>{{ d.fecha_creacion.strftime('%d-%m-%Y %H:%M') }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No existen documentos asociados a este contrato.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

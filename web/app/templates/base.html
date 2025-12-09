@@ -2,57 +2,70 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>{% block title %}GRUPO CS - RRHH{% endblock %}</title>
+    <title>
+        {{ config.SYSTEM_NAME or "Sistema Grupo CS" }}{% if title %} – {{ title }}{% endif %}
+    </title>
+
+    <meta name="description" content="Plataforma interna para la gestión de personas, contratos y otros del Grupo CS.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Estilos -->
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <!-- CSS principal -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
+
 <body>
     <header class="topbar">
-        <div class="topbar-inner container">
-            <div class="brand">
-                {% if false %}
-                <!-- Solo para evitar error si aún no subes el logo -->
-                {% endif %}
-                <div class="brand-logo">
-                    <img src="{{ url_for('static', filename='img/logo-grupo-cs.png') }}" alt="Grupo CS" onerror="this.style.display='none'">
-                </div>
-                <div class="brand-text">
-                    <span class="brand-title">GRUPO CS</span>
-                    <span class="brand-subtitle">Sistema de Gestión RRHH</span>
-                </div>
+    <div class="topbar-left">
+        <!-- Logo correcto según tu ruta real -->
+        <img src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}" alt="Grupo CS" class="logo">
+        <div class="topbar-text">
+            <div class="system-name">{{ config.SYSTEM_NAME or "Sistema Grupo CS" }}</div>
+            <div class="system-tagline">{{ config.SYSTEM_TAGLINE or "Gestión de Personas y Prevención" }}</div>
+        </div>
+    </div>
+
+    <div class="topbar-right">
+        <nav class="nav-links">
+            <a href="{{ url_for('core.index') }}">Inicio</a>
+            <!-- Por ahora mantenemos Trabajadores apuntando a inicio -->
+            <a href="{{ url_for('core.index') }}#trabajadores">Trabajadores</a>
+            <!-- Rutas directas, sin url_for, para evitar BuildError -->
+            <a href="/obras/">Obras</a>
+            <a href="/contratos/">Contratos</a>
+        </nav>
+
+        {% if current_user is defined and current_user.is_authenticated %}
+            <span class="user-label">Conectado como:</span>
+            <span class="user-name">{{ current_user.nombre }}</span>
+        {% endif %}
+    </div>
+</header>
+
+
+    <main class="content">
+        <div class="page">
+            <div class="container">
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        <div class="flash-container">
+                            {% for m in messages %}
+                                <div class="flash">{{ m }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
             </div>
-
-            <nav class="nav-links">
-                <a href="{{ url_for('main.index') }}">Trabajadores</a>
-                <a href="{{ url_for('main.lista_obras') }}">Obras</a>
-                <a href="{{ url_for('main.lista_contratos') }}">Contratos</a>
-                <!-- Más secciones después: Obras, Reportes, Contratos, etc. -->
-            </nav>
         </div>
-    </header>
 
-    <main class="page">
-        <div class="container">
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                    <div class="flash-container">
-                        {% for m in messages %}
-                            <div class="flash">{{ m }}</div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-
-            {% block content %}{% endblock %}
-        </div>
+        {% block content %}{% endblock %}
     </main>
 
     <footer class="footer">
         <div class="container footer-inner">
             <span>© {{ 2025 }} Grupo CS · Sistema Interno RRHH</span>
-            <span class="footer-right">Desarrollado con cariño por Armandini & Don GPTito 🫡</span>
+            <span class="footer-right">Desarrollado con cariño por Armandini &amp; Don GPTito 🫡</span>
         </div>
     </footer>
 </body>

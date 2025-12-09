@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Editar trabajador · {{ trabajador.nombres }} {{ trabajador.ap_paterno }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Editar trabajador</h1>
+            <p class="card-subtitle">
+                {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
+                · RUT: {{ trabajador.rut }}
+            </p>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="form">
+            <h2 class="section-title">Datos personales</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="rut">RUT</label>
+                    <input type="text" name="rut" id="rut" value="{{ trabajador.rut }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="nombres">Nombres</label>
+                    <input type="text" name="nombres" id="nombres" value="{{ trabajador.nombres }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="ap_paterno">Apellido paterno</label>
+                    <input type="text" name="ap_paterno" id="ap_paterno" value="{{ trabajador.ap_paterno }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="ap_materno">Apellido materno</label>
+                    <input type="text" name="ap_materno" id="ap_materno" value="{{ trabajador.ap_materno }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="fecha_nacimiento">Fecha nacimiento</label>
+                    <input type="date" name="fecha_nacimiento" id="fecha_nacimiento"
+                           value="{{ trabajador.fecha_nacimiento.strftime('%Y-%m-%d') if trabajador.fecha_nacimiento }}">
+                </div>
+                <div class="form-group">
+                    <label for="nacionalidad">Nacionalidad</label>
+                    <input type="text" name="nacionalidad" id="nacionalidad"
+                           value="{{ trabajador.nacionalidad or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="sexo">Sexo</label>
+                    <select name="sexo" id="sexo">
+                        <option value="" {% if not trabajador.sexo %}selected{% endif %}>No especificado</option>
+                        <option value="M" {% if trabajador.sexo == 'M' %}selected{% endif %}>Masculino</option>
+                        <option value="F" {% if trabajador.sexo == 'F' %}selected{% endif %}>Femenino</option>
+                        <option value="X" {% if trabajador.sexo == 'X' %}selected{% endif %}>Otro / X</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="estado_civil">Estado civil</label>
+                    <input type="text" name="estado_civil" id="estado_civil"
+                           value="{{ trabajador.estado_civil or '' }}">
+                </div>
+            </div>
+
+            <h2 class="section-title">Contacto</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="direccion">Dirección</label>
+                    <input type="text" name="direccion" id="direccion" value="{{ trabajador.direccion or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="comuna">Comuna</label>
+                    <input type="text" name="comuna" id="comuna" value="{{ trabajador.comuna or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="telefono">Teléfono</label>
+                    <input type="text" name="telefono" id="telefono" value="{{ trabajador.telefono or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="telefono_emergencia">Teléfono emergencia</label>
+                    <input type="text" name="telefono_emergencia" id="telefono_emergencia"
+                           value="{{ trabajador.telefono_emergencia or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="correo">Correo</label>
+                    <input type="email" name="correo" id="correo" value="{{ trabajador.correo or '' }}">
+                </div>
+            </div>
+
+            <h2 class="section-title">Obra y cargo</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="obra_id">Obra actual</label>
+                    <select name="obra_id" id="obra_id" required>
+                        <option value="">-- Selecciona obra --</option>
+                        {% for obra in obras %}
+                            <option value="{{ obra.id }}"
+                                    {% if trabajador.obra_id == obra.id %}selected{% endif %}>
+                                {{ obra.nombre }}
+                                {% if obra.centro_costo %} ({{ obra.centro_costo }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="cargo_id">Cargo actual</label>
+                    <select name="cargo_id" id="cargo_id" required>
+                        <option value="">-- Selecciona cargo --</option>
+                        {% for cargo in cargos %}
+                            <option value="{{ cargo.id }}"
+                                    {% if trabajador.cargo_id == cargo.id %}selected{% endif %}>
+                                {{ cargo.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <h2 class="section-title">Estado laboral</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="estado_trabajador">Estado trabajador</label>
+                    <select name="estado_trabajador" id="estado_trabajador">
+                        <option value="VIGENTE" {% if trabajador.estado_trabajador == 'VIGENTE' %}selected{% endif %}>VIGENTE</option>
+                        <option value="SUSPENDIDO" {% if trabajador.estado_trabajador == 'SUSPENDIDO' %}selected{% endif %}>SUSPENDIDO</option>
+                        <option value="DESVINCULADO" {% if trabajador.estado_trabajador == 'DESVINCULADO' %}selected{% endif %}>DESVINCULADO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tipo_trabajador">Tipo trabajador</label>
+                    <input type="text" name="tipo_trabajador" id="tipo_trabajador"
+                           value="{{ trabajador.tipo_trabajador or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="fecha_ingreso_empresa">Fecha ingreso empresa</label>
+                    <input type="date" name="fecha_ingreso_empresa" id="fecha_ingreso_empresa"
+                           value="{{ trabajador.fecha_ingreso_empresa.strftime('%Y-%m-%d') if trabajador.fecha_ingreso_empresa }}">
+                </div>
+                <div class="form-group">
+                    <label for="fecha_egreso_empresa">Fecha egreso empresa</label>
+                    <input type="date" name="fecha_egreso_empresa" id="fecha_egreso_empresa"
+                           value="{{ trabajador.fecha_egreso_empresa.strftime('%Y-%m-%d') if trabajador.fecha_egreso_empresa }}">
+                </div>
+            </div>
+
+            <h2 class="section-title">Previsional</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="afp_id">AFP</label>
+                    <select name="afp_id" id="afp_id">
+                        <option value="">-- Selecciona AFP --</option>
+                        {% for afp in afps %}
+                            <option value="{{ afp.id }}"
+                                    {% if trabajador.afp_id == afp.id %}selected{% endif %}>
+                                {{ afp.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="salud_id">Salud</label>
+                    <select name="salud_id" id="salud_id">
+                        <option value="">-- Selecciona sistema de salud --</option>
+                        {% for s in salud_list %}
+                            <option value="{{ s.id }}"
+                                    {% if trabajador.salud_id == s.id %}selected{% endif %}>
+                                {{ s.nombre }} ({{ s.tipo }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="caja_compensacion_id">Caja de compensación</label>
+                    <select name="caja_compensacion_id" id="caja_compensacion_id">
+                        <option value="">-- Selecciona caja --</option>
+                        {% for c in cajas %}
+                            <option value="{{ c.id }}"
+                                    {% if trabajador.caja_compensacion_id == c.id %}selected{% endif %}>
+                                {{ c.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}"
+                    class="btn btn-secondary">
+                        ⬅ Cancelar
+                    </a>
+
+
+                <button type="submit" class="btn btn-primary">
+                    💾 Guardar cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

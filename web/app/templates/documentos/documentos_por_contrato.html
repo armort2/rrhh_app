@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos contrato #{{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Documentos del contrato #{{ contrato.id }}</h1>
+            <p class="card-subtitle">
+                Trabajador:
+                {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+                · RUT: {{ contrato.trabajador.rut }}<br>
+                Empleador:
+                {% if contrato.empleador %}
+                    {{ contrato.empleador.razon_social }}
+                {% else %}
+                    — Sin empleador asociado —
+                {% endif %}<br>
+                Obra:
+                {% if contrato.obra %}
+                    {{ contrato.obra.nombre }}
+                    {% if contrato.obra.centro_costo %} ({{ contrato.obra.centro_costo }}){% endif %}
+                {% else %}
+                    — Sin obra —
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('documentos.nuevo_documento_contrato', contrato_id=contrato.id) }}"
+               class="btn btn-primary">
+                ➕ Registrar documento
+            </a>
+        </div>
+    </div>
+
+    <div class="card-body">
+        {% if contrato.documentos %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Nombre archivo</th>
+                            <th>Ruta lógica</th>
+                            <th>Estado</th>
+                            <th>Creado en</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in contrato.documentos %}
+                            <tr>
+                                <td>
+                                    {{ tipos_dict.get(doc.tipo, doc.tipo) }}
+                                </td>
+                                <td>{{ doc.nombre_archivo }}</td>
+                                <td>
+                                    {% if doc.ruta_completa %}
+                                        <span class="text-muted">{{ doc.ruta_completa }}</span>
+                                    {% else %}
+                                        <span class="text-muted">No se pudo determinar ruta lógica</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ doc.estado }}</td>
+                                <td>
+                                    {% if doc.fecha_creacion %}
+                                        {{ doc.fecha_creacion.strftime('%d-%m-%Y %H:%M') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if doc.ruta_archivo %}
+                                        <a href="{{ doc.ruta_archivo }}" target="_blank" class="btn btn-secondary">
+                                            🔗 Abrir en Nextcloud
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Sin enlace</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">
+                Aún no hay documentos registrados para este contrato.
+            </p>
+        {% endif %}
+    </div>
+
+    <div class="card-footer form-actions">
+        <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id) }}"
+           class="btn btn-secondary">
+            ⬅ Volver a ficha del trabajador
+        </a>
+    </div>
+</div>
+{% endblock %}

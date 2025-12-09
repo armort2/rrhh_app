@@ -6,347 +6,179 @@
 <div class="card">
     <div class="card-header">
         <div>
-            <h1 class="card-title">
-                {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
-            </h1>
+            <h1 class="card-title">Ficha del trabajador</h1>
             <p class="card-subtitle">
-                RUT: {{ trabajador.rut }}
-                · Obra actual:
-                {% if trabajador.obra %}
-                    {{ trabajador.obra.nombre }}
-                    {% if trabajador.obra.centro_costo %} ({{ trabajador.obra.centro_costo }}){% endif %}
-                {% else %}
-                    Sin obra asignada
-                {% endif %}
+                {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
+                · RUT: {{ trabajador.rut }}
             </p>
         </div>
-        <div class="badge {{ 'badge-success' if trabajador.estado_trabajador == 'VIGENTE' else 'badge-warning' }}">
-            {{ trabajador.estado_trabajador }}
+        <div class="card-actions">
+            <a href="{{ url_for('trabajadores.editar_trabajador', trabajador_id=trabajador.id) }}"
+               class="btn btn-secondary">
+                ✏️ Editar datos
+            </a>
+            <a href="{{ url_for('core.index') }}" class="btn btn-outline-secondary">
+                ⬅ Volver al listado
+            </a>
         </div>
     </div>
 
     <div class="card-body">
-
-        <!-- ==========================
-             DATOS PERSONALES
-        =========================== -->
+        <!-- Datos principales -->
         <h2 class="section-title">Datos personales</h2>
-        <div class="two-column">
+        <div class="form-grid readonly-grid">
             <div>
-                <ul class="data-list">
-                    <li><strong>RUT:</strong> {{ trabajador.rut }}</li>
-                    <li><strong>Nombre completo:</strong> {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}</li>
-                    <li>
-                        <strong>Fecha nacimiento:</strong>
-                        {% if trabajador.fecha_nacimiento %}
-                            {{ trabajador.fecha_nacimiento.strftime('%d-%m-%Y') }}
-                        {% else %}
-                            No registrada
-                        {% endif %}
-                    </li>
-                    <li><strong>Nacionalidad:</strong> {{ trabajador.nacionalidad or 'No registrada' }}</li>
-                    <li><strong>Sexo:</strong> {{ trabajador.sexo or 'No registrado' }}</li>
-                    <li><strong>Estado civil:</strong> {{ trabajador.estado_civil or 'No registrado' }}</li>
-                    <li><strong>N° cargas familiares:</strong> {{ trabajador.num_cargas_familiares or 0 }}</li>
-                </ul>
+                <strong>RUT:</strong><br>
+                {{ trabajador.rut }}
             </div>
             <div>
-                <ul class="data-list">
-                    <li><strong>Dirección:</strong> {{ trabajador.direccion or 'No registrada' }}</li>
-                    <li><strong>Comuna:</strong> {{ trabajador.comuna or 'No registrada' }}</li>
-                    <li><strong>Teléfono:</strong> {{ trabajador.telefono or 'No registrado' }}</li>
-                    <li><strong>Teléfono emergencia:</strong> {{ trabajador.telefono_emergencia or 'No registrado' }}</li>
-                    <li><strong>Correo:</strong> {{ trabajador.correo or 'No registrado' }}</li>
-                    <li>
-                        <strong>Condiciones especiales:</strong>
-                        {% set especiales = [] %}
-                        {% if trabajador.es_extranjero %}{% set _ = especiales.append('Extranjero') %}{% endif %}
-                        {% if trabajador.es_discapacitado %}{% set _ = especiales.append('Discapacidad') %}{% endif %}
-                        {% if trabajador.es_pensionado %}{% set _ = especiales.append('Pensionado') %}{% endif %}
-                        {{ especiales|join(', ') if especiales else 'Sin condiciones especiales registradas' }}
-                    </li>
-                </ul>
+                <strong>Nombres:</strong><br>
+                {{ trabajador.nombres }}
+            </div>
+            <div>
+                <strong>Apellido paterno:</strong><br>
+                {{ trabajador.ap_paterno }}
+            </div>
+            <div>
+                <strong>Apellido materno:</strong><br>
+                {{ trabajador.ap_materno }}
+            </div>
+            <div>
+                <strong>Fecha nacimiento:</strong><br>
+                {% if trabajador.fecha_nacimiento %}
+                    {{ trabajador.fecha_nacimiento.strftime("%d-%m-%Y") }}
+                {% else %}-{% endif %}
+            </div>
+            <div>
+                <strong>Nacionalidad:</strong><br>
+                {{ trabajador.nacionalidad or "-" }}
+            </div>
+            <div>
+                <strong>Sexo:</strong><br>
+                {{ trabajador.sexo or "-" }}
+            </div>
+            <div>
+                <strong>Estado civil:</strong><br>
+                {{ trabajador.estado_civil or "-" }}
             </div>
         </div>
 
-        <!-- ==========================
-             DATOS BANCARIOS
-        =========================== -->
-        <h2 class="section-title">Datos bancarios</h2>
-        <div class="two-column">
+        <h2 class="section-title mt-4">Contacto</h2>
+        <div class="form-grid readonly-grid">
             <div>
-                <h3 class="section-subtitle">Cuenta del trabajador</h3>
-                <ul class="data-list">
-                    <li>
-                        <strong>Banco:</strong>
-                        {% if trabajador.banco %}
-                            {% if trabajador.banco.codigo_sbif %}
-                                {{ trabajador.banco.codigo_sbif }} - {{ trabajador.banco.nombre }}
-                            {% else %}
-                                {{ trabajador.banco.nombre }}
-                            {% endif %}
-                        {% else %}
-                            No registra banco / pago en efectivo
-                        {% endif %}
-                    </li>
-                    <li><strong>Tipo de cuenta:</strong> {{ trabajador.tipo_cuenta or 'No registrado' }}</li>
-                    <li><strong>N° cuenta:</strong> {{ trabajador.cuenta_numero or 'No registrado' }}</li>
-                    {% if trabajador.tipo_cuenta == 'CTA_RUT' and trabajador.cuenta_rut %}
-                        <li><strong>Cuenta RUT base:</strong> {{ trabajador.cuenta_rut }}</li>
-                    {% endif %}
-                </ul>
+                <strong>Dirección:</strong><br>
+                {{ trabajador.direccion or "-" }}
             </div>
             <div>
-                <h3 class="section-subtitle">Pago a cuenta de tercero</h3>
-                {% if trabajador.pago_tercero_activo %}
-                    <ul class="data-list">
-                        <li><strong>RUT tercero:</strong> {{ trabajador.pago_tercero_rut or 'No registrado' }}</li>
-                        <li><strong>Nombre tercero:</strong> {{ trabajador.pago_tercero_nombre or 'No registrado' }}</li>
-                        <li>
-                            <strong>Banco tercero:</strong>
-                            {% if trabajador.pago_tercero_banco %}
-                                {% if trabajador.pago_tercero_banco.codigo_sbif %}
-                                    {{ trabajador.pago_tercero_banco.codigo_sbif }} - {{ trabajador.pago_tercero_banco.nombre }}
-                                {% else %}
-                                    {{ trabajador.pago_tercero_banco.nombre }}
-                                {% endif %}
-                            {% else %}
-                                No registrado
-                            {% endif %}
-                        </li>
-                        <li><strong>Tipo cuenta tercero:</strong> {{ trabajador.pago_tercero_tipo_cuenta or 'No registrado' }}</li>
-                        <li><strong>N° cuenta tercero:</strong> {{ trabajador.pago_tercero_cuenta_numero or 'No registrado' }}</li>
-                    </ul>
+                <strong>Comuna:</strong><br>
+                {{ trabajador.comuna or "-" }}
+            </div>
+            <div>
+                <strong>Teléfono:</strong><br>
+                {{ trabajador.telefono or "-" }}
+            </div>
+            <div>
+                <strong>Teléfono emergencia:</strong><br>
+                {{ trabajador.telefono_emergencia or "-" }}
+            </div>
+            <div>
+                <strong>Correo:</strong><br>
+                {{ trabajador.correo or "-" }}
+            </div>
+        </div>
+
+        <h2 class="section-title mt-4">Situación laboral</h2>
+        <div class="form-grid readonly-grid">
+            <div>
+                <strong>Obra actual:</strong><br>
+                {% if trabajador.obra %}
+                    {{ trabajador.obra.nombre }}
+                    {% if trabajador.obra.centro_costo %}
+                        <br><small class="text-muted">{{ trabajador.obra.centro_costo }}</small>
+                    {% endif %}
                 {% else %}
-                    <p class="text-muted">No tiene autorizado pago a cuenta de tercero.</p>
+                    <span class="text-muted">Sin obra asignada</span>
                 {% endif %}
             </div>
-        </div>
-
-        <!-- ==========================
-             PREVISIONAL
-        =========================== -->
-        <h2 class="section-title">Previsional</h2>
-        <div class="two-column">
             <div>
-                <ul class="data-list">
-                    <li>
-                        <strong>AFP:</strong>
-                        {% if trabajador.afp %}
-                            {{ trabajador.afp.nombre }}
-                        {% else %}
-                            No registra AFP
-                        {% endif %}
-                    </li>
-                    <li>
-                        <strong>Salud:</strong>
-                        {% if trabajador.salud %}
-                            {{ trabajador.salud.nombre }} ({{ trabajador.salud.tipo }})
-                        {% else %}
-                            No registra sistema de salud
-                        {% endif %}
-                    </li>
-                    <li>
-                        <strong>Plan salud (UF):</strong>
-                        {% if trabajador.uf_plan_salud %}
-                            {{ "%.2f"|format(trabajador.uf_plan_salud) }}
-                        {% else %}
-                            No aplica / No registrado
-                        {% endif %}
-                    </li>
-                    <li>
-                        <strong>Caja de compensación:</strong>
-                        {% if trabajador.caja_compensacion %}
-                            {{ trabajador.caja_compensacion.nombre }}
-                        {% else %}
-                            No registra caja
-                        {% endif %}
-                    </li>
-                </ul>
+                <strong>Cargo actual:</strong><br>
+                {% if trabajador.cargo %}
+                    {{ trabajador.cargo.nombre }}
+                {% else %}
+                    <span class="text-muted">Sin cargo asignado</span>
+                {% endif %}
             </div>
             <div>
-                <h3 class="section-subtitle">APV</h3>
-                <ul class="data-list">
-                    <li><strong>Tiene APV:</strong> {{ 'Sí' if trabajador.apv_activo else 'No' }}</li>
-                    <li><strong>Modalidad:</strong> {{ trabajador.apv_modalidad or 'No aplica' }}</li>
-                    <li>
-                        <strong>Valor:</strong>
-                        {% if trabajador.apv_valor %}
-                            {{ trabajador.apv_valor }}
-                        {% else %}
-                            No aplica
-                        {% endif %}
-                    </li>
-                    <li><strong>Institución:</strong> {{ trabajador.apv_institucion or 'No aplica' }}</li>
-                </ul>
-
-                <h3 class="section-subtitle" style="margin-top:1rem;">CAV</h3>
-                <ul class="data-list">
-                    <li><strong>Tiene CAV:</strong> {{ 'Sí' if trabajador.cav_activo else 'No' }}</li>
-                    <li><strong>Modalidad:</strong> {{ trabajador.cav_modalidad or 'No aplica' }}</li>
-                    <li>
-                        <strong>Valor:</strong>
-                        {% if trabajador.cav_valor %}
-                            {{ trabajador.cav_valor }}
-                        {% else %}
-                            No aplica
-                        {% endif %}
-                    </li>
-                    <li><strong>Institución:</strong> {{ trabajador.cav_institucion or 'No aplica' }}</li>
-                </ul>
+                <strong>Estado trabajador:</strong><br>
+                {{ trabajador.estado_trabajador or "-" }}
+            </div>
+            <div>
+                <strong>Tipo trabajador:</strong><br>
+                {{ trabajador.tipo_trabajador or "-" }}
+            </div>
+            <div>
+                <strong>Fecha ingreso empresa:</strong><br>
+                {% if trabajador.fecha_ingreso_empresa %}
+                    {{ trabajador.fecha_ingreso_empresa.strftime("%d-%m-%Y") }}
+                {% else %}-{% endif %}
+            </div>
+            <div>
+                <strong>Fecha egreso empresa:</strong><br>
+                {% if trabajador.fecha_egreso_empresa %}
+                    {{ trabajador.fecha_egreso_empresa.strftime("%d-%m-%Y") }}
+                {% else %}-{% endif %}
             </div>
         </div>
 
         <!-- ==========================
-             ESTADO LABORAL
+             CONTRATOS ASOCIADOS
         =========================== -->
-        <h2 class="section-title">Estado laboral</h2>
-        <div class="two-column">
-            <div>
-                <ul class="data-list">
-                    <li><strong>Estado trabajador:</strong> {{ trabajador.estado_trabajador }}</li>
-                    <li><strong>Tipo trabajador:</strong> {{ trabajador.tipo_trabajador or 'No especificado' }}</li>
-                    <li>
-                        <strong>Fecha ingreso empresa:</strong>
-                        {% if trabajador.fecha_ingreso_empresa %}
-                            {{ trabajador.fecha_ingreso_empresa.strftime('%d-%m-%Y') }}
-                        {% else %}
-                            No registrada
-                        {% endif %}
-                    </li>
-                    <li>
-                        <strong>Fecha egreso empresa:</strong>
-                        {% if trabajador.fecha_egreso_empresa %}
-                            {{ trabajador.fecha_egreso_empresa.strftime('%d-%m-%Y') }}
-                        {% else %}
-                            No registra egreso
-                        {% endif %}
-                    </li>
-                </ul>
-            </div>
-            <div>
-                <h3 class="section-subtitle">Seguridad y salud ocupacional</h3>
-                <ul class="data-list">
-                    <li>
-                        <strong>Examen preocupacional:</strong>
-                        {% if trabajador.tiene_examen_preocupacional %}
-                            Sí
-                            {% if trabajador.fecha_examen_preocupacional %}
-                                ({{ trabajador.fecha_examen_preocupacional.strftime('%d-%m-%Y') }})
-                            {% endif %}
-                        {% else %}
-                            No registrado
-                        {% endif %}
-                    </li>
-                    <li>
-                        <strong>Curso de altura:</strong>
-                        {% if trabajador.tiene_curso_altura %}
-                            Sí
-                            {% if trabajador.fecha_vencimiento_curso_altura %}
-                                · Vence: {{ trabajador.fecha_vencimiento_curso_altura.strftime('%d-%m-%Y') }}
-                            {% endif %}
-                        {% else %}
-                            No registrado
-                        {% endif %}
-                    </li>
-                    <li>
-                        <strong>Inducción de obra:</strong>
-                        {% if trabajador.tiene_induccion_obra %}
-                            Sí
-                            {% if trabajador.fecha_induccion_obra %}
-                                ({{ trabajador.fecha_induccion_obra.strftime('%d-%m-%Y') }})
-                            {% endif %}
-                        {% else %}
-                            No registrada
-                        {% endif %}
-                    </li>
-                </ul>
-            </div>
+        <h2 class="section-title mt-5">Contratos asociados</h2>
+
+        <div class="mb-3">
+            <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id) }}"
+               class="btn btn-primary">
+                ➕ Crear nuevo contrato
+            </a>
         </div>
 
-        <!-- ==========================
-             CONTRATOS DEL TRABAJADOR
-        =========================== -->
-        <h2 class="section-title">Contratos asociados</h2>
-
-        {% if trabajador.contratos %}
+        {% if contratos %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table table-striped table-hover">
                     <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Empleador</th>
-                            <th>Obra</th>
-                            <th>Cargo</th>
-                            <th>Tipo contrato</th>
-                            <th>Fecha inicio</th>
-                            <th>Fecha término</th>
-                            <th>Estado</th>
-                        </tr>
+                    <tr>
+                        <th>ID Contrato</th>
+                        <th>Trabajador</th>
+                        <th></th>
+                    </tr>
                     </thead>
                     <tbody>
-                        {% for c in trabajador.contratos %}
-                            <tr>
-                                <td>
-                                    <a href="{{ url_for('main.contrato_detalle', contrato_id=c.id) }}">
-                                        {{ c.id }}
-                                    </a>
-                                </td>
-                                <td>
-                                    {% if c.empleador %}
-                                        {{ c.empleador.razon_social }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if c.obra %}
-                                        {{ c.obra.nombre }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if c.cargo %}
-                                        {{ c.cargo.nombre }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>{{ c.tipo_contrato or '-' }}</td>
-                                <td>
-                                    {% if c.fecha_inicio %}
-                                        {{ c.fecha_inicio.strftime('%d-%m-%Y') }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if c.fecha_termino %}
-                                        {{ c.fecha_termino.strftime('%d-%m-%Y') }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>{{ c.estado_contrato }}</td>
-                            </tr>
-                        {% endfor %}
+                    {% for c in contratos %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">
+                                    {{ c.id }}
+                                </a>
+                            </td>
+                            <td>
+                                {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
+                            </td>
+                            <td class="text-right">
+                                <a href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}"
+                                   class="btn btn-sm btn-link">
+                                    Ver contrato
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
             <p class="text-muted">
-                Este trabajador aún no tiene contratos registrados en el sistema.
+                Este trabajador aún no tiene contratos registrados.
             </p>
         {% endif %}
-
-    </div>
-
-    <div class="card-footer form-actions">
-        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">⬅ Volver al listado</a>
-        <a href="{{ url_for('main.nuevo_contrato', trabajador_id=trabajador.id) }}" class="btn btn-primary">
-            ➕ Crear contrato para este trabajador
-        </a>
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Anticipos · Importar{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Importar nómina de anticipos</h1>
+      <p class="card-subtitle">Ruta del archivo en el servidor (por ejemplo /tmp/archivo.xlsx o /data/archivo.xlsx).</p>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <form method="post" class="form">
+      <div class="form-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+        <div class="form-group" style="grid-column: span 4;">
+          <label>Ruta archivo</label>
+          <input class="form-control" name="filepath" placeholder="/tmp/2026-01_import_anticipos_Quintero_CC.xlsx" required>
+          <small class="text-muted">Sugerencia: si no tienes /data montado, copia a /tmp vía docker cp.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Centro de costo</label>
+          <select name="centro_costo" class="form-control" required>
+            <option value="">Seleccione...</option>
+            {% for cc in centros %}
+              <option value="{{ cc }}">{{ cc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Año</label>
+          <input class="form-control" name="anio" type="number" min="2000" max="2100" value="2026" required>
+        </div>
+
+        <div class="form-group">
+          <label>Mes</label>
+          <input class="form-control" name="mes" type="number" min="1" max="12" value="1" required>
+        </div>
+
+        <div class="form-group" style="display:flex; align-items:flex-end; gap:8px;">
+          <label style="display:block; width:100%;">&nbsp;</label>
+          <label style="display:flex; align-items:center; gap:8px; margin:0;">
+            <input type="checkbox" name="allow_reimport" value="1" checked>
+            Permitir reimportar (borra detalles previos)
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; display:flex; gap:8px;">
+        <button class="btn btn-primary" type="submit">Importar</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">Volver</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

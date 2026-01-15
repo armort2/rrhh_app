@@ -1,0 +1,696 @@
+{# web/app/templates/trabajadores/nuevo_trabajador.html #}
+{% extends "base.html" %}
+
+{% block title %}Nuevo Trabajador · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Nuevo Trabajador</h1>
+            <p class="card-subtitle">
+                Ingresa la información maestra del trabajador. Estos datos alimentarán contratos, anexos y reportería.
+            </p>
+        </div>
+    </div>
+
+    <form id="form-nuevo-trabajador"
+        method="post"
+        class="form"
+        action="{{ url_for('trabajadores.nuevo_trabajador', next=request.args.get('next')) }}">
+
+        <input type="hidden" name="accion" id="accion" value="{{ request.form.get('accion','guardar') }}">
+        <input type="hidden" name="next" value="{{ request.args.get('next') or request.form.get('next','') }}">
+
+        <h2 class="section-title">Datos básicos</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="rut">RUT</label>
+                <input
+                    type="text"
+                    id="rut"
+                    name="rut"
+                    required
+                    placeholder="12.345.678-9"
+                    value="{{ request.form.get('rut','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="nombres">Nombres</label>
+                <input
+                    type="text"
+                    id="nombres"
+                    name="nombres"
+                    required
+                    placeholder="Nombres del trabajador"
+                    value="{{ request.form.get('nombres','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="ap_paterno">Apellido paterno</label>
+                <input
+                    type="text"
+                    id="ap_paterno"
+                    name="ap_paterno"
+                    required
+                    placeholder="Apellido paterno"
+                    value="{{ request.form.get('ap_paterno','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="ap_materno">Apellido materno (opcional)</label>
+                <input
+                    type="text"
+                    id="ap_materno"
+                    name="ap_materno"
+                    placeholder="Apellido materno (si aplica)"
+                    value="{{ request.form.get('ap_materno','') }}"
+                >
+                <small>Si no tiene apellido materno, deja este campo vacío.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="obra_id">Obra actual</label>
+                {% set obra_sel = request.form.get("obra_id") %}
+                <select id="obra_id" name="obra_id" required>
+                    <option value="">Selecciona una obra</option>
+                    {% for o in obras %}
+                        <option value="{{ o.id }}" {% if obra_sel and obra_sel|int == o.id %}selected{% endif %}>
+                            {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <h2 class="section-title">Datos personales</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                <input
+                    type="date"
+                    id="fecha_nacimiento"
+                    name="fecha_nacimiento"
+                    value="{{ request.form.get('fecha_nacimiento','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="nacionalidad">Nacionalidad</label>
+                <input
+                    type="text"
+                    id="nacionalidad"
+                    name="nacionalidad"
+                    placeholder="Ej: Chilena"
+                    value="{{ request.form.get('nacionalidad','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="sexo">Sexo</label>
+                {% set sexo_sel = request.form.get("sexo","") %}
+                <select id="sexo" name="sexo">
+                    <option value="" {% if not sexo_sel %}selected{% endif %}>No especificar</option>
+                    <option value="M" {% if sexo_sel == 'M' %}selected{% endif %}>Masculino</option>
+                    <option value="F" {% if sexo_sel == 'F' %}selected{% endif %}>Femenino</option>
+                    <option value="X" {% if sexo_sel == 'X' %}selected{% endif %}>Otro / Prefiere no decir</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado_civil">Estado civil</label>
+                {% set ec_sel = request.form.get("estado_civil","") %}
+                <select id="estado_civil" name="estado_civil">
+                    <option value="" {% if not ec_sel %}selected{% endif %}>No especificar</option>
+                    <option value="SOLTERO" {% if ec_sel == 'SOLTERO' %}selected{% endif %}>Soltero(a)</option>
+                    <option value="CASADO" {% if ec_sel == 'CASADO' %}selected{% endif %}>Casado(a)</option>
+                    <option value="DIVORCIADO" {% if ec_sel == 'DIVORCIADO' %}selected{% endif %}>Divorciado(a)</option>
+                    <option value="VIUDO" {% if ec_sel == 'VIUDO' %}selected{% endif %}>Viudo(a)</option>
+                    <option value="CONVIVIENTE" {% if ec_sel == 'CONVIVIENTE' %}selected{% endif %}>Conviviente civil</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="num_cargas_familiares">N° cargas familiares</label>
+                <input
+                    type="number"
+                    min="0"
+                    id="num_cargas_familiares"
+                    name="num_cargas_familiares"
+                    placeholder="0"
+                    value="{{ request.form.get('num_cargas_familiares','') }}"
+                >
+            </div>
+        </div>
+
+        <h2 class="section-title">Contacto</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="direccion">Dirección</label>
+                <input
+                    type="text"
+                    id="direccion"
+                    name="direccion"
+                    placeholder="Calle, número, depto"
+                    value="{{ request.form.get('direccion','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="comuna">Comuna</label>
+                <input
+                    type="text"
+                    id="comuna"
+                    name="comuna"
+                    placeholder="Comuna de residencia"
+                    value="{{ request.form.get('comuna','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="telefono">Teléfono</label>
+                <input
+                    type="text"
+                    id="telefono"
+                    name="telefono"
+                    placeholder="+56 9 .... ...."
+                    value="{{ request.form.get('telefono','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="telefono_emergencia">Teléfono de emergencia</label>
+                <input
+                    type="text"
+                    id="telefono_emergencia"
+                    name="telefono_emergencia"
+                    placeholder="Contacto de emergencia"
+                    value="{{ request.form.get('telefono_emergencia','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="correo">Correo electrónico</label>
+                <input
+                    type="email"
+                    id="correo"
+                    name="correo"
+                    placeholder="correo@ejemplo.cl"
+                    value="{{ request.form.get('correo','') }}"
+                >
+            </div>
+        </div>
+
+        <!-- ==========================
+             DATOS BANCARIOS
+        =========================== -->
+        <h2 class="section-title">Datos bancarios</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="banco_id">Banco</label>
+                {% set banco_sel = request.form.get("banco_id","") %}
+                <select id="banco_id" name="banco_id">
+                    <option value="">Sin banco / Pago en efectivo</option>
+                    {% for b in bancos %}
+                        <option value="{{ b.id }}" {% if banco_sel and banco_sel|int == b.id %}selected{% endif %}>
+                            {% if b.codigo_sbif %}
+                                {{ b.codigo_sbif }} - {{ b.nombre }}
+                            {% else %}
+                                {{ b.nombre }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_cuenta">Tipo de cuenta</label>
+                {% set tc_sel = request.form.get("tipo_cuenta","") %}
+                <select id="tipo_cuenta" name="tipo_cuenta">
+                    <option value="" {% if not tc_sel %}selected{% endif %}>No especificar</option>
+                    <option value="CORRIENTE" {% if tc_sel == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
+                    <option value="VISTA" {% if tc_sel == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
+                    <option value="AHORRO" {% if tc_sel == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
+                    <option value="CTA_RUT" {% if tc_sel == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
+                </select>
+                <small>Si eliges Cuenta RUT, el número se completará automáticamente desde el RUT.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="cuenta_numero">Número de cuenta</label>
+                <input
+                    type="text"
+                    id="cuenta_numero"
+                    name="cuenta_numero"
+                    placeholder="Ej: 123456789"
+                    value="{{ request.form.get('cuenta_numero','') }}"
+                >
+            </div>
+        </div>
+
+        <h3 class="section-subtitle">Pago a cuenta de tercero (opcional)</h3>
+
+        {% set pt_checked = request.form.get("pago_tercero_activo") %}
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="pago_tercero_activo" name="pago_tercero_activo" value="1"
+                       {% if pt_checked %}checked{% endif %}>
+                Autorización a cuenta de tercero
+            </label>
+            <small>Usar solo cuando exista poder simple o notarial del trabajador.</small>
+        </div>
+
+        <div id="bloque_pago_tercero" class="form-grid" style="display: none;">
+            <div class="form-group">
+                <label for="pago_tercero_rut">RUT del tercero</label>
+                <input
+                    type="text"
+                    id="pago_tercero_rut"
+                    name="pago_tercero_rut"
+                    placeholder="Ej: 12.345.678-9"
+                    value="{{ request.form.get('pago_tercero_rut','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_nombre">Nombre completo del tercero</label>
+                <input
+                    type="text"
+                    id="pago_tercero_nombre"
+                    name="pago_tercero_nombre"
+                    placeholder="Nombre completo del titular de la cuenta"
+                    value="{{ request.form.get('pago_tercero_nombre','') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_banco_id">Banco del tercero</label>
+                {% set pt_banco_sel = request.form.get("pago_tercero_banco_id","") %}
+                <select id="pago_tercero_banco_id" name="pago_tercero_banco_id">
+                    <option value="">Selecciona banco</option>
+                    {% for b in bancos %}
+                        <option value="{{ b.id }}" {% if pt_banco_sel and pt_banco_sel|int == b.id %}selected{% endif %}>
+                            {% if b.codigo_sbif %}
+                                {{ b.codigo_sbif }} - {{ b.nombre }}
+                            {% else %}
+                                {{ b.nombre }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_tipo_cuenta">Tipo de cuenta del tercero</label>
+                {% set pt_tc_sel = request.form.get("pago_tercero_tipo_cuenta","") %}
+                <select id="pago_tercero_tipo_cuenta" name="pago_tercero_tipo_cuenta">
+                    <option value="" {% if not pt_tc_sel %}selected{% endif %}>No especificar</option>
+                    <option value="CORRIENTE" {% if pt_tc_sel == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
+                    <option value="VISTA" {% if pt_tc_sel == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
+                    <option value="AHORRO" {% if pt_tc_sel == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
+                    <option value="CTA_RUT" {% if pt_tc_sel == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pago_tercero_cuenta_numero">Número de cuenta del tercero</label>
+                <input
+                    type="text"
+                    id="pago_tercero_cuenta_numero"
+                    name="pago_tercero_cuenta_numero"
+                    placeholder="Ej: 123456789"
+                    value="{{ request.form.get('pago_tercero_cuenta_numero','') }}"
+                >
+            </div>
+        </div>
+
+        <!-- ==========================
+             PREVISIONAL
+        =========================== -->
+        <h2 class="section-title">Previsional</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="afp_id">AFP</label>
+                {% set afp_sel = request.form.get("afp_id","") %}
+                <select id="afp_id" name="afp_id">
+                    <option value="">Selecciona AFP</option>
+                    {% for a in afps %}
+                        <option value="{{ a.id }}" {% if afp_sel and afp_sel|int == a.id %}selected{% endif %}>
+                            {{ a.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="salud_id">Salud</label>
+                {% set salud_sel = request.form.get("salud_id","") %}
+                <select id="salud_id" name="salud_id">
+                    <option value="">-- Selecciona sistema de salud --</option>
+                    {% for s in salud_list %}
+                        <option value="{{ s.id }}" {% if salud_sel and salud_sel|int == s.id %}selected{% endif %}>
+                            {{ s.nombre }} ({{ s.tipo }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>FONASA o ISAPRE según corresponda.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="uf_plan_salud">Plan de salud (UF)</label>
+                <input
+                    type="text"
+                    id="uf_plan_salud"
+                    name="uf_plan_salud"
+                    placeholder="Ej: 3.20"
+                    value="{{ request.form.get('uf_plan_salud','') }}"
+                >
+                <small>Solo aplica si el trabajador tiene ISAPRE.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="caja_compensacion_id">Caja de compensación</label>
+                {% set caja_sel = request.form.get("caja_compensacion_id","") %}
+                <select id="caja_compensacion_id" name="caja_compensacion_id">
+                    <option value="">Sin caja / No registra</option>
+                    {% for c in cajas %}
+                        <option value="{{ c.id }}" {% if caja_sel and caja_sel|int == c.id %}selected{% endif %}>
+                            {{ c.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>Condiciones especiales</label>
+                <div class="checkbox-row">
+                    <label>
+                        <input type="checkbox" name="es_extranjero" value="1"
+                               {% if request.form.get('es_extranjero') %}checked{% endif %}>
+                        Extranjero
+                    </label>
+                    <label>
+                        <input type="checkbox" name="es_discapacitado" value="1"
+                               {% if request.form.get('es_discapacitado') %}checked{% endif %}>
+                        Discapacidad
+                    </label>
+                    <label>
+                        <input type="checkbox" name="es_pensionado" value="1"
+                               {% if request.form.get('es_pensionado') %}checked{% endif %}>
+                        Pensionado
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================
+             APV Y CAV
+        =========================== -->
+        <h2 class="section-title">Ahorro Previsional Voluntario (APV)</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="apv_activo" name="apv_activo" value="1"
+                           {% if request.form.get('apv_activo') %}checked{% endif %}>
+                    El trabajador tiene APV
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="apv_modalidad">Modalidad APV</label>
+                {% set apv_mod_sel = request.form.get("apv_modalidad","") %}
+                <select id="apv_modalidad" name="apv_modalidad">
+                    <option value="" {% if not apv_mod_sel %}selected{% endif %}>Sin APV / No aplica</option>
+                    <option value="PORCENTAJE" {% if apv_mod_sel == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
+                    <option value="MONTO" {% if apv_mod_sel == 'MONTO' %}selected{% endif %}>Monto fijo</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="apv_valor">Valor APV</label>
+                <input type="text" id="apv_valor" name="apv_valor"
+                       placeholder="Ej: 3.00 (si es %) o 50000 (si es monto)"
+                       value="{{ request.form.get('apv_valor','') }}">
+            </div>
+
+            <div class="form-group">
+                <label for="apv_institucion">Institución APV</label>
+                <input type="text" id="apv_institucion" name="apv_institucion"
+                       placeholder="Institución o administrador del APV"
+                       value="{{ request.form.get('apv_institucion','') }}">
+            </div>
+        </div>
+
+        <h2 class="section-title">Cuenta de Ahorro Voluntario (CAV)</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="cav_activo" name="cav_activo" value="1"
+                           {% if request.form.get('cav_activo') %}checked{% endif %}>
+                    El trabajador tiene CAV
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="cav_modalidad">Modalidad CAV</label>
+                {% set cav_mod_sel = request.form.get("cav_modalidad","") %}
+                <select id="cav_modalidad" name="cav_modalidad">
+                    <option value="" {% if not cav_mod_sel %}selected{% endif %}>Sin CAV / No aplica</option>
+                    <option value="PORCENTAJE" {% if cav_mod_sel == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
+                    <option value="MONTO" {% if cav_mod_sel == 'MONTO' %}selected{% endif %}>Monto fijo</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="cav_valor">Valor CAV</label>
+                <input type="text" id="cav_valor" name="cav_valor"
+                       placeholder="Ej: 2.50 (si es %) o 30000 (si es monto)"
+                       value="{{ request.form.get('cav_valor','') }}">
+            </div>
+
+            <div class="form-group">
+                <label for="cav_institucion">Institución CAV</label>
+                <input type="text" id="cav_institucion" name="cav_institucion"
+                       placeholder="Institución o administrador de la CAV"
+                       value="{{ request.form.get('cav_institucion','') }}">
+            </div>
+        </div>
+
+        <!-- ==========================
+             CARGO (buscador + lista)
+        =========================== -->
+        <h2 class="section-title">Cargo</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="cargo_search">Cargo del trabajador</label>
+                <input
+                    type="text"
+                    id="cargo_search"
+                    name="cargo_search"
+                    list="lista_cargos"
+                    autocomplete="off"
+                    placeholder="Escribe para buscar, ej: albañil, maestro, gerente..."
+                    required
+                    value="{{ request.form.get('cargo_search','') }}"
+                />
+
+                <datalist id="lista_cargos">
+                    {% for c in cargos %}
+                        <option value="{{ c.id }} - {{ c.nombre }}" data-id="{{ c.id }}"></option>
+                    {% endfor %}
+                </datalist>
+
+                <!-- Este es el valor real que se envía al servidor -->
+                <input type="hidden" name="cargo_id" id="cargo_id" value="{{ request.form.get('cargo_id','') }}">
+
+                <small>
+                    Al hacer clic se despliega la lista completa; al escribir, se filtran los cargos.
+                    Debes escoger uno de la lista.
+                </small>
+                <div id="cargo_error" class="text-muted" style="display:none; margin-top:6px;">
+                    Debes seleccionar un cargo desde la lista (no solo escribirlo).
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==========================
+             ESTADO LABORAL
+        =========================== -->
+        <h2 class="section-title">Estado laboral</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="estado_trabajador">Estado del trabajador</label>
+                {% set est_sel = request.form.get("estado_trabajador","VIGENTE") %}
+                <select id="estado_trabajador" name="estado_trabajador">
+                    <option value="VIGENTE" {% if est_sel == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+                    <option value="DESVINCULADO" {% if est_sel == 'DESVINCULADO' %}selected{% endif %}>Desvinculado</option>
+                    <option value="SUSPENDIDO" {% if est_sel == 'SUSPENDIDO' %}selected{% endif %}>Suspendido</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_trabajador">Tipo de trabajador</label>
+                {% set tt_sel = request.form.get("tipo_trabajador","") %}
+                <select id="tipo_trabajador" name="tipo_trabajador">
+                    <option value="" {% if not tt_sel %}selected{% endif %}>No especificar</option>
+                    <option value="DIRECTO" {% if tt_sel == 'DIRECTO' %}selected{% endif %}>Directo</option>
+                    <option value="JEFATURA U OTROS" {% if tt_sel == 'JEFATURA U OTROS' %}selected{% endif %}>Jefatura u otros</option>
+                    <option value="PRACTICANTE" {% if tt_sel == 'PRACTICANTE' %}selected{% endif %}>Practicante</option>
+                    <option value="SUBCONTRATO" {% if tt_sel == 'SUBCONTRATO' %}selected{% endif %}>Subcontrato</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_ingreso_empresa">Fecha de ingreso a la empresa</label>
+                <input type="date" id="fecha_ingreso_empresa" name="fecha_ingreso_empresa"
+                       value="{{ request.form.get('fecha_ingreso_empresa','') }}">
+            </div>
+        </div>
+
+        <!-- ==========================
+             ACCIONES
+        =========================== -->
+
+        <div class="form-actions">
+            <a href="{{ request.args.get('next') or request.form.get('next') or url_for('trabajadores.listado_trabajadores') }}"
+               class="btn btn-secondary">
+               ⬅ Volver
+            </a>
+
+            <button type="submit" class="btn btn-primary" data-accion="guardar">
+                Guardar trabajador
+            </button>
+
+            <button type="submit" class="btn btn-success" data-accion="guardar_crear_contrato">
+                Guardar y crear contrato
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("form-nuevo-trabajador");
+    const accionHidden = document.getElementById("accion");
+
+    if (!form || !accionHidden) return;
+
+    // Captura clicks de botones submit y fija la acción en el hidden
+    form.addEventListener("click", function (ev) {
+        const btn = ev.target.closest("button[type='submit'][data-accion]");
+        if (!btn) return;
+        accionHidden.value = btn.getAttribute("data-accion") || "guardar";
+    });
+
+    // Si el submit se dispara por Enter u otro método, tomamos el submitter si existe
+    form.addEventListener("submit", function (ev) {
+        const submitter = ev.submitter;
+        if (submitter && submitter.dataset && submitter.dataset.accion) {
+            accionHidden.value = submitter.dataset.accion;
+        }
+        if (!accionHidden.value) accionHidden.value = "guardar";
+    });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const inputCargo   = document.getElementById("cargo_search");
+    const hiddenCargo  = document.getElementById("cargo_id");
+    const datalist     = document.getElementById("lista_cargos");
+    const cargoError   = document.getElementById("cargo_error");
+
+    if (!inputCargo || !hiddenCargo || !datalist) return;
+
+    function sincronizarCargoId() {
+        const valor = inputCargo.value.trim();
+        if (!valor) {
+            hiddenCargo.value = "";
+            if (cargoError) cargoError.style.display = "none";
+            return;
+        }
+
+        const opciones = Array.from(datalist.options);
+        const encontrada = opciones.find(opt => opt.value === valor);
+
+        if (encontrada) {
+            hiddenCargo.value = encontrada.getAttribute("data-id") || "";
+            if (cargoError) cargoError.style.display = "none";
+        } else {
+            hiddenCargo.value = "";
+            if (cargoError) cargoError.style.display = "block";
+        }
+    }
+
+    inputCargo.addEventListener("change", sincronizarCargoId);
+    inputCargo.addEventListener("blur", sincronizarCargoId);
+
+    // Si venía repoblado, intentamos sincronizar al cargar
+    sincronizarCargoId();
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const rutInput      = document.getElementById("rut");
+    const tipoCuentaSel = document.getElementById("tipo_cuenta");
+    const cuentaNumInp  = document.getElementById("cuenta_numero");
+
+    if (!rutInput || !tipoCuentaSel || !cuentaNumInp) return;
+
+    function actualizarCuentaRut() {
+        if (tipoCuentaSel.value === "CTA_RUT") {
+            const rut = rutInput.value || "";
+            const soloDigitos = rut.replace(/[^0-9]/g, "");
+            if (soloDigitos.length >= 2) {
+                const base = soloDigitos.slice(0, -1);
+                cuentaNumInp.value = base;
+            }
+            cuentaNumInp.readOnly = true;
+        } else {
+            cuentaNumInp.readOnly = false;
+        }
+    }
+
+    tipoCuentaSel.addEventListener("change", actualizarCuentaRut);
+    rutInput.addEventListener("blur", function () {
+        if (tipoCuentaSel.value === "CTA_RUT") {
+            actualizarCuentaRut();
+        }
+    });
+
+    // Inicial
+    actualizarCuentaRut();
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const chkTercero   = document.getElementById("pago_tercero_activo");
+    const bloqueTercero = document.getElementById("bloque_pago_tercero");
+
+    if (!chkTercero || !bloqueTercero) return;
+
+    const inputsTercero = bloqueTercero.querySelectorAll("input, select");
+
+    function actualizarBloqueTercero() {
+        if (chkTercero.checked) {
+            bloqueTercero.style.display = "grid";
+        } else {
+            bloqueTercero.style.display = "none";
+            inputsTercero.forEach(el => {
+                el.value = "";
+            });
+        }
+    }
+
+    chkTercero.addEventListener("change", actualizarBloqueTercero);
+    actualizarBloqueTercero();
+});
+</script>
+
+{% endblock %}

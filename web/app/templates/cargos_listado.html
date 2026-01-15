@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% set qv = q or '' %}
+{% set estado_v = estado or 'activos' %}
+{% set soporta = soporta_activo|default(false) %}
+{% set cargos_list = cargos|default([]) %}
+
+<div class="container page">
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" style="margin:0;">Catálogo de cargos</h2>
+        <p class="card-subtitle">
+          Administra el catálogo de cargos del sistema (ID, nombre, categoría, descripción y estado).
+        </p>
+      </div>
+      <div class="dashboard-actions">
+        <a class="btn btn-secondary" href="{{ url_for('core.index') }}">Volver</a>
+        <a class="btn btn-secondary" href="{{ url_for('core.cargos_listado') }}">Limpiar filtros</a>
+      </div>
+    </div>
+
+    <form method="get" action="{{ url_for('core.cargos_listado') }}" class="form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="q">Buscar</label>
+          <input id="q" type="text" name="q" value="{{ qv }}" placeholder="ID, nombre, categoría o descripción" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="estado">Estado</label>
+
+          <select id="estado" name="estado" {% if not soporta %}disabled{% endif %}>
+            <option value="activos"   {% if estado_v == 'activos' %}selected{% endif %}>Activos</option>
+            <option value="inactivos" {% if estado_v == 'inactivos' %}selected{% endif %}>Inactivos</option>
+            <option value="todos"     {% if estado_v == 'todos' %}selected{% endif %}>Todos</option>
+          </select>
+
+          {# Si está disabled, no se envía: mandamos el valor en hidden #}
+          {% if not soporta %}
+            <input type="hidden" name="estado" value="{{ estado_v }}">
+            <small style="color: var(--cs-muted);">
+              La baja lógica se habilita con el campo <code>activo</code>.
+            </small>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-actions" style="justify-content:space-between; align-items:center;">
+        <small style="color: var(--cs-muted);">
+          Mostrando <strong>{{ cargos_list|length }}</strong> cargo(s)
+          {% if soporta %}— filtro: <strong>{{ estado_v }}</strong>{% endif %}
+        </small>
+        <button class="btn btn-primary" type="submit">Aplicar filtros</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" style="margin:0;">Agregar cargo</h2>
+        <p class="card-subtitle">Crea un nuevo cargo en el catálogo.</p>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('core.cargo_crear') }}" class="form">
+      {% if csrf_token is defined %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% endif %}
+
+      {# Preservar filtros al volver #}
+      <input type="hidden" name="q" value="{{ qv }}">
+      <input type="hidden" name="estado" value="{{ estado_v }}">
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="nuevo_nombre">Nombre</label>
+          <input id="nuevo_nombre" type="text" name="nombre" required placeholder="Ej: Maestro Albañil" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="nuevo_categoria">Categoría</label>
+          <input id="nuevo_categoria" type="text" name="categoria" placeholder="Ej: Obra / Administrativo" autocomplete="off">
+        </div>
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="nuevo_descripcion">Descripción</label>
+          <input id="nuevo_descripcion" type="text" name="descripcion" placeholder="Descripción breve del cargo" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="form-actions" style="justify-content:flex-end;">
+        <button class="btn btn-primary" type="submit">Agregar cargo</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    {% if cargos_list|length == 0 %}
+      <p class="empty-state">No se encontraron cargos con los filtros seleccionados.</p>
+    {% else %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:80px;">ID</th>
+              <th style="min-width:260px;">Nombre</th>
+              <th style="min-width:180px;">Categoría</th>
+              <th style="min-width:320px;">Descripción</th>
+              <th style="width:120px;">Estado</th>
+              <th style="width:260px; text-align:right;">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for c in cargos_list %}
+            <tr {% if soporta and not c.activo %}style="opacity:0.75;"{% endif %}>
+
+              <td style="color: var(--cs-muted);">{{ c.id }}</td>
+
+              <td colspan="3">
+                <form
+                  method="post"
+                  action="{{ url_for('core.cargo_editar', cargo_id=c.id) }}"
+                  class="cargo-row-form"
+                  style="display:grid; grid-template-columns: 1.3fr 1fr 1.6fr auto; gap:10px; align-items:center;"
+                >
+                  {% if csrf_token is defined %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% endif %}
+
+                  {# Preservar filtros al volver #}
+                  <input type="hidden" name="q" value="{{ qv }}">
+                  <input type="hidden" name="estado" value="{{ estado_v }}">
+
+                  <input type="text" name="nombre" value="{{ c.nombre|default('') }}" required aria-label="Nombre del cargo">
+                  <input type="text" name="categoria" value="{{ c.categoria|default('') }}" placeholder="Categoría" aria-label="Categoría del cargo">
+                  <input type="text" name="descripcion" value="{{ c.descripcion|default('') }}" placeholder="Descripción breve" aria-label="Descripción del cargo">
+                  <button class="btn btn-secondary" type="submit" aria-label="Guardar cambios del cargo {{ c.id }}">Guardar</button>
+                </form>
+              </td>
+
+              <td>
+                {% if soporta %}
+                  {% if c.activo %}
+                    <span class="badge badge-success">ACTIVO</span>
+                  {% else %}
+                    <span class="badge badge-muted">INACTIVO</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge-muted">N/A</span>
+                {% endif %}
+              </td>
+
+              <td style="text-align:right;">
+                {% if soporta %}
+                {% set msg = "¿Confirmas la acción sobre el cargo: " + c.nombre|default("") + " ?" %}
+                <form
+                  method="post"
+                  action="{{ url_for('core.cargo_toggle_activo', cargo_id=c.id, q=qv, estado=estado_v) }}"
+                  onsubmit="return confirm('{{ msg|e }}');"
+                  style="display:inline;"
+                >
+                  {% if csrf_token is defined %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% endif %}
+
+                  {% if c.activo %}
+                    <button class="btn btn-primary" type="submit" aria-label="Dar de baja cargo {{ c.id }}">Dar de baja</button>
+                  {% else %}
+                    <button class="btn btn-primary" type="submit" aria-label="Reactivar cargo {{ c.id }}">Reactivar</button>
+                  {% endif %}
+                </form>
+                {% else %}
+                  <span style="color: var(--cs-muted);">—</span>
+                {% endif %}
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

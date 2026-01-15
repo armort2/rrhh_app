@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Registrar inasistencia{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Registrar inasistencia</h1>
+      <p class="card-subtitle">Se registran inasistencias para trabajadores con contrato vigente (o sin contrato, en modo operativo).</p>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <form method="post" class="form" id="form-inasistencia">
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label for="trabajador_search">Trabajador</label>
+
+          <input
+            type="text"
+            id="trabajador_search"
+            name="trabajador_search"
+            list="lista_trabajadores"
+            autocomplete="off"
+            placeholder="Escribe para buscar, ej: Pérez, Juan, 12.345..."
+            required
+            value="{{ pre_trabajador_label or '' }}"
+          />
+
+          <datalist id="lista_trabajadores">
+            {% for t in trabajadores %}
+              <option
+                value="{{ t.id }} - {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}"
+                data-id="{{ t.id }}">
+              </option>
+            {% endfor %}
+          </datalist>
+
+          <!-- valor real que se envía -->
+          <input type="hidden" name="trabajador_id" id="trabajador_id" value="{{ pre_trabajador_id or '' }}">
+
+          <small style="display:block; opacity:.85; margin-top:4px;">
+            Al hacer clic se despliega la lista completa; al escribir, se filtran los trabajadores.
+            Debes escoger uno de la lista.
+          </small>
+
+          <div id="trabajador_error" class="text-muted" style="display:none; margin-top:6px;">
+            Debes seleccionar un trabajador desde la lista (no solo escribirlo).
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Desde</label>
+          <input type="date" name="fecha_desde" value="{{ hoy }}" required>
+        </div>
+
+        <div class="form-group">
+          <label>Hasta (opcional)</label>
+          <input type="date" name="fecha_hasta">
+          <small style="display:block; opacity:.8; margin-top:4px;">
+            Si no indicas “Hasta”, se registra solo un día.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Tipo</label>
+          <select name="tipo" id="tipo" required>
+            <option value="DIA">Día completo</option>
+            <option value="HORAS">Horas / minutos</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="box-horas" style="display:none;">
+          <label>Horas (HH:MM)</label>
+          <input type="time" name="hhmm" step="60" placeholder="01:30">
+        </div>
+
+        <div class="form-group">
+          <label>Motivo</label>
+          <input type="text" name="motivo" maxlength="80"
+                 placeholder="Ej: Inasistencia injustificada / Licencia médica / Accidente / Permiso..."
+                 required>
+        </div>
+
+        <div class="form-group">
+          <label>Observación</label>
+          <input type="text" name="observacion" maxlength="255" placeholder="Detalles adicionales (opcional)">
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <button class="btn btn-primary" type="submit">Guardar</button>
+        <a class="btn btn-secondary" href="{{ url_for('inasistencias.listado') }}">Volver</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleHoras() {
+    const tipo = document.getElementById('tipo').value;
+    const box = document.getElementById('box-horas');
+    box.style.display = (tipo === 'HORAS') ? 'block' : 'none';
+  }
+
+  function extractIdFromOptionValue(val) {
+    const m = (val || "").match(/^(\d+)\s*-\s*/);
+    return m ? m[1] : "";
+  }
+
+  function syncHiddenTrabajadorId() {
+    const input = document.getElementById("trabajador_search");
+    const hidden = document.getElementById("trabajador_id");
+    const err = document.getElementById("trabajador_error");
+
+    const id = extractIdFromOptionValue(input.value);
+    hidden.value = id;
+
+    if (!id) err.style.display = "block";
+    else err.style.display = "none";
+  }
+
+  function validateTrabajadorSelected(e) {
+    const hidden = document.getElementById("trabajador_id");
+    const err = document.getElementById("trabajador_error");
+    if (!hidden.value) {
+      e.preventDefault();
+      err.style.display = "block";
+      document.getElementById("trabajador_search").focus();
+      return false;
+    }
+    return true;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    toggleHoras();
+    document.getElementById('tipo').addEventListener('change', toggleHoras);
+
+    const input = document.getElementById("trabajador_search");
+    input.addEventListener("input", syncHiddenTrabajadorId);
+    input.addEventListener("change", syncHiddenTrabajadorId);
+
+    document.getElementById("form-inasistencia").addEventListener("submit", validateTrabajadorSelected);
+
+    // Si venimos con preselección y texto cargado, normalizamos estado del error
+    syncHiddenTrabajadorId();
+  });
+</script>
+{% endblock %}

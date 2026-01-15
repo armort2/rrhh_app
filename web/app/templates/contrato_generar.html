@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Generar contrato{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Generar contrato</h1>
+      <p class="card-subtitle">
+        Trabajador: <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+        · Contrato ID: {{ contrato.id }}
+      </p>
+    </div>
+    <div class="card-actions">
+      <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">
+        ← Volver
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="form form-sectioned">
+    <h2 class="section-title">Formato de salida</h2>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="formato">Selecciona formato</label>
+        <select id="formato" name="formato" required>
+          <option value="DOCX" selected>DOCX (Word)</option>
+          <option value="PDF">PDF</option>
+          <option value="AMBOS">DOCX + PDF</option>
+        </select>
+        <small>Recomendación operativa: generar ambos para archivo y envío.</small>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">📄 Generar ahora</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

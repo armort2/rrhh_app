@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Impresión{% endblock %}</title>
+
+  <meta name="description" content="Impresión - Sistema Grupo CS">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+  <style>
+    /* =========================
+       BASE DE IMPRESIÓN (Carta)
+       Header y footer fijos
+       ========================= */
+
+    /* Carta (Chile) */
+    @page {
+      size: Letter;
+      margin: 14mm 12mm 16mm 12mm; /* top right bottom left */
+    }
+
+    /* Variables de altura (ajustables) */
+    :root{
+      --print-header-h: 56px;
+      --print-footer-h: 42px;
+    }
+
+    body{
+      background: #fff !important;
+    }
+
+    /* Header fijo que se repite en todas las páginas */
+    .print-fixed-header{
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 12mm 6px 12mm;
+      background: #fff;
+      z-index: 50;
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    /* Footer fijo que se repite en todas las páginas */
+    .print-fixed-footer{
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 6px 12mm 10px 12mm;
+      background: #fff;
+      z-index: 50;
+      border-top: 1px solid #e6e6e6;
+    }
+
+    /* Contenido debe “reservar” espacio para no quedar debajo del header/footer */
+    .print-body{
+      padding-top: calc(var(--print-header-h) + 10px);
+      padding-bottom: calc(var(--print-footer-h) + 10px);
+    }
+
+    /* Footer: que NO se quiebre raro a la izquierda */
+    .print-footer-inner{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: 12px;
+      font-size: 10px;
+      color:#555;
+      width: 100%;
+    }
+    .print-footer-inner span{
+      white-space: nowrap;
+    }
+
+    /* Si tu styles.css tiene .container con max-width, en impresión lo neutralizamos */
+    .print-fixed-footer .container,
+    .print-fixed-header .container{
+      max-width: none !important;
+      width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    @media print {
+      .no-print{ display:none !important; }
+      .topbar, .nav-links, .user-session{ display:none !important; } /* por si acaso */
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+  <!-- HEADER repetible -->
+  <header class="print-fixed-header">
+    {% block print_header %}{% endblock %}
+  </header>
+
+  <!-- CUERPO -->
+  <main class="print-body">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- FOOTER repetible (se conserva AOE Asesorías) -->
+  <footer class="print-fixed-footer">
+    <div class="print-footer-inner">
+      <span>© {{ 2026 }} Grupo CS · Sistema Interno RRHH</span>
+      <span class="footer-right">Desarrollado por AOE Asesorías 👨🏽‍💻</span>
+    </div>
+  </footer>
+
+</body>
+</html>

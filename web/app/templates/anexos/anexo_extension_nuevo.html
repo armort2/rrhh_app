@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Anexo extensión · Contrato #{{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Generar Anexo de Extensión</h1>
+      <p class="card-subtitle">
+        Contrato #{{ contrato.id }} ·
+        {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+      </p>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Resumen corporativo / operativo -->
+    <div class="alert alert-warning" role="alert" style="margin-bottom: 16px;">
+      <strong>Importante:</strong> al generar este anexo, el sistema registrará el evento y <strong>actualizará la fecha de término del contrato</strong>.
+      Verifica la nueva fecha antes de confirmar.
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Trabajador</label>
+            <div>
+              {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+              {% if contrato.trabajador.rut %} · RUT: {{ contrato.trabajador.rut }}{% endif %}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Empleador</label>
+            <div>
+              {% if contrato.empleador %}
+                {{ contrato.empleador.razon_social }}
+                {% if contrato.empleador.rut %} · RUT: {{ contrato.empleador.rut }}{% endif %}
+              {% else %}
+                <span class="text-muted">Sin empleador asignado</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Obra</label>
+            <div>
+              {% if contrato.obra %}
+                {{ contrato.obra.nombre }}{% if contrato.obra.comuna %} · {{ contrato.obra.comuna }}{% endif %}
+              {% else %}
+                <span class="text-muted">Sin obra asociada</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Cargo</label>
+            <div>
+              {% if contrato.cargo %}
+                {{ contrato.cargo.nombre }}
+              {% else %}
+                <span class="text-muted">Sin cargo asociado</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <form method="post"
+          class="form"
+          id="form-anexo-extension"
+          novalidate
+          data-submitted="0">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="fecha_anexo">Fecha del anexo</label>
+          <input type="date" id="fecha_anexo" name="fecha_anexo">
+          <small class="text-muted">Si lo dejas en blanco, se usará la fecha de hoy.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Fecha término anterior</label>
+          <div>
+            {% if fecha_termino_anterior %}
+              <span id="fecha-termino-anterior-text">
+                {{ fecha_termino_anterior.strftime("%d-%m-%Y") }}
+              </span>
+              <!-- ISO para validación JS -->
+              <input type="hidden" id="fecha_termino_anterior_iso" value="{{ fecha_termino_anterior.strftime('%Y-%m-%d') }}">
+            {% else %}
+              <span class="text-muted" id="fecha-termino-anterior-text">Sin término definido</span>
+              <input type="hidden" id="fecha_termino_anterior_iso" value="">
+            {% endif %}
+          </div>
+          <small class="text-muted">Referencia del contrato antes de la extensión.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="fecha_termino_nueva">Nueva fecha de término</label>
+          <input type="date" id="fecha_termino_nueva" name="fecha_termino_nueva" required>
+          <div class="invalid-feedback" style="display:none;" id="error-fecha-nueva">
+            La nueva fecha debe ser posterior a la fecha de término anterior.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="formato">Formato</label>
+          <select id="formato" name="formato">
+            <option value="DOCX">DOCX</option>
+            <option value="PDF">PDF</option>
+            <option value="AMBOS" selected>AMBOS</option>
+          </select>
+          <small class="text-muted">DOCX, PDF o ambos. El registro en BD se hará igual.</small>
+        </div>
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="observaciones">Observaciones</label>
+          <textarea id="observaciones" name="observaciones" rows="3"
+            placeholder="Opcional: notas internas o aclaraciones para el anexo."></textarea>
+          <small class="text-muted">Estas observaciones se insertan en el documento si tu plantilla lo contempla.</small>
+        </div>
+      </div>
+
+      <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+        <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">⬅ Volver</a>
+        <button class="btn btn-primary" type="submit" id="btn-submit">🧾 Generar anexo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const fechaAnexo = document.getElementById("fecha_anexo");
+  const fechaNueva = document.getElementById("fecha_termino_nueva");
+  const fechaAnteriorISO = document.getElementById("fecha_termino_anterior_iso")?.value || "";
+  const form = document.getElementById("form-anexo-extension");
+  const btn = document.getElementById("btn-submit");
+  const err = document.getElementById("error-fecha-nueva");
+
+  // Default: hoy en fecha_anexo (solo UI; backend igual cae a date.today() si va vacío)
+  const todayISO = new Date().toISOString().slice(0, 10);
+  if (fechaAnexo && !fechaAnexo.value) fechaAnexo.value = todayISO;
+
+  function addDaysISO(iso, days) {
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  if (fechaAnteriorISO && fechaNueva) {
+    fechaNueva.min = addDaysISO(fechaAnteriorISO, 1);
+  }
+
+  function validateFechaNueva() {
+    if (!fechaNueva) return true;
+    if (!fechaAnteriorISO) return true;
+    if (!fechaNueva.value) return false;
+
+    const ok = fechaNueva.value > fechaAnteriorISO;
+    if (err) err.style.display = ok ? "none" : "block";
+    fechaNueva.classList.toggle("is-invalid", !ok);
+    return ok;
+  }
+
+  if (fechaNueva) {
+    fechaNueva.addEventListener("change", validateFechaNueva);
+    fechaNueva.addEventListener("blur", validateFechaNueva);
+  }
+
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      // Anti doble submit (doble click / Enter repetido)
+      if (form.dataset.submitted === "1") {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const ok = validateFechaNueva();
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Si falló la validación, NO bloqueamos el form
+        return;
+      }
+
+      // Bloqueo definitivo (PRG en backend hace el resto)
+      form.dataset.submitted = "1";
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Generando…";
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

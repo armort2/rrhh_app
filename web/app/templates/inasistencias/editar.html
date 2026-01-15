@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Editar inasistencia{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Editar inasistencia</h1>
+
+      <p class="card-subtitle" style="margin-bottom:6px;">
+        {{ item.trabajador.ap_paterno }} {{ item.trabajador.ap_materno }} {{ item.trabajador.nombres }}
+        · {{ item.fecha }}
+      </p>
+
+      <!-- ✅ Contexto “auditable” -->
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="badge">
+          CC:
+          {{ item.trabajador.obra.centro_costo if item.trabajador.obra and item.trabajador.obra.centro_costo else "—" }}
+        </span>
+        <span class="badge">
+          Obra:
+          {{ item.trabajador.obra.nombre if item.trabajador.obra and item.trabajador.obra.nombre else "—" }}
+        </span>
+        <span class="badge">
+          Cargo:
+          {{ item.trabajador.cargo.nombre if item.trabajador.cargo and item.trabajador.cargo.nombre else "—" }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <form method="post" class="form" id="form-editar-inasistencia">
+      <!-- ✅ Preservar retorno con filtros -->
+      <input type="hidden" name="next" value="{{ next_url or '' }}">
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Trabajador (solo lectura)</label>
+          <select disabled>
+            <option selected>
+              {{ item.trabajador.ap_paterno }} {{ item.trabajador.ap_materno }} {{ item.trabajador.nombres }}
+              · RUT: {{ item.trabajador.rut }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" name="fecha" value="{{ item.fecha }}" required>
+        </div>
+
+        <div class="form-group">
+          <label>Tipo</label>
+          <select name="tipo" id="tipo" required>
+            <option value="DIA" {% if item.tipo == "DIA" %}selected{% endif %}>Día completo</option>
+            <option value="HORAS" {% if item.tipo == "HORAS" %}selected{% endif %}>Horas / minutos</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="box-horas" style="display:none;">
+          <label>Horas (HH:MM)</label>
+          <input type="time" name="hhmm" id="hhmm" step="60" value="{{ hhmm }}">
+
+          <small style="display:block; opacity:.8; margin-top:4px;">
+            Obligatorio si el tipo es “Horas”. Ej: 01:30
+          </small>
+
+          <div id="hhmm_error" class="text-muted" style="display:none; margin-top:6px;">
+            Debes indicar un tiempo válido (HH:MM) para inasistencia por horas.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Motivo</label>
+          <input type="text" name="motivo" maxlength="80" value="{{ item.motivo }}" required>
+        </div>
+
+        <div class="form-group">
+          <label>Observación</label>
+          <input type="text" name="observacion" maxlength="255" value="{{ item.observacion or '' }}">
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <button class="btn btn-primary" type="submit">Guardar cambios</button>
+
+        <!-- ✅ Volver respetando filtros cuando exista next_url -->
+        <a class="btn btn-secondary"
+           href="{{ next_url or url_for('inasistencias.listado', trabajador_id=item.trabajador_id) }}">
+          Volver
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleHoras() {
+    const tipo = document.getElementById('tipo').value;
+    const box = document.getElementById('box-horas');
+    const hhmm = document.getElementById('hhmm');
+    const err = document.getElementById('hhmm_error');
+
+    const esHoras = (tipo === 'HORAS');
+    box.style.display = esHoras ? 'block' : 'none';
+
+    // Si es HORAS, hhmm pasa a ser requerido
+    hhmm.required = esHoras;
+
+    // Si vuelve a DIA, limpiamos hhmm para no dejar valores residuales
+    if (!esHoras) {
+      hhmm.value = '';
+      err.style.display = 'none';
+    }
+  }
+
+  function validateHoras(e) {
+    const tipo = document.getElementById('tipo').value;
+    const hhmm = document.getElementById('hhmm');
+    const err = document.getElementById('hhmm_error');
+
+    if (tipo === 'HORAS') {
+      const v = (hhmm.value || '').trim();
+      if (!v || v === '00:00') {
+        e.preventDefault();
+        err.style.display = 'block';
+        hhmm.focus();
+        return false;
+      }
+      err.style.display = 'none';
+    }
+    return true;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    toggleHoras();
+    document.getElementById('tipo').addEventListener('change', toggleHoras);
+    document.getElementById('form-editar-inasistencia').addEventListener('submit', validateHoras);
+  });
+</script>
+{% endblock %}

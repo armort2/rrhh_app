@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Anexos indefinidos · Contrato #{{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Anexos a indefinido</h1>
+      <p class="card-subtitle">
+        Contrato <strong>#{{ contrato.id }}</strong> · Trabajador:
+        <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }}</strong>
+      </p>
+    </div>
+    <div class="card-actions">
+      <a href="{{ url_for('anexos_indefinidos.nuevo', contrato_id=contrato.id) }}" class="btn btn-primary">
+        ➕ Generar anexo indefinido
+      </a>
+      <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+        ⬅ Volver al contrato
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    {% if anexos %}
+      <div class="table-wrapper">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Fecha anexo</th>
+              <th>Desde</th>
+              <th>Término referencial</th>
+              <th>Formato</th>
+              <th>Estado</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in anexos %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('anexos_indefinidos.detalle', anexo_id=a.id) }}">#{{ a.id }}</a>
+                </td>
+                <td>{{ a.fecha_anexo.strftime("%d-%m-%Y") if a.fecha_anexo else "-" }}</td>
+                <td>{{ a.fecha_indefinido_desde.strftime("%d-%m-%Y") if a.fecha_indefinido_desde else "-" }}</td>
+                <td>{{ a.fecha_termino_referencial.strftime("%d-%m-%Y") if a.fecha_termino_referencial else "-" }}</td>
+                <td>{{ a.formato or "-" }}</td>
+                <td>
+                  {% if a.estado == "VIGENTE" %}
+                    <span class="badge badge-success">Vigente</span>
+                  {% else %}
+                    <span class="badge badge-muted">{{ a.estado or "-" }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-right">
+                  <a class="btn btn-sm btn-link" href="{{ url_for('anexos_indefinidos.detalle', anexo_id=a.id) }}">
+                    🔍 Ver
+                  </a>
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('anexos_indefinidos.editar', anexo_id=a.id) }}">
+                    ✏️ Editar
+                  </a>
+                  {% if current_user.has_role("ADMIN") %}
+                    <form method="post"
+                          action="{{ url_for('anexos_indefinidos.eliminar', anexo_id=a.id) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('¿Eliminar este anexo de la base de datos? (No borra archivos)');">
+                      <button type="submit" class="btn btn-sm btn-outline-danger">❌ Eliminar</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted">Aún no hay anexos indefinidos para este contrato.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

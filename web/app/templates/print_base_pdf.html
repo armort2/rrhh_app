@@ -1,0 +1,131 @@
+{# templates/print_base_pdf.html #}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}Impresión{% endblock %}</title>
+
+  <style>
+    /* =========
+       WeasyPrint / Paged media
+       ========= */
+
+    @page {
+      size: Letter;
+      margin: 24mm 18mm 24mm 18mm;
+
+      /* Header repetible (margin box) */
+      @top-left {
+        content: element(header);
+      }
+
+      /* Footer repetible + paginación */
+      @bottom-left {
+        content: element(footer_left);
+      }
+
+      @bottom-right {
+        content: "Página " counter(page) " de " counter(pages);
+        font-size: 9.5px;
+        color: #666;
+      }
+    }
+
+    html, body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #111;
+    }
+
+    /* Running elements: lo que @page reutiliza */
+    .header {
+      position: running(header);
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e6cdbd;
+    }
+
+    .footer-left {
+      position: running(footer_left);
+      padding-top: 6px;
+      border-top: 1px solid #e6cdbd;
+      font-size: 9.5px;
+      color: #666;
+    }
+
+    /* Tablas: cabecera repetible real */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e6cdbd;
+      vertical-align: top;
+    }
+    thead th {
+      font-weight: 800;
+      background: #f6efe7;
+    }
+
+    /* Evita partir filas (OK) */
+    tr { break-inside: avoid; }
+
+    .small { font-size: 10px; color: #555; line-height: 1.25; }
+    .money { text-align: right; white-space: nowrap; }
+
+    .page-break {
+      break-before: page;
+      page-break-before: always;
+    }
+
+    /* Firmas */
+    .signatures {
+      margin-top: 10mm;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .signatures-grid {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+    .sign-col {
+      display: table-cell;
+      vertical-align: top;
+      padding: 0 8px;
+    }
+    .sign-title {
+      font-weight: 800;
+      margin-bottom: 22px;
+    }
+    .sign-line {
+      border-top: 1px solid #333;
+      margin: 0 0 6px;
+      height: 0;
+    }
+    .sign-foot {
+      font-size: 9.5px;
+      color: #666;
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+  <div class="header">
+    {% block print_header %}{% endblock %}
+  </div>
+
+  <div class="footer-left">
+    {% block print_footer_left %}{% endblock %}
+  </div>
+
+  <div class="doc-body">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

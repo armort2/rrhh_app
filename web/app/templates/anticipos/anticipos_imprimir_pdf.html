@@ -1,0 +1,252 @@
+{# templates/anticipos/anticipos_imprimir_pdf.html #}
+{% extends "print_base_pdf.html" %}
+
+{% block title %}Anticipos PDF · Nómina #{{ nomina.id }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Ajustes específicos del reporte (sobre print_base_pdf.html) */
+
+  .brand-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: #7a1f16;
+    letter-spacing: .2px;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  /* Texto acompañante (compacto, pegadito al título) */
+  .header-meta {
+    margin-top: 2mm;      /* antes se veía muy separado */
+    font-size: 10px;
+    color: #444;
+    line-height: 1.25;
+  }
+
+  .hr {
+    height: 1px;
+    background: #ddd;
+    margin: 8px 0 10px;
+  }
+
+  .group-title {
+    font-size: 13px;
+    font-weight: 900;
+    margin: 10px 0 6px;
+  }
+
+  .col-rut { width: 95px; white-space: nowrap; }
+  .col-obra { width: 160px; }
+  .money { text-align: right; white-space: nowrap; }
+
+  .subtotal {
+    margin: 6px 0 10px;
+    text-align: right;
+    font-weight: 800;
+    font-size: 10px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .total {
+    margin: 8px 0 6px;
+    text-align: right;
+    font-size: 11px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .total .big { font-size: 13px; font-weight: 900; }
+
+  /* Empuje suave (NO exagerado) para que firmas bajen si hay espacio,
+     pero sin obligar salto a página siguiente */
+  .push-soft {
+    height: 6mm; /* pequeño. Ajustable a gusto */
+  }
+
+  /* Firmas: mantener juntas, pero sin “inflarlas” tanto que se vayan a otra página */
+  .signatures {
+    margin-top: 6mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .sign-title {
+    font-weight: 800;
+    margin-bottom: 20mm; /* MÁS espacio para firmar (antes era corto). Ajustable */
+  }
+
+  /* Evita que cada firma “crezca” demasiado (esto era lo que provocaba el salto) */
+  .sign-col { padding: 0 10px; }
+</style>
+{% endblock %}
+
+{% block print_header %}
+  <div>
+    <div class="brand-title">Nómina de Anticipos</div>
+
+    <div class="header-meta">
+      <div>
+        <strong>Nómina #{{ nomina.id }}</strong>
+        · {{ "%04d-%02d"|format(nomina.anio, nomina.mes) }}
+        · Centro de costo: <strong>{{ nomina.centro_costo }}</strong>
+      </div>
+
+      {% if periodo_prev_str %}
+        <div>Referencia mes anterior: {{ periodo_prev_str }}</div>
+      {% endif %}
+
+      <div>Origen: {{ nomina.origen|default(nomina.origen_archivo)|default("-") }} · Estado: {{ nomina.estado }}</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block print_footer_left %}
+  © 2026 Grupo CS · Sistema Interno RRHH · Desarrollado por AOE Asesorías
+{% endblock %}
+
+{% block content %}
+
+  {% if detalles and detalles|length > 0 %}
+
+    <div class="hr"></div>
+
+    {# --- Preconteo de grupos para page-break inteligente --- #}
+    {% set c = namespace(curr=None, grupos=0) %}
+    {% for item in detalles %}
+      {% set k = ((item.tipo_trabajador or "SIN TIPO")|trim|upper) %}
+      {% if not k %}{% set k = "SIN TIPO" %}{% endif %}
+      {% if c.curr != k %}
+        {% set c.curr = k %}
+        {% set c.grupos = c.grupos + 1 %}
+      {% endif %}
+    {% endfor %}
+
+    {# --- Render real --- #}
+    {% set ns = namespace(
+      current_tipo=None,
+      subtotal_prev=0,
+      subtotal_act=0,
+      total_prev=0,
+      total_act=0,
+      grupos=c.grupos,
+      rendered=0
+    ) %}
+
+    {% for item in detalles %}
+      {% set d = item.d %}
+      {% set tipo_key = ((item.tipo_trabajador or "SIN TIPO")|trim|upper) %}
+      {% if not tipo_key %}{% set tipo_key = "SIN TIPO" %}{% endif %}
+
+      {% if ns.current_tipo != tipo_key %}
+
+        {% if ns.current_tipo is not none %}
+            </tbody>
+          </table>
+
+          <div class="subtotal">
+            Subtotal {{ ns.current_tipo }} (mes anterior):
+            ${{ "{:,.0f}".format(ns.subtotal_prev|float).replace(",", ".") }}
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            Subtotal {{ ns.current_tipo }} (mes actual):
+            ${{ "{:,.0f}".format(ns.subtotal_act|float).replace(",", ".") }}
+          </div>
+
+          {% if ns.rendered < ns.grupos %}
+            <div class="page-break"></div>
+          {% endif %}
+        {% endif %}
+
+        {% set ns.current_tipo = tipo_key %}
+        {% set ns.subtotal_prev = 0 %}
+        {% set ns.subtotal_act = 0 %}
+        {% set ns.rendered = ns.rendered + 1 %}
+
+        <div class="group-title">{{ ns.current_tipo }}</div>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="col-rut">RUT</th>
+              <th>Trabajador</th>
+              <th>Cargo</th>
+              <th class="col-obra">Obra</th>
+              <th class="money">Mes anterior</th>
+              <th class="money">Mes actual</th>
+            </tr>
+          </thead>
+          <tbody>
+      {% endif %}
+
+      {% set ns.subtotal_prev = ns.subtotal_prev + (item.monto_prev|float) %}
+      {% set ns.subtotal_act  = ns.subtotal_act  + (d.monto|float) %}
+      {% set ns.total_prev    = ns.total_prev    + (item.monto_prev|float) %}
+      {% set ns.total_act     = ns.total_act     + (d.monto|float) %}
+
+      <tr>
+        <td class="col-rut">{{ item.rut_fmt or d.rut or "-" }}</td>
+        <td>{{ item.nombre_ordenado }}</td>
+        <td>{{ item.cargo_nombre }}</td>
+        <td class="col-obra">{{ d.nombre_obra or "-" }}</td>
+        <td class="money">${{ "{:,.0f}".format(item.monto_prev|float).replace(",", ".") }}</td>
+        <td class="money">${{ "{:,.0f}".format(d.monto|float).replace(",", ".") }}</td>
+      </tr>
+
+      {% if loop.last %}
+          </tbody>
+        </table>
+
+        <div class="subtotal">
+          Subtotal {{ ns.current_tipo }} (mes anterior):
+          ${{ "{:,.0f}".format(ns.subtotal_prev|float).replace(",", ".") }}
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          Subtotal {{ ns.current_tipo }} (mes actual):
+          ${{ "{:,.0f}".format(ns.subtotal_act|float).replace(",", ".") }}
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="total">
+          <div>
+            <strong>Total general (mes anterior):</strong>
+            ${{ "{:,.0f}".format(ns.total_prev|float).replace(",", ".") }}
+          </div>
+          <div class="big">
+            Total general (mes actual):
+            ${{ "{:,.0f}".format(ns.total_act|float).replace(",", ".") }}
+          </div>
+        </div>
+
+        {# Empuje SUAVE: ayuda a bajar firmas cuando hay aire, sin forzar salto #}
+        <div class="push-soft"></div>
+
+        <div class="signatures">
+          <div class="signatures-grid">
+            <div class="sign-col">
+              <div class="sign-title">V°B° Jefe Administración</div>
+              <div class="sign-line"></div>
+              <div class="sign-foot">Nombre / Firma / Fecha</div>
+            </div>
+
+            <div class="sign-col" style="text-align:center;">
+              <div class="sign-title">V°B° Administrador C. Costo</div>
+              <div class="sign-line"></div>
+              <div class="sign-foot">Nombre / Firma / Fecha</div>
+            </div>
+
+            <div class="sign-col" style="text-align:right;">
+              <div class="sign-title">V°B° Gerencia de Proyectos</div>
+              <div class="sign-line"></div>
+              <div class="sign-foot">Nombre / Firma / Fecha</div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+    {% endfor %}
+
+  {% else %}
+    <div class="small">Sin resultados.</div>
+  {% endif %}
+
+{% endblock %}

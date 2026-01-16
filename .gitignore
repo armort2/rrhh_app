@@ -44,3 +44,4 @@ uploads/
 # Data y volúmenes (NO versionar)
 data/
 data/db/
+docker-compose.yml.bak_*

@@ -40,3 +40,7 @@ node_modules/
 # --- Generated / uploads (si aplica) ---
 uploads/
 *.pdf
+
+# Data y volúmenes (NO versionar)
+data/
+data/db/

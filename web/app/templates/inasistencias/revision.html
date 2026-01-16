@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Revisión de inasistencias{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h1 class="card-title">Revisión de inasistencias</h1>
+    <p class="card-subtitle">Control previo al ingreso en remuneraciones</p>
+  </div>
+
+  <div class="card-body">
+    <form method="get" class="form form-grid">
+      <div class="form-group">
+        <label>Centro de costo</label>
+        <select name="cc">
+          <option value="">— Todos —</option>
+          {% for c in centros_costo %}
+            <option value="{{ c }}" {% if cc == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Mes</label>
+        <input type="month" name="mes" value="{{ mes }}">
+      </div>
+
+      <div class="form-group" style="align-self:end">
+        <button class="btn">Filtrar</button>
+      </div>
+    </form>
+
+    <form method="post">
+      <table class="table" style="margin-top:12px;">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Fecha</th>
+            <th>Trabajador</th>
+            <th>Tipo</th>
+            <th>Tiempo</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+          <tr {% if it.procesada %}style="opacity:.5"{% endif %}>
+            <td>
+              {% if not it.procesada %}
+              <input type="checkbox" name="inasistencia_id" value="{{ it.id }}">
+              {% else %}
+              ✔
+              {% endif %}
+            </td>
+            <td>{{ it.fecha }}</td>
+            <td>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno }} {{ it.trabajador.nombres }}</td>
+            <td>{{ it.tipo }}</td>
+            <td>{{ fmt_hhmm(it.minutos_ausentes) if it.tipo == 'HORAS' else '—' }}</td>
+            <td>{{ it.motivo }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="margin-top:12px;">
+        <button class="btn btn-primary" type="submit">Marcar seleccionadas como procesadas</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

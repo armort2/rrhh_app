@@ -10,6 +10,7 @@ services:
       - ./data/db:/var/lib/postgresql/data
     networks:
       - backend
+    restart: unless-stopped
 
   web:
     build: ./web
@@ -24,8 +25,14 @@ services:
       - db
     ports:
       - "8000:8000"
+    volumes:
+      - ./web/app:/app/app:rw
+      - ./web/migrations:/app/migrations:rw
+      - /mnt/GrupoCS-Nextcloud:/mnt/GrupoCS-Nextcloud:rw
+      - ./data:/data
     networks:
       - backend
+    restart: unless-stopped
 
 networks:
   backend:

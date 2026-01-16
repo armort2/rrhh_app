@@ -337,7 +337,7 @@ body {
 }
 
 .footer-right {
-    font-style: italic;
+    font-style: normal;
 }
 
 /* Sistema / layout principal */
@@ -400,10 +400,6 @@ body {
 }
 
 /* Dashboard de inicio */
-
-.dashboard-hero {
-    margin-bottom: 24px;
-}
 
 .dashboard-title {
     margin: 0 0 8px;
@@ -517,4 +513,480 @@ body {
     color: #fff;
     border-color: transparent;
     font-weight: 600;
+}
+
+/* ===============================
+   LOGIN / AUTH
+   =============================== */
+
+.auth-page {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.auth-card-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 🔥 AQUÍ ESTABA EL DELITO */
+.auth-logo img {
+  max-width: 64px;
+  max-height: 64px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.auth-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+}
+
+.auth-subtitle {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 2px 0 0;
+}
+
+.auth-badge {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  color: #374151;
+  border-radius: 6px;
+}
+
+.auth-card-body {
+  padding: 20px;
+}
+
+.auth-field {
+  margin-bottom: 14px;
+}
+
+.auth-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--cs-orange);
+  box-shadow: 0 0 0 2px rgba(181, 90, 27, 0.15);
+}
+
+.auth-actions {
+  margin-top: 16px;
+}
+
+.auth-btn {
+  width: 100%;
+  padding: 10px;
+  background: #111827;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.auth-btn:hover {
+  background: #1f2937;
+}
+
+.auth-hint {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* ===============================
+   SESIÓN USUARIO (TOPBAR)
+   =============================== */
+
+.user-session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #e5e7eb; /* gris claro sobre fondo azul */
+}
+
+.user-label {
+  opacity: 0.85;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Botón Salir */
+.btn-logout {
+  margin-left: 8px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ===============================
+   MEJORAS DASHBOARD / KPI (HOME)
+   =============================== */
+
+/* Mejor contraste y respiración del hero */
+.dashboard-hero {
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(226, 215, 198, 0.95);
+}
+
+.dashboard-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 10% 0%, rgba(181, 90, 27, 0.12), transparent 45%),
+              radial-gradient(circle at 90% 20%, rgba(139, 31, 31, 0.10), transparent 50%);
+  pointer-events: none;
+}
+
+.dashboard-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Cards con hover suave (sin marear) */
+.card {
+  transition: transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+  border-color: rgba(226, 215, 198, 0.95);
+}
+
+/* ===============================
+   KPI CARDS
+   =============================== */
+
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--cs-red), var(--cs-orange));
+  opacity: 0.9;
+}
+
+.kpi-value {
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* Estado de alerta (por vencer) */
+.kpi-warn {
+  border-color: rgba(181, 90, 27, 0.45);
+}
+
+.kpi-warn::before {
+  background: linear-gradient(90deg, var(--cs-orange), var(--cs-red));
+  height: 4px;
+}
+
+.kpi-warn .kpi-value {
+  color: var(--cs-orange);
+}
+
+.kpi-warn .kpi-label {
+  color: rgba(90, 47, 6, 0.85); /* cs-brown con mejor contraste */
+}
+
+/* Estado “muted” más evidente si lo vuelves a usar */
+.kpi-muted {
+  opacity: 0.78;
+}
+
+.kpi-muted::before {
+  opacity: 0.25;
+}
+
+/* ===============================
+   ACCESIBILIDAD: FOCUS VISIBLE
+   =============================== */
+
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(181, 90, 27, 0.28);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ===============================
+   DASHBOARD GRID: mejor consistencia
+   =============================== */
+
+.dashboard-card .card-title {
+  font-size: 18px;
+}
+
+.dashboard-card .card-subtitle {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.dashboard-actions .btn {
+  white-space: nowrap;
+}
+
+/* ===============================
+   TOPBAR: link activo (si lo quieres usar luego)
+   =============================== */
+
+.nav-links a.active::after {
+  width: 100%;
+}
+
+/* ===============================
+   LIMPIEZA: cargo-row-form duplicado
+   (mantén una sola definición)
+   =============================== */
+
+.cargo-row-form {
+  margin: 0;
+}
+
+.cargo-row-form input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #D5C8B7;
+  padding: 7px 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.cargo-row-form input:focus {
+  border-color: var(--cs-orange);
+  box-shadow: 0 0 0 2px rgba(181,90,27,0.18);
+}
+
+/* ===============================
+   DESVINCULACIONES (UI helpers)
+   =============================== */
+
+.btn-outline-primary {
+  background: transparent;
+  color: var(--cs-red);
+  border: 1px solid rgba(139,31,31,0.35);
+}
+
+.btn-outline-primary:hover {
+  background: rgba(139,31,31,0.06);
+}
+
+.btn-danger {
+  background: #8B1F1F;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(139,31,31,0.25);
+}
+
+.btn-danger:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.badge-warn {
+  background-color: #FFF3CD;
+  color: #856404;
+}
+
+.badge-danger {
+  background-color: #F8D7DA;
+  color: #842029;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px 14px;
+  font-size: 14px;
+}
+
+.kv .k {
+  color: var(--cs-muted);
+}
+
+.kv .v {
+  color: var(--cs-text);
+}
+
+/* ===============================
+   KV (detalle tipo "key/value")
+   =============================== */
+.kv {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px 14px;
+  padding: 12px 0 0;
+}
+
+.kv .k {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cs-muted);
+  padding-top: 6px;
+}
+
+.kv .v {
+  padding-top: 4px;
+}
+
+/* ===============================
+   Badges faltantes
+   =============================== */
+.badge-warn {
+  background-color: #FFF4E5;
+  color: #8A4B00;
+}
+
+.badge-danger {
+  background-color: #FDECEC;
+  color: #8B1F1F;
+}
+
+/* ===============================
+   Botones faltantes
+   =============================== */
+.btn-danger {
+  background: linear-gradient(135deg, #8B1F1F, #5A2F06);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(139,31,31,0.35);
+}
+
+.btn-danger:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+  background: transparent;
+  border: 1px solid rgba(139,31,31,0.55);
+  color: var(--cs-red);
+}
+
+.btn-outline-primary:hover {
+  background: rgba(139,31,31,0.08);
+}
+
+.btn-outline-secondary {
+  background: transparent;
+  border: 1px solid #E0D0BC;
+  color: var(--cs-brown);
+}
+
+.btn-outline-secondary:hover {
+  background: #FBF5EC;
+}
+
+/* ================
+   Badges (etiquetas)
+   ================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.82);
+  white-space: nowrap;
+}
+
+/* Variante suave para estados (opcional) */
+.badge.badge-muted {
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.65);
+}
+
+/* Variante “ok” (opcional) */
+.badge.badge-success {
+  border-color: rgba(0, 128, 0, 0.25);
+  background: rgba(0, 128, 0, 0.08);
+  color: rgba(0, 80, 0, 0.9);
+}
+
+/* Variante “alerta” (opcional) */
+.badge.badge-warning {
+  border-color: rgba(180, 120, 0, 0.35);
+  background: rgba(255, 170, 0, 0.12);
+  color: rgba(110, 70, 0, 0.95);
+}
+
+/* Variante “peligro” (opcional) */
+.badge.badge-danger {
+  border-color: rgba(160, 0, 0, 0.30);
+  background: rgba(200, 0, 0, 0.10);
+  color: rgba(120, 0, 0, 0.95);
 }

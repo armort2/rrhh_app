@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>
-        {{ config.SYSTEM_NAME or "Sistema Grupo CS" }}{% if title %} – {{ title }}{% endif %}
+        {{ config.SYSTEM_NAME or "Grupo CS · Sistema Interno RRHH" }}
+        {% block title %}{% endblock %}
     </title>
 
     <meta name="description" content="Plataforma interna para la gestión de personas, contratos y otros del Grupo CS.">
@@ -16,41 +17,62 @@
 </head>
 
 <body>
+
+    {# Detecta si estamos en login (pantalla pública) #}
+    {% set endpoint = request.endpoint or "" %}
+    {% set is_login = (endpoint == 'auth.login') or (endpoint == 'auth.login_post') %}
+
     <header class="topbar">
-    <div class="topbar-left">
-        <!-- Logo correcto según tu ruta real -->
-        <img src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}" alt="Grupo CS" class="logo">
-        <div class="topbar-text">
-            <div class="system-name">{{ config.SYSTEM_NAME or "Sistema Grupo CS" }}</div>
-            <div class="system-tagline">{{ config.SYSTEM_TAGLINE or "Gestión de Personas y Prevención" }}</div>
+        <div class="topbar-left">
+            <img src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}" alt="Grupo CS" class="logo">
+            <div class="topbar-text">
+                <div class="system-name">{{ config.SYSTEM_NAME or "Sistema Grupo CS" }}</div>
+                <div class="system-tagline">{{ config.SYSTEM_TAGLINE or "Gestión de Personas y Prevención" }}</div>
+            </div>
         </div>
-    </div>
 
-    <div class="topbar-right">
-        <nav class="nav-links">
-            <a href="{{ url_for('core.index') }}">Inicio</a>
-            <!-- Por ahora mantenemos Trabajadores apuntando a inicio -->
-            <a href="{{ url_for('core.index') }}#trabajadores">Trabajadores</a>
-            <!-- Rutas directas, sin url_for, para evitar BuildError -->
-            <a href="/obras/">Obras</a>
-            <a href="/contratos/">Contratos</a>
-        </nav>
+        {# En login: header minimalista (sin menú ni sesión) #}
+        {% if not is_login %}
+        <div class="topbar-right">
+            <nav class="nav-links">
+                <a href="{{ url_for('core.index') }}">Inicio</a>
+                <a href="{{ url_for('trabajadores.listado_trabajadores') }}">Trabajadores</a>
+                <a href="/obras/">Obras</a>
+                <a href="/contratos/">Contratos</a>
+                <a href="/anexos/">Anexos</a>
+                <a href="{{ url_for('desvinculaciones.listado') }}">Desvinculaciones</a>
 
-        {% if current_user is defined and current_user.is_authenticated %}
-            <span class="user-label">Conectado como:</span>
-            <span class="user-name">{{ current_user.nombre }}</span>
+                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR") %}
+                    <a href="{{ url_for('inasistencias.listado') }}">Inasistencias</a>
+                    <a href="{{ url_for('anticipos.listado') }}">Anticipos</a>
+                {% endif %}
+
+                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN") %}
+                    <span class="nav-sep"> | </span>
+                    <a href="{{ url_for('horarios.horarios_listado') }}">Horarios</a>
+                    <a href="{{ url_for('admin.users_list') }}">Usuarios</a>
+                {% endif %}
+            </nav>
+
+            {% if current_user is defined and current_user.is_authenticated %}
+                <div class="user-session">
+                    <span class="user-label">Conectado como</span>
+                    <span class="user-name">{{ current_user.username }}</span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn-logout">Salir</a>
+                </div>
+            {% endif %}
+        </div>
         {% endif %}
-    </div>
-</header>
-
+    </header>
 
     <main class="content">
         <div class="page">
             <div class="container">
-                {% with messages = get_flashed_messages() %}
+                {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         <div class="flash-container">
-                            {% for m in messages %}
+                            {% for cat, m in messages %}
+                                {# Si luego quieres: flash flash-{{cat}} #}
                                 <div class="flash">{{ m }}</div>
                             {% endfor %}
                         </div>
@@ -64,9 +86,10 @@
 
     <footer class="footer">
         <div class="container footer-inner">
-            <span>© {{ 2025 }} Grupo CS · Sistema Interno RRHH</span>
-            <span class="footer-right">Desarrollado con cariño por Armandini &amp; Don GPTito 🫡</span>
+            <span>© {{ 2026 }} Grupo CS · Sistema Interno RRHH</span>
+            <span class="footer-right">Desarrollado por AOE Asesorías 👨🏽‍💻</span>
         </div>
     </footer>
+
 </body>
 </html>

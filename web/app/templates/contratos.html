@@ -3,153 +3,392 @@
 {% block title %}Contratos · GRUPO CS{% endblock %}
 
 {% block content %}
+<style>
+  /* ==========================
+     Estilos locales (solo esta vista)
+  =========================== */
+
+  .filters-card {
+    border-top: 1px solid rgba(0,0,0,.06);
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+
+  .filters-row {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px;
+    align-items: end;
+  }
+
+  .col-12 { grid-column: span 12; }
+  .col-6  { grid-column: span 6; }
+  .col-4  { grid-column: span 4; }
+  .col-3  { grid-column: span 3; }
+
+  @media (max-width: 1100px) {
+    .col-6, .col-4, .col-3 { grid-column: span 12; }
+  }
+
+  .multi-select { min-height: 120px; }
+
+  .help-inline {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    align-items: center;
+  }
+
+  .btn-xs {
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .muted {
+    color: #6c757d;
+    font-size: 12px;
+  }
+
+  /* Hint alineado (evita “saltos” de altura entre columnas) */
+  .form-hint {
+    margin-top: 6px;
+    min-height: 16px; /* reserva altura incluso si no hay texto */
+  }
+  .form-hint small {
+    display: inline-block;
+    line-height: 1.2;
+  }
+
+  /* Períodos rápidos como bloque ordenado */
+  .quick-range-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+  .quick-range-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Acciones (aire antes de la tabla) */
+  .filters-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    padding-bottom: 12px; /* aire interno */
+    border-top: 1px solid rgba(0,0,0,.06);
+    margin-bottom: 12px;  /* aire externo hacia la tabla */
+  }
+
+  .filters-actions .left,
+  .filters-actions .right {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .table-wrapper { margin-top: 8px; }
+</style>
+
 <div class="card">
-    <div class="card-header">
-        <div>
-            <h1 class="card-title">Contratos</h1>
-            <p class="card-subtitle">
-                Vista global de contratos por empleador, obra y estado.
-            </p>
-        </div>
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Contratos</h1>
+      <p class="card-subtitle">
+        Vista global de contratos por empleador, obra, estado e inicio dentro de un rango de fechas.
+      </p>
     </div>
+  </div>
 
-    <!-- ==========================
-         FILTROS
-    =========================== -->
-    <form method="get" class="form form-filtros mb-3">
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="empleador_id">Empleador</label>
-                <select id="empleador_id" name="empleador_id">
-                    <option value="">Todos</option>
-                    {% for e in empleadores %}
-                        <option value="{{ e.id }}"
-                            {% if filtro_empleador_id == e.id %}selected{% endif %}>
-                            {{ e.razon_social }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+  <!-- ==========================
+       FILTROS
+  =========================== -->
+  <div class="filters-card">
+    <form method="get" class="form form-filtros" id="form-filtros-contratos">
 
-            <div class="form-group">
-                <label for="obra_id">Obra</label>
-                <select id="obra_id" name="obra_id">
-                    <option value="">Todas</option>
-                    {% for o in obras %}
-                        <option value="{{ o.id }}"
-                            {% if filtro_obra_id == o.id %}selected{% endif %}>
-                            {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+      <div class="filters-row">
 
-            <div class="form-group">
-                <label for="estado">Estado contrato</label>
-                <select id="estado" name="estado">
-                    <option value="">Todos</option>
-                    <option value="VIGENTE"   {% if filtro_estado == "VIGENTE" %}selected{% endif %}>Vigente</option>
-                    <option value="TERMINADO" {% if filtro_estado == "TERMINADO" %}selected{% endif %}>Terminado</option>
-                </select>
-            </div>
+        <!-- Empleadores (multiselect) -->
+        <div class="form-group col-6">
+          <label for="empleador_ids">Empleadores</label>
+          <select id="empleador_ids" name="empleador_id" class="multi-select" multiple>
+            {% for e in empleadores %}
+              <option value="{{ e.id }}"
+                {% if filtro_empleador_ids is defined and e.id in filtro_empleador_ids %}selected{% endif %}>
+                {{ e.razon_social }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <div class="help-inline">
+            <button type="button" class="btn btn-secondary btn-xs" data-select-all="#empleador_ids">
+              Seleccionar todos
+            </button>
+            <button type="button" class="btn btn-secondary btn-xs" data-clear-all="#empleador_ids">
+              Limpiar selección
+            </button>
+            <span class="muted">Tip: Mantén Ctrl (Windows) o ⌘ (Mac) para seleccionar puntualmente.</span>
+          </div>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Aplicar filtros</button>
-            <a href="{{ url_for('contratos.lista_contratos') }}" class="btn btn-secondary">Limpiar</a>
+        <!-- Obras (multiselect) -->
+        <div class="form-group col-6">
+          <label for="obra_ids">Obras</label>
+          <select id="obra_ids" name="obra_id" class="multi-select" multiple>
+            {% for o in obras %}
+              <option value="{{ o.id }}"
+                {% if filtro_obra_ids is defined and o.id in filtro_obra_ids %}selected{% endif %}>
+                {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+
+          <div class="help-inline">
+            <button type="button" class="btn btn-secondary btn-xs" data-select-all="#obra_ids">
+              Seleccionar todas
+            </button>
+            <button type="button" class="btn btn-secondary btn-xs" data-clear-all="#obra_ids">
+              Limpiar selección
+            </button>
+            <span class="muted">Consejo operacional: filtra por obra y te queda “listado para comité”.</span>
+          </div>
         </div>
+
+        <!-- Estado -->
+        <div class="form-group col-3">
+          <label for="estado">Estado contrato</label>
+          <select id="estado" name="estado">
+            <option value="">Todos</option>
+            <option value="VIGENTE"   {% if filtro_estado == "VIGENTE" %}selected{% endif %}>Vigente</option>
+            <option value="TERMINADO" {% if filtro_estado == "TERMINADO" %}selected{% endif %}>Terminado</option>
+          </select>
+          <div class="form-hint">
+            <small class="text-muted">&nbsp;</small>
+          </div>
+        </div>
+
+        <!-- Fechas -->
+        <div class="form-group col-3">
+          <label for="inicio_desde">Inicio desde</label>
+          <input
+            type="date"
+            id="inicio_desde"
+            name="inicio_desde"
+            value="{{ filtro_inicio_desde or '' }}"
+          >
+          <div class="form-hint">
+            <small class="text-muted">&nbsp;</small>
+          </div>
+        </div>
+
+        <div class="form-group col-3">
+          <label for="inicio_hasta">Inicio hasta</label>
+          <input
+            type="date"
+            id="inicio_hasta"
+            name="inicio_hasta"
+            value="{{ filtro_inicio_hasta or '' }}"
+          >
+          <div class="form-hint">
+            <small class="text-muted">Filtra por <strong>fecha de inicio</strong>.</small>
+          </div>
+        </div>
+
+        <!-- Períodos rápidos -->
+        <div class="form-group col-3">
+          <div class="quick-range-block">
+            <div class="muted">Períodos rápidos</div>
+            <div class="quick-range-buttons">
+              <button type="button" class="btn btn-secondary btn-xs" data-range="this-month">Este mes</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-range="prev-month">Mes anterior</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-range="ytd">Año en curso</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-range="clear-dates">Limpiar fechas</button>
+            </div>
+            <div class="form-hint">
+              <small class="text-muted">&nbsp;</small>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="filters-actions">
+        <div class="left">
+          <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+          <a href="{{ url_for('contratos.lista_contratos') }}" class="btn btn-secondary">Limpiar todo</a>
+        </div>
+
+        <div class="right">
+          <span class="muted">
+            Tip ejecutivo: combina “Año en curso” + 2 empleadores y tienes informe inmediato para gerencia.
+          </span>
+        </div>
+      </div>
     </form>
+  </div>
 
-    <!-- ==========================
-         TABLA CONTRATOS
-    =========================== -->
-    {% if contratos %}
-        <div class="table-wrapper">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Trabajador</th>
-                        <th>RUT</th>
-                        <th>Empleador</th>
-                        <th>Obra</th>
-                        <th>Cargo</th>
-                        <th>Tipo</th>
-                        <th>Inicio</th>
-                        <th>Término</th>
-                        <th>Estado</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in contratos %}
-                        <tr>
-                            <td>
-                                {{ c.trabajador.nombres }} {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno }}
-                            </td>
-                            <td>{{ c.trabajador.rut }}</td>
-                            <td>
-                                {% if c.empleador %}
-                                    {{ c.empleador.razon_social }}
-                                {% else %}
-                                    <span class="text-muted">Sin empleador</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if c.obra %}
-                                    {{ c.obra.nombre }}
-                                    {% if c.obra.centro_costo %}
-                                        <br><small class="text-muted">{{ c.obra.centro_costo }}</small>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">Sin obra</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if c.cargo %}
-                                    {{ c.cargo.nombre }}
-                                {% else %}
-                                    <span class="text-muted">No asignado</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ c.tipo_contrato or "-" }}</td>
-                            <td>
-                                {% if c.fecha_inicio %}
-                                    {{ c.fecha_inicio.strftime("%d-%m-%Y") }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if c.fecha_termino %}
-                                    {{ c.fecha_termino.strftime("%d-%m-%Y") }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if c.estado_contrato == "VIGENTE" %}
-                                    <span class="badge badge-success">Vigente</span>
-                                {% elif c.estado_contrato == "TERMINADO" %}
-                                    <span class="badge badge-danger">Terminado</span>
-                                {% else %}
-                                    <span class="badge badge-secondary">{{ c.estado_contrato }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-right">
-                                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id) }}"
-                                   class="btn btn-sm btn-link">
-                                    Ver trabajador
-                                </a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="text-muted">
-            No hay contratos que cumplan con los filtros seleccionados.
-        </p>
-    {% endif %}
+  <!-- ==========================
+       TABLA CONTRATOS
+  =========================== -->
+  {% if contratos %}
+    <div class="table-wrapper">
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Trabajador</th>
+            <th>RUT</th>
+            <th>Empleador</th>
+            <th>Obra</th>
+            <th>Cargo</th>
+            <th>Tipo</th>
+            <th>Inicio</th>
+            <th>Término</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in contratos %}
+            <tr>
+              <td>{{ c.trabajador.nombres }} {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno }}</td>
+              <td>{{ c.trabajador.rut }}</td>
+              <td>
+                {% if c.empleador %}
+                  {{ c.empleador.razon_social }}
+                {% else %}
+                  <span class="text-muted">Sin empleador</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if c.obra %}
+                  {{ c.obra.nombre }}
+                  {% if c.obra.centro_costo %}
+                    <br><small class="text-muted">{{ c.obra.centro_costo }}</small>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">Sin obra</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if c.cargo %}
+                  {{ c.cargo.nombre }}
+                {% else %}
+                  <span class="text-muted">No asignado</span>
+                {% endif %}
+              </td>
+              <td>{{ c.tipo_contrato or "-" }}</td>
+              <td>
+                {% if c.fecha_inicio %}{{ c.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+              </td>
+              <td>
+                {% if c.fecha_termino %}{{ c.fecha_termino.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+              </td>
+              <td>
+                {% if c.estado_contrato == "VIGENTE" %}
+                  <span class="badge badge-success">Vigente</span>
+                {% elif c.estado_contrato == "TERMINADO" %}
+                  <span class="badge badge-danger">Terminado</span>
+                {% else %}
+                  <span class="badge badge-secondary">{{ c.estado_contrato }}</span>
+                {% endif %}
+              </td>
+              <td class="text-right">
+                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id) }}"
+                   class="btn btn-sm btn-link">
+                  Ver trabajador
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted">No hay contratos que cumplan con los filtros seleccionados.</p>
+  {% endif %}
 </div>
+
+<script>
+  (function () {
+    const form = document.getElementById("form-filtros-contratos");
+    const desde = document.getElementById("inicio_desde");
+    const hasta = document.getElementById("inicio_hasta");
+
+    function pad2(n) { return String(n).padStart(2, "0"); }
+    function toISODate(d) {
+      return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    }
+    function firstDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+
+    // Select all / clear all
+    document.querySelectorAll("[data-select-all]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sel = document.querySelector(btn.getAttribute("data-select-all"));
+        if (!sel) return;
+        Array.from(sel.options).forEach(o => o.selected = true);
+      });
+    });
+
+    document.querySelectorAll("[data-clear-all]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sel = document.querySelector(btn.getAttribute("data-clear-all"));
+        if (!sel) return;
+        Array.from(sel.options).forEach(o => o.selected = false);
+      });
+    });
+
+    // Quick ranges
+    document.querySelectorAll("[data-range]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const now = new Date();
+        const action = btn.getAttribute("data-range");
+
+        if (action === "this-month") {
+          const d1 = firstDayOfMonth(now);
+          const d2 = lastDayOfMonth(now);
+          desde.value = toISODate(d1);
+          hasta.value = toISODate(d2);
+          form.submit();
+          return;
+        }
+
+        if (action === "prev-month") {
+          const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const d1 = firstDayOfMonth(prev);
+          const d2 = lastDayOfMonth(prev);
+          desde.value = toISODate(d1);
+          hasta.value = toISODate(d2);
+          form.submit();
+          return;
+        }
+
+        if (action === "ytd") {
+          const d1 = new Date(now.getFullYear(), 0, 1);
+          const d2 = new Date(now.getFullYear(), 11, 31);
+          desde.value = toISODate(d1);
+          hasta.value = toISODate(d2);
+          form.submit();
+          return;
+        }
+
+        if (action === "clear-dates") {
+          desde.value = "";
+          hasta.value = "";
+          form.submit();
+          return;
+        }
+      });
+    });
+  })();
+</script>
 {% endblock %}

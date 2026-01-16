@@ -3,6 +3,16 @@
 {% block title %}Nuevo contrato{% endblock %}
 
 {% block content %}
+{# =========================================================
+   Next persistente: una sola fuente de verdad
+   - backend ya envía next_url (lo dejamos como prioridad)
+   - fallback a querystring o POST
+   ========================================================= #}
+{% set next_val = next_url
+    or request.args.get('next')
+    or request.form.get('next')
+    or '' %}
+
 <div class="card">
     <div class="card-header">
         <div>
@@ -20,26 +30,36 @@
         </div>
     </div>
 
-    <form method="post" class="form form-sectioned">
+    <form method="post"
+          class="form form-sectioned"
+          action="{% if trabajador %}
+                    {{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id, next=next_val) }}
+                  {% else %}
+                    {{ url_for('contratos.nuevo_contrato', next=next_val) }}
+                  {% endif %}">
 
         {% if trabajador %}
             <input type="hidden" name="trabajador_id" value="{{ trabajador.id }}">
         {% endif %}
 
-        <!-- ==========================
-             BLOQUE PRINCIPAL
-        =========================== -->
+        {# Next URL para redirección posterior #}
+        <input type="hidden" name="next" value="{{ next_val }}">
+
         <h2 class="section-title">Datos del contrato</h2>
         <div class="form-grid">
 
             <!-- Empleador -->
             <div class="form-group">
                 <label for="empleador_id">Empleador</label>
+                {% set empleador_sel = request.form.get('empleador_id') %}
                 <select id="empleador_id" name="empleador_id" required>
                     <option value="">Selecciona empleador</option>
                     {% for e in empleadores %}
-                        <option value="{{ e.id }}"
-                            {% if empleador_default_id and empleador_default_id == e.id %}selected{% endif %}>
+                        {% set is_selected = (
+                            (empleador_sel and empleador_sel|int == e.id)
+                            or (not empleador_sel and empleador_default_id and empleador_default_id == e.id)
+                        ) %}
+                        <option value="{{ e.id }}" {% if is_selected %}selected{% endif %}>
                             {{ e.razon_social }}
                         </option>
                     {% endfor %}
@@ -49,11 +69,15 @@
             <!-- Obra -->
             <div class="form-group">
                 <label for="obra_id">Obra</label>
+                {% set obra_sel = request.form.get('obra_id') %}
                 <select id="obra_id" name="obra_id" required>
                     <option value="">Selecciona obra</option>
                     {% for o in obras %}
-                        <option value="{{ o.id }}"
-                            {% if obra_default_id and obra_default_id == o.id %}selected{% endif %}>
+                        {% set is_selected = (
+                            (obra_sel and obra_sel|int == o.id)
+                            or (not obra_sel and obra_default_id and obra_default_id == o.id)
+                        ) %}
+                        <option value="{{ o.id }}" {% if is_selected %}selected{% endif %}>
                             {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
                         </option>
                     {% endfor %}
@@ -63,10 +87,15 @@
             <!-- Cargo -->
             <div class="form-group">
                 <label for="cargo_id">Cargo</label>
+                {% set cargo_sel = request.form.get('cargo_id') %}
                 <select id="cargo_id" name="cargo_id" required>
                     <option value="">Selecciona cargo</option>
                     {% for c in cargos %}
-                        <option value="{{ c.id }}">
+                        {% set is_selected = (
+                            (cargo_sel and cargo_sel|int == c.id)
+                            or (not cargo_sel and cargo_default_id and cargo_default_id == c.id)
+                        ) %}
+                        <option value="{{ c.id }}" {% if is_selected %}selected{% endif %}>
                             {{ c.id }} - {{ c.nombre }}
                         </option>
                     {% endfor %}
@@ -77,78 +106,113 @@
             <!-- Tipo de contrato -->
             <div class="form-group">
                 <label for="tipo_contrato">Tipo de contrato</label>
+                {% set tipo_sel = request.form.get('tipo_contrato','') %}
                 <select id="tipo_contrato" name="tipo_contrato" required>
                     <option value="">Selecciona tipo</option>
-                    <option value="INDEFINIDO">Indefinido</option>
-                    <option value="PLAZO_FIJO">Plazo fijo</option>
-                    <option value="FAENA">Por faena</option>
-                    <option value="PART_TIME">Part time</option>
+                    <option value="INDEFINIDO" {% if tipo_sel == 'INDEFINIDO' %}selected{% endif %}>Indefinido</option>
+                    <option value="PLAZO_FIJO" {% if tipo_sel == 'PLAZO_FIJO' %}selected{% endif %}>Plazo fijo</option>
+                    <option value="FAENA" {% if tipo_sel == 'FAENA' %}selected{% endif %}>Por faena</option>
+                    <option value="PART_TIME" {% if tipo_sel == 'PART_TIME' %}selected{% endif %}>Part time</option>
                 </select>
             </div>
 
             <!-- Fechas -->
             <div class="form-group">
                 <label for="fecha_inicio">Fecha inicio</label>
-                <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" required
+                       value="{{ request.form.get('fecha_inicio','') }}">
             </div>
 
             <div class="form-group">
                 <label for="fecha_termino">Fecha término</label>
-                <input type="date" id="fecha_termino" name="fecha_termino">
+                <input type="date" id="fecha_termino" name="fecha_termino"
+                       value="{{ request.form.get('fecha_termino','') }}">
                 <small>Solo para plazo fijo o faena. Para indefinido puedes dejarlo en blanco.</small>
             </div>
 
-            <!-- Jornada -->
+            <!-- Horario (catálogo) -->
             <div class="form-group">
-                <label for="jornada">Jornada</label>
-                <input type="text" id="jornada" name="jornada" placeholder="Ej: Lunes a viernes de 08:00 a 17:30">
+                <label for="horario_id">Horario de trabajo</label>
+                {% set horario_sel = request.form.get('horario_id','') %}
+                <select id="horario_id" name="horario_id">
+                    <option value="">Selecciona horario</option>
+                    {% for h in horarios %}
+                        <option value="{{ h.id }}"
+                                data-desc="{{ (h.descripcion or '')|e }}"
+                                {% if horario_sel and horario_sel|int == h.id %}selected{% endif %}>
+                            {{ h.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>Recomendado: selecciona una plantilla. Para casos especiales puedes detallar en “Jornada (texto)”.</small>
             </div>
 
+            <!-- Jornada (texto libre / compatibilidad) -->
+            <div class="form-group">
+                <label for="jornada">Jornada (texto)</label>
+                <textarea id="jornada" name="jornada" rows="3"
+                          placeholder="Ej: Lunes a Jueves... / Viernes...">{{ request.form.get('jornada','') }}</textarea>
+                <small>Si seleccionas un horario, puedes dejar esto en blanco (salvo excepciones).</small>
+            </div>
+
+            <!-- Horas semanales -->
             <div class="form-group">
                 <label for="horas_semanales">Horas semanales</label>
-                <input type="number" min="1" max="60" id="horas_semanales" name="horas_semanales" placeholder="Ej: 45">
+                <input type="number" id="horas_semanales" name="horas_semanales" min="1" max="60"
+                       placeholder="Ej: 44" value="{{ request.form.get('horas_semanales','') }}">
+                <small>Debe coincidir con la jornada pactada. Ej: jornada normal suele ser 44.</small>
+            </div>
+
+            <!-- Preview -->
+            <div class="form-group" id="horario_preview_wrap" style="display:none;">
+                <label>Descripción del horario (plantilla)</label>
+                <div class="card" style="margin-top:6px;">
+                    <div class="card-body" id="horario_preview" style="white-space:pre-wrap;"></div>
+                </div>
             </div>
 
             <!-- Sueldos y asignaciones -->
             <div class="form-group">
                 <label for="sueldo_base">Sueldo base ($)</label>
-                <input type="text" id="sueldo_base" name="sueldo_base" placeholder="Ej: 650000">
+                <input type="text" id="sueldo_base" name="sueldo_base" placeholder="Ej: 650000"
+                       value="{{ request.form.get('sueldo_base','') }}">
             </div>
 
             <div class="form-group">
                 <label for="asignacion_movilizacion">Asignación movilización ($)</label>
-                <input type="text" id="asignacion_movilizacion" name="asignacion_movilizacion" placeholder="Ej: 30000">
+                <input type="text" id="asignacion_movilizacion" name="asignacion_movilizacion" placeholder="Ej: 30000"
+                       value="{{ request.form.get('asignacion_movilizacion','') }}">
             </div>
 
             <div class="form-group">
                 <label for="asignacion_colacion">Asignación colación ($)</label>
-                <input type="text" id="asignacion_colacion" name="asignacion_colacion" placeholder="Ej: 50000">
+                <input type="text" id="asignacion_colacion" name="asignacion_colacion" placeholder="Ej: 50000"
+                       value="{{ request.form.get('asignacion_colacion','') }}">
             </div>
 
             <div class="form-group">
                 <label for="asignacion_herramientas">Asignación herramientas ($)</label>
-                <input type="text" id="asignacion_herramientas" name="asignacion_herramientas" placeholder="Ej: 15000">
+                <input type="text" id="asignacion_herramientas" name="asignacion_herramientas" placeholder="Ej: 15000"
+                       value="{{ request.form.get('asignacion_herramientas','') }}">
             </div>
 
             <!-- Estado contrato -->
             <div class="form-group">
                 <label for="estado_contrato">Estado contrato</label>
+                {% set est_sel = request.form.get('estado_contrato','VIGENTE') %}
                 <select id="estado_contrato" name="estado_contrato">
-                    <option value="VIGENTE" selected>Vigente</option>
-                    <option value="TERMINADO">Terminado</option>
+                    <option value="VIGENTE" {% if est_sel == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+                    <option value="TERMINADO" {% if est_sel == 'TERMINADO' %}selected{% endif %}>Terminado</option>
                 </select>
             </div>
         </div>
 
-        <!-- ==========================
-             ACCIONES
-        =========================== -->
         <div class="form-actions">
             {% if trabajador %}
-                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-secondary">
+                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id, next=next_val) }}"
+                   class="btn btn-secondary">
                     🔙 Volver a la ficha del trabajador
                 </a>
-
             {% else %}
                 <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
                     🏠 Volver al inicio
@@ -158,4 +222,37 @@
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const sel = document.getElementById("horario_id");
+    const wrap = document.getElementById("horario_preview_wrap");
+    const box = document.getElementById("horario_preview");
+    const jornada = document.getElementById("jornada");
+
+    if (!sel || !wrap || !box) return;
+
+    function refresh() {
+        const opt = sel.options[sel.selectedIndex];
+        const desc = (opt && opt.dataset) ? (opt.dataset.desc || "") : "";
+
+        if (desc.trim()) {
+            box.textContent = desc;
+            wrap.style.display = "block";
+
+            // UX: si el usuario no escribió nada, prellenamos el textarea
+            if (jornada && !jornada.value.trim()) {
+                jornada.value = desc;
+            }
+        } else {
+            box.textContent = "";
+            wrap.style.display = "none";
+        }
+    }
+
+    sel.addEventListener("change", refresh);
+    refresh();
+});
+</script>
+
 {% endblock %}

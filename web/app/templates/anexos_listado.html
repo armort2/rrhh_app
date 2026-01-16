@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Anexos · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Anexos</h1>
+      <p class="card-subtitle">
+        Registro de anexos generados por el sistema (extensión de contrato).
+      </p>
+    </div>
+  </div>
+
+  <div class="card-body">
+    {% if anexos_nuevos and anexos_nuevos|length > 0 %}
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Fecha anexo</th>
+            <th>Trabajador</th>
+            <th>Contrato</th>
+            <th>Término anterior</th>
+            <th>Nuevo término</th>
+            <th>Formato</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in anexos_nuevos %}
+            <tr>
+              <td>{{ a.fecha_anexo.strftime("%d-%m-%Y") if a.fecha_anexo else "-" }}</td>
+
+              <td>
+                {% if a.trabajador %}
+                  {{ a.trabajador.nombres }} {{ a.trabajador.ap_paterno }} {{ a.trabajador.ap_materno }}
+                {% else %}
+                  <span class="text-muted">Sin trabajador</span>
+                {% endif %}
+              </td>
+
+              <td>{% if a.contrato_id %}#{{ a.contrato_id }}{% else %}-{% endif %}</td>
+
+              <td>
+                {% if a.fecha_termino_anterior %}
+                  {{ a.fecha_termino_anterior.strftime("%d-%m-%Y") }}
+                {% else %}
+                  <span class="text-muted">Sin término</span>
+                {% endif %}
+              </td>
+
+              <td>{{ a.fecha_termino_nueva.strftime("%d-%m-%Y") if a.fecha_termino_nueva else "-" }}</td>
+              <td>{{ a.formato or "-" }}</td>
+              <td>{{ a.estado or "-" }}</td>
+
+              <td class="text-right">
+                <a class="btn btn-sm btn-primary"
+                   href="{{ url_for('anexos.anexo_extension_detalle', anexo_id=a.id) }}">
+                  Ver
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-muted">No hay anexos registrados aún.</p>
+    {% endif %}
+
+    <div class="form-actions" style="margin-top: 12px;">
+      <a class="btn btn-outline-secondary" href="/">⬅ Volver</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

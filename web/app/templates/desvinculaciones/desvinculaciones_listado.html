@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set title = "Desvinculaciones" %}
+
+{% block content %}
+<div class="page">
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h1 class="card-title">Desvinculaciones</h1>
+          <p class="card-subtitle">Últimos registros (MVP).</p>
+        </div>
+      </div>
+
+      {% if not desvinculaciones %}
+        <p class="empty-state">Aún no hay desvinculaciones registradas.</p>
+      {% else %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Trabajador</th>
+              <th>Contrato</th>
+              <th>Causal</th>
+              <th>F. Término</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in desvinculaciones %}
+              <tr>
+                <td>#{{ d.id }}</td>
+                <td>
+                  {{ d.trabajador.nombres }} {{ d.trabajador.ap_paterno }} {{ d.trabajador.ap_materno }}
+                  <div class="card-subtitle">RUT: {{ d.trabajador.rut_completo if d.trabajador.rut_completo is defined else (d.trabajador.rut ~ "-" ~ d.trabajador.dv) }}</div>
+                </td>
+                <td>#{{ d.contrato_id }}</td>
+                <td>{{ d.causal.causal_resumida }}</td>
+                <td>{{ d.fecha_termino.strftime("%d-%m-%Y") if d.fecha_termino else "-" }}</td>
+                <td>
+                  {% if d.estado == "EMITIDA" %}
+                    <span class="badge badge-success">Emitida</span>
+                  {% elif d.estado == "ANULADA" %}
+                    <span class="badge badge-danger">Anulada</span>
+                  {% else %}
+                    <span class="badge badge-warn">Borrador</span>
+                  {% endif %}
+                </td>
+                <td style="text-align:right;">
+                  <a class="btn btn-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=d.id) }}">Ver</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

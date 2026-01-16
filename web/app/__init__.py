@@ -1,43 +1,127 @@
 # web/app/__init__.py
 
-from flask import Flask
+from __future__ import annotations
+
+from flask import Flask, redirect, request, url_for
 
 from .config import DevConfig
-from .extensions import db
+from .extensions import db, login_manager
+
+# Flask-Migrate (si está instalado y declarado en extensions.py)
+try:
+    from .extensions import migrate  # type: ignore
+except Exception:  # pragma: no cover
+    migrate = None  # fallback seguro
+
+from .utils import format_rut_parts
+
+# Blueprint Horarios (lo tienes separado)
+from .blueprints.horarios import bp as horarios_bp
+
+# Blueprint Inasistencias
+from app.blueprints.inasistencias import bp as inasistencias_bp
+
+#Blueprint Anticipos
+from .blueprints.anticipos.routes import bp as anticipos_bp
 
 
 def create_app(config_class=DevConfig):
     app = Flask(__name__)
-    
+
     app.config["SYSTEM_NAME"] = "Sistema Grupo CS"
     app.config["SYSTEM_TAGLINE"] = "Gestión de Recursos Humanos"
-
     app.config.from_object(config_class)
-    db.init_app(app)
 
-    # Blueprints centralizados en app.blueprints
+    # ---------------------------
+    # Extensiones
+    # ---------------------------
+    db.init_app(app)
+    login_manager.init_app(app)
+
+    if migrate is not None:
+        migrate.init_app(app, db)
+
+    # ---------------------------
+    # Blueprints
+    # ---------------------------
     from .blueprints import (
         core_bp,
         trabajadores_bp,
         contratos_bp,
         obras_bp,
+        admin_bp,
+        anexos_bp,              # anexos extensión
+        anexos_indefinidos_bp,  # anexos indefinidos
     )
-    from .blueprints.documentos import documentos_bp
+    from .blueprints.documentos import bp as documentos_bp
+    from .blueprints.desvinculaciones.routes import bp as desvinculaciones_bp
 
+
+    # Registro
+    app.register_blueprint(horarios_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(trabajadores_bp)
     app.register_blueprint(contratos_bp)
     app.register_blueprint(obras_bp)
     app.register_blueprint(documentos_bp)
+    app.register_blueprint(anexos_bp)
+    app.register_blueprint(anexos_indefinidos_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(desvinculaciones_bp)
+    app.register_blueprint(inasistencias_bp)
+    app.register_blueprint(anticipos_bp)
 
-    from .models import Trabajador  # fuerza carga de modelos
+    # Auth blueprint
+    from .auth import auth as auth_bp
+    app.register_blueprint(auth_bp, url_prefix="/auth")
 
-    with app.app_context():
-        db.create_all()
+    # ---------------------------
+    # User loader
+    # ---------------------------
+    from .models import User  # noqa: F401
 
-    # Registrar comandos CLI
+    @login_manager.user_loader
+    def load_user(user_id: str):
+        return User.query.get(int(user_id))
+
+    # ---------------------------
+    # Login requerido (global)
+    # ---------------------------
+    @app.before_request
+    def require_login():
+        from flask_login import current_user  # import local (más robusto)
+
+        path = request.path
+
+        # Permitir estáticos
+        if path.startswith("/static/"):
+            return None
+
+        # Permitir login/logout
+        if path.startswith("/auth/login") or path.startswith("/auth/logout"):
+            return None
+
+        # Forzar autenticación
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.login", next=path))
+
+        return None
+
+    # ---------------------------
+    # Filtro Jinja: RUT trabajador
+    # ---------------------------
+    @app.template_filter("rut_trabajador")
+    def rut_trabajador_filter(t):
+        if not t:
+            return ""
+        rut_digits = getattr(t, "rut", None)
+        dv = getattr(t, "dv", None)
+        return format_rut_parts(rut_digits, dv) or (str(rut_digits) if rut_digits else "")
+
+    # ---------------------------
+    # CLI (un solo punto de registro - Solución B)
+    # ---------------------------
     from .cli import register_cli
     register_cli(app)
-
 
     return app

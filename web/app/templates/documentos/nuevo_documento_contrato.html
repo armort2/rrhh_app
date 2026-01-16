@@ -20,22 +20,30 @@
 
     <div class="card-body">
         <form method="post" class="form">
+            {# Preselección opcional desde querystring: ?tipo_documento=CONTRATO #}
+            {% set tipo_pre = request.args.get("tipo_documento", "") %}
+
             <div class="form-grid">
                 <div class="form-group">
                     <label for="tipo_documento">Tipo de documento / carpeta</label>
                     <select name="tipo_documento" id="tipo_documento" required>
                         <option value="">-- Selecciona tipo --</option>
                         {% for value, label in documento_tipos %}
-                            <option value="{{ value }}">{{ label }}</option>
+                            <option value="{{ value }}" {% if tipo_pre and tipo_pre == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
                         {% endfor %}
                     </select>
+                    {% if tipo_pre %}
+                        <small class="text-muted">Tipo preseleccionado desde el detalle del contrato.</small>
+                    {% endif %}
                 </div>
 
                 <div class="form-group">
                     <label for="fecha_documento">Fecha del documento</label>
                     <input type="date" name="fecha_documento" id="fecha_documento">
                     <small class="text-muted">
-                        Si la dejas en blanco, se usará la fecha de inicio del contrato.
+                        Opcional. Si la dejas en blanco, el sistema aplicará la fecha por defecto definida para este tipo de documento.
                     </small>
                 </div>
 
@@ -61,7 +69,7 @@
                     <input type="url" name="enlace_nextcloud" id="enlace_nextcloud"
                            placeholder="Pega aquí el enlace compartido (opcional)">
                     <small class="text-muted">
-                        Más adelante podemos automatizar la subida del archivo; por ahora puedes pegar aquí el link.
+                        Más adelante automatizamos la subida; por ahora puedes pegar aquí el link.
                     </small>
                 </div>
             </div>

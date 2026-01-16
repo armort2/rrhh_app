@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Generar anexo indefinido{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Generar / Regenerar Anexo Indefinido</h1>
+      <p class="card-subtitle">
+        Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ contrato.id }}</strong>
+        · Trabajador: <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+      </p>
+    </div>
+    <div class="card-actions">
+      <a class="btn btn-secondary" href="{{ url_for('anexos_indefinidos.detalle', anexo_id=anexo.id) }}">← Volver</a>
+    </div>
+  </div>
+
+  <form id="form-generar-anexo"
+        method="post"
+        class="form form-sectioned"
+        action="{{ url_for('anexos_indefinidos.generar_post', anexo_id=anexo.id) }}">
+
+    <h2 class="section-title">Formato de salida</h2>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="formato">Selecciona formato</label>
+        <select id="formato" name="formato" required>
+          <option value="DOCX" {% if formato_default == "DOCX" %}selected{% endif %}>DOCX (Word)</option>
+          <option value="PDF" {% if formato_default == "PDF" %}selected{% endif %}>PDF</option>
+          <option value="AMBOS" {% if formato_default == "AMBOS" %}selected{% endif %}>DOCX + PDF</option>
+        </select>
+        <small>Esta acción NO crea un nuevo registro en BD. Solo (re)genera archivos en Nextcloud.</small>
+
+        <div id="generando-hint" style="display:none; margin-top:10px;">
+          <small><strong>Procesando…</strong> Generando archivos en Nextcloud. Por favor no cierres esta pestaña.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button id="btn-generar"
+              type="submit"
+              class="btn btn-primary"
+              data-original-text="🔄 Generar ahora (Nextcloud)">
+        🔄 Generar ahora (Nextcloud)
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById("form-generar-anexo");
+    const btn = document.getElementById("btn-generar");
+    const sel = document.getElementById("formato");
+    const hint = document.getElementById("generando-hint");
+
+    if (!form || !btn) return;
+
+    form.addEventListener("submit", function () {
+      // Anti doble click + feedback visual
+      btn.disabled = true;
+      if (sel) sel.disabled = true;
+      if (hint) hint.style.display = "block";
+
+      const original = btn.getAttribute("data-original-text") || btn.textContent;
+      btn.textContent = "⏳ Generando…";
+      btn.setAttribute("data-original-text", original);
+    });
+  })();
+</script>
+{% endblock %}

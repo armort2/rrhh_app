@@ -1,33 +1,44 @@
-from datetime import datetime
-
 from flask import (
-    Blueprint,
     render_template,
     redirect,
     url_for,
     request,
     flash,
 )
+from flask_login import login_required
 
-from ... import db
+from ...extensions import db
 from ...models import Contrato, DocumentoLaboral
 from ...config import DOCUMENTO_TIPOS
+from ...utils import parse_date
+
+from . import bp
+
+# Si tienes role_required en tu proyecto, lo usamos.
+# Si no existe, no rompemos el sistema.
+try:
+    from ...utils import role_required  # type: ignore
+except Exception:  # pragma: no cover
+    def role_required(*_args, **_kwargs):  # type: ignore
+        def _decorator(fn):
+            return fn
+        return _decorator
 
 
-bp = Blueprint("documentos", __name__, url_prefix="/documentos")
-
-
-def _parse_date(value: str):
-    if not value:
-        return None
-    try:
-        return datetime.strptime(value, "%Y-%m-%d").date()
-    except ValueError:
-        return None
+def _validar_extension(ext: str) -> str:
+    ext = (ext or "").strip().lower()
+    if not ext:
+        return "pdf"
+    permitidas = {"pdf", "docx"}
+    if ext not in permitidas:
+        return "pdf"
+    return ext
 
 
 @bp.route("/contrato/<int:contrato_id>")
-def documentos_por_contrato(contrato_id):
+@login_required
+@role_required("ADMIN")
+def documentos_por_contrato(contrato_id: int):
     contrato = Contrato.query.get_or_404(contrato_id)
 
     # Mapeo value -> label para mostrar el nombre bonito del tipo
@@ -41,19 +52,33 @@ def documentos_por_contrato(contrato_id):
 
 
 @bp.route("/contrato/<int:contrato_id>/nuevo", methods=["GET", "POST"])
-def nuevo_documento_contrato(contrato_id):
+@login_required
+@role_required("ADMIN")
+def nuevo_documento_contrato(contrato_id: int):
     contrato = Contrato.query.get_or_404(contrato_id)
 
+    # Permite preselección desde el botón del detalle:
+    # /documentos/contrato/<id>/nuevo?tipo_documento=CONTRATO
+    tipo_preseleccion = (request.args.get("tipo_documento") or "").strip() or None
+
     if request.method == "POST":
-        tipo = request.form.get("tipo_documento")
-        fecha_doc = _parse_date(request.form.get("fecha_documento"))
-        extension = request.form.get("extension") or "pdf"
-        enlace_nextcloud = request.form.get("enlace_nextcloud") or None
-        estado = request.form.get("estado") or "VIGENTE"
+        tipo = (request.form.get("tipo_documento") or "").strip()
+        fecha_doc_raw = request.form.get("fecha_documento")  # puede venir vacío
+        fecha_doc = parse_date(fecha_doc_raw) if fecha_doc_raw else None
+
+        extension = _validar_extension(request.form.get("extension") or "pdf")
+        enlace_nextcloud = (request.form.get("enlace_nextcloud") or "").strip() or None
+        estado = (request.form.get("estado") or "VIGENTE").strip() or "VIGENTE"
 
         if not tipo:
-            flash("Debes seleccionar el tipo de documento.", "error")
-            return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id))
+            flash("Debes seleccionar el tipo de documento.", "danger")
+            return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id, tipo_documento=tipo_preseleccion or ""))
+
+        # Validar que el tipo exista en el catálogo
+        tipos_validos = {v for v, _label in DOCUMENTO_TIPOS}
+        if tipo not in tipos_validos:
+            flash("Tipo de documento inválido. Revisa el catálogo de tipos.", "danger")
+            return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id, tipo_documento=tipo_preseleccion or ""))
 
         try:
             doc = DocumentoLaboral.crear_para_contrato(
@@ -65,8 +90,8 @@ def nuevo_documento_contrato(contrato_id):
                 estado=estado,
             )
         except ValueError as e:
-            flash(str(e), "error")
-            return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id))
+            flash(str(e), "danger")
+            return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id, tipo_documento=tipo_preseleccion or ""))
 
         db.session.add(doc)
         db.session.commit()
@@ -78,4 +103,5 @@ def nuevo_documento_contrato(contrato_id):
         "documentos/nuevo_documento_contrato.html",
         contrato=contrato,
         documento_tipos=DOCUMENTO_TIPOS,
+        tipo_preseleccion=tipo_preseleccion,
     )

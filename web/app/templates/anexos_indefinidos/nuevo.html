@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Anexo a indefinido · Contrato #{{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Anexo a contrato indefinido</h1>
+      <p class="card-subtitle">
+        Contrato <strong>#{{ contrato.id }}</strong>
+        · Trabajador: <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }}</strong>
+      </p>
+    </div>
+    <div class="card-actions">
+      <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+        ⬅ Volver al contrato
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="form-grid readonly-grid" style="margin-bottom: 16px;">
+      <div><strong>Empleador:</strong><br>{{ contrato.empleador.razon_social if contrato.empleador else "-" }}</div>
+      <div><strong>Obra:</strong><br>{{ contrato.obra.nombre if contrato.obra else "-" }}</div>
+      <div><strong>Cargo:</strong><br>{{ contrato.cargo.nombre if contrato.cargo else "-" }}</div>
+      <div><strong>Tipo actual:</strong><br>{{ contrato.tipo_contrato or "-" }}</div>
+      <div>
+        <strong>Estado contrato:</strong><br>
+        {% if (contrato.estado_contrato or "")|upper == "VIGENTE" %}
+          <span class="badge badge-success">Vigente</span>
+        {% else %}
+          <span class="badge badge-muted">No vigente</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if (contrato.estado_contrato or "")|upper != "VIGENTE" %}
+      <div class="alert alert-warning" style="margin-bottom: 14px;">
+        <strong>Atención:</strong> este contrato se encuentra <strong>NO vigente</strong>.
+        <br>
+        Si necesitas registrar el paso a indefinido (por ejemplo, continuidad desde una fecha anterior),
+        debes realizarlo como <strong>regularización retroactiva</strong>. Esta acción deja trazabilidad y
+        <strong>no “revive”</strong> el estado del contrato.
+      </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('anexos_indefinidos.crear', contrato_id=contrato.id) }}" class="form">
+
+      <h2 class="section-title">Datos del anexo</h2>
+
+      {% if (contrato.estado_contrato or "")|upper != "VIGENTE" %}
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="display:flex; gap:10px; align-items:center;">
+            <input type="checkbox" name="regularizacion_retroactiva" value="1">
+            <span>
+              <strong>Regularización retroactiva</strong>
+              <br>
+              <small class="text-muted">
+                Requerido para contratos NO vigentes (OPERADOR). Mantiene el estado del contrato tal cual, pero registra el cambio a INDEFINIDO.
+              </small>
+            </span>
+          </label>
+        </div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="fecha_anexo">Fecha del anexo</label>
+          <input type="date" id="fecha_anexo" name="fecha_anexo" value="">
+          <small class="text-muted">Si lo dejas vacío, se usará la fecha de hoy.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="fecha_termino_referencial">Fecha término referencial (contrato/anexo extensión)</label>
+          <input
+            type="date"
+            id="fecha_termino_referencial"
+            name="fecha_termino_referencial"
+            value="{{ fecha_termino_referencial.isoformat() if fecha_termino_referencial else '' }}"
+          >
+          <small class="text-muted">Solo trazabilidad; no cambia vigencia.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="fecha_indefinido_desde">Pasa a indefinido desde</label>
+          <input
+            type="date"
+            id="fecha_indefinido_desde"
+            name="fecha_indefinido_desde"
+            required
+            value="{{ fecha_indefinido_sugerida.isoformat() if fecha_indefinido_sugerida else '' }}"
+          >
+          <small class="text-muted">Sugerido: día siguiente al término anterior.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="formato">Formato</label>
+          <select id="formato" name="formato">
+            <option value="AMBOS" selected>AMBOS</option>
+            <option value="DOCX">DOCX</option>
+            <option value="PDF">PDF</option>
+          </select>
+        </div>
+
+        <div class="form-group col-12">
+          <label for="observaciones">Observaciones</label>
+          <textarea id="observaciones" name="observaciones" rows="3"
+            placeholder="Ej: Regularización por continuidad / Se mantiene todo lo demás del contrato."></textarea>
+        </div>
+      </div>
+
+      <div class="mt-3 d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary">✅ Crear anexo indefinido</button>
+        <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}" class="btn btn-secondary">
+          Cancelar
+        </a>
+      </div>
+
+      <p class="text-muted" style="margin-top: 10px;">
+        Nota operacional:
+        este módulo registra el paso del contrato a <strong>INDEFINIDO</strong>.
+        {% if (contrato.estado_contrato or "")|upper == "VIGENTE" %}
+          Además, mantiene el contrato como <strong>VIGENTE</strong>.
+        {% else %}
+          En modo <strong>regularización retroactiva</strong>, el contrato mantiene su <strong>estado actual</strong>
+          (no vigente) y solo deja la trazabilidad del cambio a indefinido.
+        {% endif %}
+      </p>
+    </form>
+
+  </div>
+</div>
+{% endblock %}

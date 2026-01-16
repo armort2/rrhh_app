@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<style>
+  .form-grid { align-items: start; }
+  .form-group > div { text-align: left; }
+  .detalle-block { margin-top: 10px; }
+  .detalle-block .card { margin-top: 6px; }
+  .detalle-pre { white-space: pre-wrap; }
+</style>
+
 <div class="page">
     <div class="container">
         <div class="card">
@@ -9,18 +18,46 @@
                     <h1 class="card-title">Detalle de contrato</h1>
                     <p class="card-subtitle">
                         Trabajador:
-                        {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+                        <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+                        · RUT: {{ contrato.trabajador.rut }}
+                        · ID: {{ contrato.id }}
                     </p>
                 </div>
-                <div>
+
+                <div class="card-actions">
+
+                    <!-- NUEVO: Acciones documentales -->
+                    <a class="btn btn-primary" href="{{ url_for('contratos.editar_contrato', contrato_id=contrato.id) }}">
+                        ✏️ Editar contrato
+                    </a>
+
+                    <a class="btn btn-secondary" href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}">
+                        📁 Documentos
+                    </a>
+
+                    <a class="btn btn-success" href="{{ url_for('contratos.generar_contrato', contrato_id=contrato.id) }}">
+                        📄 Generar contrato
+                    </a>
+
+                    <a class="btn btn-outline-primary" href="{{ url_for('anexos.anexo_extension', contrato_id=contrato.id) }}">
+                        🧾 Generar anexo extensión
+                    </a>
+
                     <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id) }}"
-                       class="btn btn-secondary">
-                        ← Volver a ficha del trabajador
+                        class="btn btn-secondary">
+                        ← Volver a ficha
                     </a>
                 </div>
             </div>
 
+            {% set sueldo_base = contrato.sueldo_base %}
+            {% set movilizacion = contrato.asignacion_movilizacion %}
+            {% set colacion = contrato.asignacion_colacion %}
+            {% set herramientas = contrato.asignacion_herramientas %}
+
             <div class="form">
+                <h2 class="section-title">Información principal</h2>
+
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Empleador</label>
@@ -50,12 +87,24 @@
 
                     <div class="form-group">
                         <label>Fecha inicio</label>
-                        <div>{{ contrato.fecha_inicio or "-" }}</div>
+                        <div>
+                            {% if contrato.fecha_inicio %}
+                                {{ contrato.fecha_inicio.strftime("%d-%m-%Y") }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label>Fecha término</label>
-                        <div>{{ contrato.fecha_termino or "Sin término definido" }}</div>
+                        <div>
+                            {% if contrato.fecha_termino %}
+                                {{ contrato.fecha_termino.strftime("%d-%m-%Y") }}
+                            {% else %}
+                                Sin término definido
+                            {% endif %}
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -63,37 +112,28 @@
                         <div>
                             {% if contrato.estado_contrato == "VIGENTE" %}
                                 <span class="badge badge-success">Vigente</span>
+                            {% elif contrato.estado_contrato == "TERMINADO" %}
+                                <span class="badge badge-muted">Terminado</span>
                             {% else %}
                                 <span class="badge badge-muted">{{ contrato.estado_contrato }}</span>
                             {% endif %}
                         </div>
                     </div>
+                </div>
 
+                <h2 class="section-title mt-4">Jornada y remuneraciones</h2>
+
+                <!-- Grilla SOLO para datos cortos -->
+                <div class="form-grid">
                     <div class="form-group">
-                        <label>Sueldo base</label>
+                        <label>Horario (catálogo)</label>
                         <div>
-                            {{ "{:,.0f}".format(contrato.sueldo_base or 0).replace(",", ".") }} CLP
+                            {% if contrato.horario %}
+                                {{ contrato.horario.nombre }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Asignación movilización</label>
-                        <div>{{ contrato.asignacion_movilizacion or 0 }}</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Asignación colación</label>
-                        <div>{{ contrato.asignacion_colacion or 0 }}</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Asignación herramientas</label>
-                        <div>{{ contrato.asignacion_herramientas or 0 }}</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Jornada</label>
-                        <div>{{ contrato.jornada or "-" }}</div>
                     </div>
 
                     <div class="form-group">
@@ -102,25 +142,112 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Sueldo base</label>
+                        <div>
+                            {% if sueldo_base %}
+                                {{ "{:,.0f}".format(sueldo_base).replace(",", ".") }} CLP
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Asignación movilización</label>
+                        <div>
+                            {% if movilizacion %}
+                                {{ "{:,.0f}".format(movilizacion).replace(",", ".") }} CLP
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Asignación colación</label>
+                        <div>
+                            {% if colacion %}
+                                {{ "{:,.0f}".format(colacion).replace(",", ".") }} CLP
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Asignación herramientas</label>
+                        <div>
+                            {% if herramientas %}
+                                {{ "{:,.0f}".format(herramientas).replace(",", ".") }} CLP
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloques largos FULL WIDTH (ordenados, sin desalinear la grilla) -->
+                {% if contrato.horario and contrato.horario.descripcion %}
+                <div class="detalle-block">
+                    <label><strong>Descripción horario (plantilla)</strong></label>
+                    <div class="card">
+                        <div class="card-body detalle-pre">{{ contrato.horario.descripcion }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if contrato.jornada %}
+                <div class="detalle-block">
+                    <label><strong>Jornada (texto)</strong></label>
+                    <div class="card">
+                        <div class="card-body detalle-pre">{{ contrato.jornada }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <h2 class="section-title mt-4">Término de contrato</h2>
+
+                <div class="form-grid">
+                    <div class="form-group">
                         <label>Causal de término</label>
                         <div>{{ contrato.causal_termino or "-" }}</div>
                     </div>
 
                     <div class="form-group">
                         <label>Fecha de finiquito</label>
-                        <div>{{ contrato.fecha_finiquito or "-" }}</div>
+                        <div>
+                            {% if contrato.fecha_finiquito %}
+                                {{ contrato.fecha_finiquito.strftime("%d-%m-%Y") }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="footer">
                 <div class="footer-inner">
-                    <div>Creado: {{ contrato.creado_en or "-" }}</div>
+                    <div>
+                        Creado:
+                        {% if contrato.creado_en %}
+                            {{ contrato.creado_en.strftime("%d-%m-%Y %H:%M") }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+
                     <div class="footer-right">
-                        ID interno contrato: {{ contrato.id }}
+                        Actualizado:
+                        {% if contrato.actualizado_en %}
+                            {{ contrato.actualizado_en.strftime("%d-%m-%Y %H:%M") }}
+                        {% else %}
+                            -
+                        {% endif %}
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 </div>

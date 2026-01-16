@@ -39,6 +39,10 @@ NEXTCLOUD_BASE_PATH = (
     "DOCUMENTACION LABORAL/EMPLEADORES/{empleador}/TRABAJADORES/{carpeta_trabajador}"
 )
 
+NEXTCLOUD_WEBDAV_URL = os.environ.get("NEXTCLOUD_WEBDAV_URL", "").rstrip("/")
+NEXTCLOUD_USERNAME = os.environ.get("NEXTCLOUD_USERNAME", "")
+NEXTCLOUD_PASSWORD = os.environ.get("NEXTCLOUD_PASSWORD", "")
+
 
 def normalizar_nombre_trabajador(rut: str, nombres: str, ap_paterno: str, ap_materno: str) -> str:
     """
@@ -134,3 +138,22 @@ def get_nextcloud_base_path() -> Path:
     """
     root = os.environ.get("NEXTCLOUD_ROOT", "/mnt/nextcloud/DOCUMENTACION LABORAL")
     return Path(root)
+
+# ==========================
+# Nextcloud montado (rclone mount)
+# ==========================
+
+# Root del mount (en el server)
+NEXTCLOUD_MOUNT_ROOT = os.environ.get("NEXTCLOUD_MOUNT_ROOT", "/mnt/GrupoCS-Nextcloud")
+
+# Carpeta base dentro de Nextcloud (elige una sola convención)
+NEXTCLOUD_DOC_ROOT = os.environ.get("NEXTCLOUD_DOC_ROOT", "DOCUMENTACION LABORAL")
+
+# Estructura fija (convención corporativa)
+NEXTCLOUD_PATH_TEMPLATE = (
+    "{doc_root}/EMPLEADORES/{empleador}/TRABAJADORES/{carpeta_trabajador}/{tipo_doc}"
+)
+
+# Plantillas DOCX (rutas dentro del contenedor)
+TEMPLATE_CARTA_AVISO_DOCX = "/app/app/templates_docx/desvinculaciones/carta_aviso.docx"
+TEMPLATE_FINIQUITO_DOCX = "/app/app/templates_docx/desvinculaciones/finiquito.docx"

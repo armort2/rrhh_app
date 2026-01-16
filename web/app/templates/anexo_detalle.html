@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle anexo #{{ anexo.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Detalle de anexo</h1>
+      <p class="card-subtitle">
+        {{ anexo.titulo }} · {{ anexo.fecha_evento.strftime("%d-%m-%Y") if anexo.fecha_evento else "-" }}
+      </p>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo</label>
+        <div>{{ anexo.tipo }}</div>
+      </div>
+
+      <div class="form-group">
+        <label>Estado</label>
+        <div>{{ anexo.estado }}</div>
+      </div>
+
+      <div class="form-group">
+        <label>Trabajador</label>
+        <div>
+          {% if anexo.trabajador %}
+            {{ anexo.trabajador.nombres }} {{ anexo.trabajador.ap_paterno }} {{ anexo.trabajador.ap_materno }}
+          {% else %}-{% endif %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Contrato</label>
+        <div>
+          {% if anexo.contrato_id %}
+            <a href="{{ url_for('contratos.contrato_detalle', contrato_id=anexo.contrato_id) }}">Contrato #{{ anexo.contrato_id }}</a>
+          {% else %}-{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <h3 style="margin-top: 0;">Metadata</h3>
+    {% if anexo.meta %}
+      <pre style="white-space: pre-wrap;">{{ anexo.meta | tojson(indent=2) }}</pre>
+    {% else %}
+      <p class="text-muted">Sin metadata.</p>
+    {% endif %}
+
+    <hr>
+
+    <h3 style="margin-top: 0;">Archivo</h3>
+    {% if anexo.ruta_archivo %}
+      <p class="text-muted">
+        Guardado en: <code>{{ anexo.ruta_archivo }}</code>
+      </p>
+      <p class="text-muted">
+        Nota: aquí aún no estamos sirviendo descarga directa; está quedando trazable en Nextcloud.
+      </p>
+    {% else %}
+      <p class="text-muted">Sin ruta de archivo registrada.</p>
+    {% endif %}
+  </div>
+
+  <div class="card-footer">
+    <a class="btn btn-secondary" href="{{ url_for('anexos.anexos_listado') }}">← Volver a anexos</a>
+  </div>
+</div>
+{% endblock %}

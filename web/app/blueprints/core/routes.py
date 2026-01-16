@@ -1,114 +1,235 @@
 # web/app/blueprints/core/routes.py
 
-from flask import render_template, request
-from sqlalchemy import or_
+from __future__ import annotations
+
+from datetime import date, timedelta
+from functools import wraps
+
+from flask import render_template, request, redirect, url_for, flash, abort
+from flask_login import login_required, current_user
+from sqlalchemy import or_, func
 
 from ...extensions import db
-from ...models import Trabajador, Obra
+from ...models import Trabajador, Obra, Cargo, Contrato
+from ...auth.decorators import role_required
 
 from . import bp
 
 
 @bp.route("/")
+@login_required
 def index():
-    # Filtros antiguos
-    q = request.args.get("q", type=str)
-    obra_id = request.args.get("obra_id", type=int)
-    estado = request.args.get("estado", type=str)
+    # KPIs base
+    trabajadores_total = db.session.query(func.count(Trabajador.id)).scalar() or 0
 
-    # Filtros nuevos
-    obra_nombre = request.args.get("obra", "", type=str).strip()
-    cargo = request.args.get("cargo", "", type=str).strip()
+    # Obras activas
+    obras_activas = (
+        db.session.query(func.count(Obra.id))
+        .filter(Obra.estado == "ACTIVA")
+        .scalar()
+        or 0
+    )
 
-    # Paginación
-    page = request.args.get("page", 1, type=int)
-    per_page = 25
+    hoy = date.today()
 
-    # Base query con join a Obra
-    query = Trabajador.query.join(Obra)
-
-    # 1) Filtro de búsqueda libre
-    if q:
-        texto = f"%{q.strip()}%"
-        query = query.filter(
-            or_(
-                Trabajador.rut.ilike(texto),
-                Trabajador.nombres.ilike(texto),
-                Trabajador.ap_paterno.ilike(texto),
-                Trabajador.ap_materno.ilike(texto),
+    # Contratos vigentes / por vencer (solo si el modelo tiene campos)
+    if hasattr(Contrato, "fecha_inicio") and hasattr(Contrato, "fecha_termino"):
+        contratos_vigentes = (
+            db.session.query(func.count(Contrato.id))
+            .filter(
+                Contrato.fecha_inicio <= hoy,
+                or_(Contrato.fecha_termino.is_(None), Contrato.fecha_termino >= hoy),
             )
+            .scalar()
+            or 0
         )
 
-    # 2) Filtro por obra (ID)
-    if obra_id:
-        query = query.filter(Trabajador.obra_id == obra_id)
-
-    # 3) Filtro por estado laboral
-    if estado:
-        query = query.filter(Trabajador.estado_trabajador == estado)
-
-    # 4) Filtro nuevo: obra por nombre
-    if obra_nombre:
-        query = query.filter(Obra.nombre == obra_nombre)
-
-    # 5) Filtro nuevo: cargo
-    if cargo:
-        query = query.filter(Trabajador.cargo == cargo)
-
-    # Orden
-    query = query.order_by(Obra.nombre, Trabajador.ap_paterno, Trabajador.ap_materno)
-
-    # Resultados filtrados
-    trabajadores_filtrados = query.all()
-    total_registros = len(trabajadores_filtrados)
-
-    # Paginación
-    if total_registros == 0:
-        total_pages = 1
-        trabajadores_page = []
-        page = 1
+        limite = hoy + timedelta(days=30)
+        contratos_por_vencer_30d = (
+            db.session.query(func.count(Contrato.id))
+            .filter(
+                Contrato.fecha_termino.isnot(None),
+                Contrato.fecha_termino >= hoy,
+                Contrato.fecha_termino <= limite,
+            )
+            .scalar()
+            or 0
+        )
     else:
-        total_pages = (total_registros + per_page - 1) // per_page
+        contratos_vigentes = 0
+        contratos_por_vencer_30d = 0
 
-        if page < 1:
-            page = 1
-        if page > total_pages:
-            page = total_pages
+    kpis = {
+        "trabajadores_total": trabajadores_total,
+        "obras_activas": obras_activas,
+        "contratos_vigentes": contratos_vigentes,
+        "contratos_por_vencer_30d": contratos_por_vencer_30d,
+    }
 
-        start = (page - 1) * per_page
-        end = start + per_page
-        trabajadores_page = trabajadores_filtrados[start:end]
-
-    # Lista de obras para filtros (solo nombres)
-    obras_qs = (
-        Obra.query
-        .filter_by(estado="ACTIVA")
-        .order_by(Obra.nombre)
-        .all()
-    )
-    obras = [o.nombre for o in obras_qs]
-
-    # Lista de cargos disponibles (solución correcta)
-    cargos_rows = Trabajador.query.with_entities(Trabajador.cargo).distinct().all()
-    cargos = sorted({row[0] for row in cargos_rows if row[0]})
-
-    return render_template(
-        "index.html",
-        trabajadores=trabajadores_page,
-        obras=obras,
-        cargos=cargos,
-        obra_seleccionada=obra_nombre,
-        cargo_seleccionado=cargo,
-        total_registros=total_registros,
-        page=page,
-        total_pages=total_pages,
-        # Filtros antiguos
-        filtro_q=q,
-        filtro_obra_id=obra_id,
-        filtro_estado=estado,
-    )
+    return render_template("index.html", kpis=kpis)
 
 
 @bp.route("/ping")
 def ping():
     return {"status": "ok", "message": "RRHH app online 🤝"}
+
+
+# -------------------------------------------------------------------
+# MÓDULO: Cargos (catálogo)
+# -------------------------------------------------------------------
+
+@bp.get("/cargos")
+@login_required
+@role_required("ADMIN")
+def cargos_listado():
+    """
+    Listado administrable de cargos.
+    - Búsqueda por: id (exacto), nombre, categoria, descripcion
+    - Filtro por estado (si existe Cargo.activo): activos / inactivos / todos
+    """
+    q = (request.args.get("q") or "").strip()
+    estado = (request.args.get("estado") or "activos").strip().lower()  # activos|inactivos|todos
+
+    query = Cargo.query
+
+    # Filtro por texto/ID
+    if q:
+        if q.isdigit():
+            query = query.filter(Cargo.id == int(q))
+        else:
+            like = f"%{q}%"
+            query = query.filter(
+                or_(
+                    Cargo.nombre.ilike(like),
+                    Cargo.categoria.ilike(like),
+                    Cargo.descripcion.ilike(like),
+                )
+            )
+
+    # Filtro por "activo" solo si existe la columna/atributo
+    if hasattr(Cargo, "activo"):
+        if estado == "activos":
+            query = query.filter(Cargo.activo.is_(True))
+        elif estado == "inactivos":
+            query = query.filter(Cargo.activo.is_(False))
+    else:
+        estado = "todos"
+
+    cargos = query.order_by(Cargo.id.asc()).all()
+
+    return render_template(
+        "cargos_listado.html",
+        cargos=cargos,
+        q=q,
+        estado=estado,
+        soporta_activo=hasattr(Cargo, "activo"),
+    )
+
+
+@bp.post("/cargos/crear")
+@login_required
+@role_required("ADMIN")
+def cargo_crear():
+    q = (request.form.get("q") or "").strip()
+    estado = (request.form.get("estado") or "activos").strip().lower()
+
+    nombre = (request.form.get("nombre") or "").strip()
+    categoria = (request.form.get("categoria") or "").strip() or None
+    descripcion = (request.form.get("descripcion") or "").strip() or None
+
+    if not nombre:
+        flash("Debes ingresar el nombre del cargo.", "error")
+        return redirect(url_for("core.cargos_listado", q=q, estado=estado))
+
+    existente = Cargo.query.filter(Cargo.nombre.ilike(nombre)).first()
+    if existente:
+        flash(f"Ya existe un cargo con el nombre '{existente.nombre}'.", "warning")
+        return redirect(url_for("core.cargos_listado", q=q, estado=estado))
+
+    nuevo = Cargo(
+        nombre=nombre,
+        categoria=categoria,
+        descripcion=descripcion,
+    )
+
+    if hasattr(Cargo, "activo"):
+        nuevo.activo = True
+
+    db.session.add(nuevo)
+    db.session.commit()
+
+    flash("Cargo agregado correctamente.", "success")
+    return redirect(url_for("core.cargos_listado", q=q, estado=estado))
+
+
+@bp.post("/cargos/<int:cargo_id>/editar")
+@login_required
+@role_required("ADMIN")
+def cargo_editar(cargo_id: int):
+    cargo = Cargo.query.get_or_404(cargo_id)
+
+    nombre = (request.form.get("nombre") or "").strip()
+    categoria = (request.form.get("categoria") or "").strip() or None
+    descripcion = (request.form.get("descripcion") or "").strip() or None
+
+    if not nombre:
+        flash("El nombre del cargo no puede quedar vacío.", "error")
+        return redirect(url_for("core.cargos_listado", q=request.form.get("q", ""), estado=request.form.get("estado", "activos")))
+
+    cargo.nombre = nombre
+    cargo.categoria = categoria
+    cargo.descripcion = descripcion
+
+    db.session.commit()
+    flash("Cargo actualizado correctamente.", "success")
+
+    return redirect(url_for("core.cargos_listado", q=request.form.get("q", ""), estado=request.form.get("estado", "activos")))
+
+
+@bp.post("/cargos/<int:cargo_id>/toggle")
+@login_required
+@role_required("ADMIN")
+def cargo_toggle_activo(cargo_id: int):
+    """
+    Baja lógica (soft delete) / reactivación.
+    Requiere que exista Cargo.activo (columna en BD + atributo en modelo).
+    """
+    q = (request.args.get("q") or "").strip()
+    estado = (request.args.get("estado") or "activos").strip().lower()
+
+    if not hasattr(Cargo, "activo"):
+        flash(
+            "Este sistema aún no tiene 'activo' en cargos. Agrega la columna para habilitar baja lógica.",
+            "warning",
+        )
+        return redirect(url_for("core.cargos_listado", q=q, estado=estado))
+
+    cargo = Cargo.query.get_or_404(cargo_id)
+    cargo.activo = not cargo.activo
+    db.session.commit()
+
+    flash(
+        f"Cargo '{cargo.nombre}' actualizado: {'Activo' if cargo.activo else 'Inactivo'}.",
+        "success",
+    )
+
+    return redirect(url_for("core.cargos_listado", q=q, estado=estado))
+
+
+# Si no lo usas, recomiendo borrarlo y depender solo de role_required.
+def admin_required(fn):
+    @wraps(fn)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if getattr(current_user, "is_admin", False):
+            return fn(*args, **kwargs)
+
+        roles = []
+        if hasattr(current_user, "roles") and current_user.roles:
+            roles = [getattr(r, "nombre", None) or getattr(r, "name", None) for r in current_user.roles]
+        if "ADMIN" in roles:
+            return fn(*args, **kwargs)
+
+        abort(403)
+
+    return wrapper

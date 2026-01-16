@@ -4,54 +4,75 @@
 
 {% block content %}
 <div class="card">
-    <div class="card-header">
-        <div>
-            <h1 class="card-title">Obras</h1>
-            <p class="card-subtitle">
-                Gestión de obras y centros de costo asociados.
-            </p>
-        </div>
-        <div>
-            <a class="btn btn-primary" href="{{ url_for('obras.nueva_obra') }}">
-                ➕ Nueva obra
-            </a>
-        </div>
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Obras</h1>
+      <p class="card-subtitle">
+        Gestión de obras y centros de costo asociados.
+      </p>
     </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" href="{{ url_for('obras.nueva_obra') }}">
+        ➕ Nueva obra
+      </a>
+    </div>
+  </div>
 
-    {% if obras %}
-        <div class="table-wrapper">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Nombre</th>
-                        <th>Centro de costo</th>
-                        <th>Comuna</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for o in obras %}
-                    <tr>
-                        <td>{{ o.codigo }}</td>
-                        <td>{{ o.nombre }}</td>
-                        <td>{{ o.centro_costo or "-" }}</td>
-                        <td>{{ o.comuna or "-" }}</td>
-                        <td>
-                            <span class="badge {% if o.estado == 'ACTIVA' %}badge-success{% else %}badge-muted{% endif %}">
-                                {{ o.estado }}
-                            </span>
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-state">
-            Todavía no hay obras creadas. Crea la primera usando el botón
-            <strong>“Nueva obra”</strong>.
-        </p>
-    {% endif %}
+  {% if obras %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Centro de costo</th>
+            <th>Dirección</th>
+            <th>Comuna</th>
+            <th>Estado</th>
+            <th class="text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in obras %}
+            <tr>
+              <td>{{ o.codigo }}</td>
+              <td>{{ o.nombre }}</td>
+              <td>{{ o.centro_costo or "-" }}</td>
+              <td>{{ o.direccion or "-" }}</td>
+              <td>{{ o.comuna or "-" }}</td>
+              <td>
+                <span class="badge {% if o.estado == 'ACTIVA' %}badge-success{% else %}badge-muted{% endif %}">
+                  {{ o.estado }}
+                </span>
+              </td>
+              <td class="text-right">
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
+                  <a class="btn btn-sm btn-secondary"
+                     href="{{ url_for('obras.editar_obra', obra_id=o.id) }}">
+                    ✏️ Editar
+                  </a>
+
+                  <form method="post"
+                        action="{{ url_for('obras.toggle_estado', obra_id=o.id) }}"
+                        style="display:inline"
+                        onsubmit="return confirm('¿Confirmas el cambio de estado de la obra {{ o.codigo }}?');">
+                    <button type="submit"
+                            class="btn btn-sm {% if o.estado == 'ACTIVA' %}btn-danger{% else %}btn-success{% endif %}">
+                      {% if o.estado == 'ACTIVA' %}⛔ Cerrar{% else %}✅ Reabrir{% endif %}
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">
+      Todavía no hay obras creadas. Crea la primera usando el botón
+      <strong>“Nueva obra”</strong>.
+    </p>
+  {% endif %}
 </div>
 {% endblock %}

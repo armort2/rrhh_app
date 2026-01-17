@@ -10,31 +10,38 @@ Plataforma orientada a centralizar, automatizar y auditar procesos laborales cla
 
 Centralizar y automatizar procesos críticos del área de Recursos Humanos:
 
-- Gestión de trabajadores
-- Contratos y anexos (plazo fijo, extensión, indefinidos)
-- Control de obras, cargos y horarios
-- Inasistencias, anticipos y horas extras
-- Generación de documentación laboral (PDF / DOCX)
-- Administración de usuarios, roles y accesos
+- Gestión de trabajadores  
+- Contratos y anexos (plazo fijo, extensión, indefinidos)  
+- Control de obras, cargos y horarios  
+- Inasistencias, anticipos y horas extras  
+- Generación de documentación laboral (PDF / DOCX)  
+- Administración de usuarios, roles y accesos  
 
 ---
 
 ## 🧱 Stack tecnológico
 
-- Lenguaje: Python 3.12
-- Framework backend: Flask
-- ORM: SQLAlchemy
-- Base de datos: PostgreSQL / SQLite (desarrollo)
-- Frontend: Jinja2 + Bootstrap 5
-- Autenticación: Flask-Login
-- Contenedores: Docker / Docker Compose
-- Control de versiones: Git + GitHub
+- Lenguaje: Python 3.12  
+- Framework backend: Flask  
+- ORM: SQLAlchemy  
+- Base de datos: PostgreSQL / SQLite (desarrollo)  
+- Frontend: Jinja2 + Bootstrap 5  
+- Autenticación: Flask-Login  
+- Contenedores: Docker / Docker Compose  
+- Control de versiones: Git + GitHub  
+
+---
+
+## ✅ Requisitos
+
+- Docker  
+- Docker Compose  
 
 ---
 
 ## 📁 Estructura del proyecto
 
-Nota: el siguiente árbol está en formato “texto plano” deliberadamente para evitar problemas de renderizado.
+> Nota: el siguiente árbol se muestra en **texto plano** deliberadamente para evitar problemas de renderizado en Markdown.
 
     web/app/
     ├── __init__.py              # Factory create_app y registro de blueprints
@@ -86,9 +93,9 @@ Nota: el siguiente árbol está en formato “texto plano” deliberadamente par
 
 ## 🎨 Estándar visual
 
-- Bootstrap 5 como base de UI
-- CSS corporativo centralizado en `static/css/styles.css`
-- No se utilizan estilos inline en templates finales
+- Bootstrap 5 como base de UI  
+- CSS corporativo centralizado en `static/css/styles.css`  
+- No se utilizan estilos inline en templates finales  
 - Componentes y encabezados estandarizados:
   - `.section-header`
   - `.section-title`
@@ -106,7 +113,7 @@ Criterio estándar de estados en el sistema:
 - **VIGENTE** → badge verde  
 - Otros estados → badge gris  
 
-Ejemplo (Jinja2):
+Ejemplo en Jinja2:
 
     {% if estado == "VIGENTE" %}
       <span class="badge text-bg-success">Vigente</span>
@@ -118,14 +125,22 @@ Ejemplo (Jinja2):
 
 ## 🔐 Seguridad y control de acceso
 
-- Autenticación basada en **Flask-Login**
-- Autorización por **roles**
-- Control global de acceso mediante `before_request`
+- Autenticación basada en Flask-Login  
+- Autorización por roles  
+- Control global de acceso mediante `before_request`  
 - Separación estricta entre:
   - rutas
   - servicios
   - templates
-  - utilidades compartidas
+  - utilidades compartidas  
+
+---
+
+## 🧩 Variables de entorno
+
+- Este repositorio **no versiona archivos `.env`**  
+- Utilizar `.env.example` como plantilla cuando aplique  
+- Nunca subir credenciales, secretos ni datos sensibles  
 
 ---
 
@@ -144,10 +159,10 @@ Ejemplo (Jinja2):
 
 ## 📌 Estado del proyecto
 
-- Proyecto activo
-- Uso interno de Grupo CS
-- Evolución modular por funcionalidades
-- Versionado continuo y respaldo en GitHub
+- Proyecto activo  
+- Uso interno de Grupo CS  
+- Evolución modular por funcionalidades  
+- Versionado continuo y respaldo en GitHub  
 
 ---
 

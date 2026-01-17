@@ -1,134 +1,150 @@
+{# web/app/templates/anexos/anexo_extension_nuevo.html #}
 {% extends "base.html" %}
 {% block title %}Anexo extensión · Contrato #{{ contrato.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Generar Anexo de Extensión</h1>
-      <p class="card-subtitle">
-        Contrato #{{ contrato.id }} ·
-        {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
-      </p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Generar anexo de extensión</h1>
+      <div class="section-subtitle">
+        Contrato <strong>#{{ contrato.id }}</strong> ·
+        <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">⬅ Volver</a>
     </div>
   </div>
 
-  <div class="card-body">
-    <!-- Resumen corporativo / operativo -->
-    <div class="alert alert-warning" role="alert" style="margin-bottom: 16px;">
-      <strong>Importante:</strong> al generar este anexo, el sistema registrará el evento y <strong>actualizará la fecha de término del contrato</strong>.
-      Verifica la nueva fecha antes de confirmar.
-    </div>
+  <div class="alert alert-warning mb-3" role="alert">
+    <strong>Importante:</strong> al generar este anexo, el sistema registrará el evento y <strong>actualizará la fecha de término del contrato</strong>.
+    Verifica la nueva fecha antes de confirmar.
+  </div>
 
-    <div class="card" style="margin-bottom: 16px;">
-      <div class="card-body">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Trabajador</label>
-            <div>
-              {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
-              {% if contrato.trabajador.rut %} · RUT: {{ contrato.trabajador.rut }}{% endif %}
-            </div>
-          </div>
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
 
-          <div class="form-group">
-            <label>Empleador</label>
-            <div>
-              {% if contrato.empleador %}
-                {{ contrato.empleador.razon_social }}
-                {% if contrato.empleador.rut %} · RUT: {{ contrato.empleador.rut }}{% endif %}
-              {% else %}
-                <span class="text-muted">Sin empleador asignado</span>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Obra</label>
-            <div>
-              {% if contrato.obra %}
-                {{ contrato.obra.nombre }}{% if contrato.obra.comuna %} · {{ contrato.obra.comuna }}{% endif %}
-              {% else %}
-                <span class="text-muted">Sin obra asociada</span>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Cargo</label>
-            <div>
-              {% if contrato.cargo %}
-                {{ contrato.cargo.nombre }}
-              {% else %}
-                <span class="text-muted">Sin cargo asociado</span>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <form method="post"
-          class="form"
-          id="form-anexo-extension"
-          novalidate
-          data-submitted="0">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="fecha_anexo">Fecha del anexo</label>
-          <input type="date" id="fecha_anexo" name="fecha_anexo">
-          <small class="text-muted">Si lo dejas en blanco, se usará la fecha de hoy.</small>
-        </div>
-
-        <div class="form-group">
-          <label>Fecha término anterior</label>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Trabajador</label>
           <div>
-            {% if fecha_termino_anterior %}
-              <span id="fecha-termino-anterior-text">
-                {{ fecha_termino_anterior.strftime("%d-%m-%Y") }}
-              </span>
-              <!-- ISO para validación JS -->
-              <input type="hidden" id="fecha_termino_anterior_iso" value="{{ fecha_termino_anterior.strftime('%Y-%m-%d') }}">
+            {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+            {% if contrato.trabajador.rut %} · RUT: {{ contrato.trabajador.rut }}{% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Empleador</label>
+          <div>
+            {% if contrato.empleador %}
+              {{ contrato.empleador.razon_social }}
+              {% if contrato.empleador.rut %} · RUT: {{ contrato.empleador.rut }}{% endif %}
             {% else %}
-              <span class="text-muted" id="fecha-termino-anterior-text">Sin término definido</span>
-              <input type="hidden" id="fecha_termino_anterior_iso" value="">
+              <span class="text-muted">Sin empleador asignado</span>
             {% endif %}
           </div>
-          <small class="text-muted">Referencia del contrato antes de la extensión.</small>
         </div>
 
-        <div class="form-group">
-          <label for="fecha_termino_nueva">Nueva fecha de término</label>
-          <input type="date" id="fecha_termino_nueva" name="fecha_termino_nueva" required>
-          <div class="invalid-feedback" style="display:none;" id="error-fecha-nueva">
-            La nueva fecha debe ser posterior a la fecha de término anterior.
+        <div class="col-12 col-md-6">
+          <label class="form-label">Obra</label>
+          <div>
+            {% if contrato.obra %}
+              {{ contrato.obra.nombre }}{% if contrato.obra.comuna %} · {{ contrato.obra.comuna }}{% endif %}
+            {% else %}
+              <span class="text-muted">Sin obra asociada</span>
+            {% endif %}
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="formato">Formato</label>
-          <select id="formato" name="formato">
-            <option value="DOCX">DOCX</option>
-            <option value="PDF">PDF</option>
-            <option value="AMBOS" selected>AMBOS</option>
-          </select>
-          <small class="text-muted">DOCX, PDF o ambos. El registro en BD se hará igual.</small>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Cargo</label>
+          <div>
+            {% if contrato.cargo %}
+              {{ contrato.cargo.nombre }}
+            {% else %}
+              <span class="text-muted">Sin cargo asociado</span>
+            {% endif %}
+          </div>
         </div>
 
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label for="observaciones">Observaciones</label>
-          <textarea id="observaciones" name="observaciones" rows="3"
-            placeholder="Opcional: notas internas o aclaraciones para el anexo."></textarea>
-          <small class="text-muted">Estas observaciones se insertan en el documento si tu plantilla lo contempla.</small>
-        </div>
       </div>
-
-      <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
-        <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">⬅ Volver</a>
-        <button class="btn btn-primary" type="submit" id="btn-submit">🧾 Generar anexo</button>
-      </div>
-    </form>
+    </div>
   </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <form method="post"
+            class="form"
+            id="form-anexo-extension"
+            novalidate
+            data-submitted="0">
+
+        <div class="row g-3">
+
+          <div class="col-12 col-md-3">
+            <label for="fecha_anexo" class="form-label">Fecha del anexo</label>
+            <input type="date" id="fecha_anexo" name="fecha_anexo" class="form-control">
+            <div class="form-text">Si lo dejas en blanco, se usará la fecha de hoy.</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Fecha término anterior</label>
+            <div>
+              {% if fecha_termino_anterior %}
+                <span id="fecha-termino-anterior-text">
+                  {{ fecha_termino_anterior.strftime("%d-%m-%Y") }}
+                </span>
+                <input type="hidden" id="fecha_termino_anterior_iso" value="{{ fecha_termino_anterior.strftime('%Y-%m-%d') }}">
+              {% else %}
+                <span class="text-muted" id="fecha-termino-anterior-text">Sin término definido</span>
+                <input type="hidden" id="fecha_termino_anterior_iso" value="">
+              {% endif %}
+            </div>
+            <div class="form-text">Referencia del contrato antes de la extensión.</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="fecha_termino_nueva" class="form-label">Nueva fecha de término</label>
+            <input type="date" id="fecha_termino_nueva" name="fecha_termino_nueva" class="form-control" required>
+            <div class="invalid-feedback" id="error-fecha-nueva">
+              La nueva fecha debe ser posterior a la fecha de término anterior.
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="formato" class="form-label">Formato</label>
+            <select id="formato" name="formato" class="form-select">
+              <option value="DOCX">DOCX</option>
+              <option value="PDF">PDF</option>
+              <option value="AMBOS" selected>AMBOS</option>
+            </select>
+            <div class="form-text">DOCX, PDF o ambos. El registro en BD se hará igual.</div>
+          </div>
+
+          <div class="col-12">
+            <label for="observaciones" class="form-label">Observaciones</label>
+            <textarea id="observaciones" name="observaciones" rows="3" class="form-control"
+              placeholder="Opcional: notas internas o aclaraciones para el anexo."></textarea>
+            <div class="form-text">Estas observaciones se insertan en el documento si tu plantilla lo contempla.</div>
+          </div>
+
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
+          <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">⬅ Volver</a>
+          <button class="btn btn-primary" type="submit" id="btn-submit">🧾 Generar anexo</button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -160,8 +176,12 @@
     if (!fechaNueva.value) return false;
 
     const ok = fechaNueva.value > fechaAnteriorISO;
-    if (err) err.style.display = ok ? "none" : "block";
+
     fechaNueva.classList.toggle("is-invalid", !ok);
+
+    // Bootstrap invalid-feedback se muestra con is-invalid; pero si quieres forzarlo, usamos d-block
+    if (err) err.classList.toggle("d-block", !ok);
+
     return ok;
   }
 
@@ -183,11 +203,9 @@
       if (!ok) {
         e.preventDefault();
         e.stopPropagation();
-        // Si falló la validación, NO bloqueamos el form
         return;
       }
 
-      // Bloqueo definitivo (PRG en backend hace el resto)
       form.dataset.submitted = "1";
       if (btn) {
         btn.disabled = true;

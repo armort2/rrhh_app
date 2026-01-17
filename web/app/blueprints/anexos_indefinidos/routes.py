@@ -23,7 +23,7 @@ from ...services.docx_engine import replace_placeholders
 from ...services.paths_nextcloud import get_nc_paths
 from ...services.pdf_convert import convert_docx_to_pdf
 from ...services.storage_nextcloud_fs import ensure_dir
-from ...templates.utils.dates import fecha_larga_es
+from ...utils import fecha_larga_es
 
 from . import bp
 
@@ -601,3 +601,41 @@ def eliminar(anexo_id: int):
 
     flash("Anexo indefinido eliminado de la base de datos. (No borra archivos)", "success")
     return redirect(url_for("anexos_indefinidos.listado_por_contrato", contrato_id=contrato.id))
+
+@bp.get("/")
+@login_required
+@role_required("ADMIN", "OPERADOR")
+def listado_global():
+    """
+    Listado global (navegable desde menú) de anexos indefinidos.
+    - ADMIN: ve todo
+    - OPERADOR: ve solo contratos cuyas obras pueda acceder
+    """
+    # Traemos un set acotado y ordenado (ERP-friendly)
+    anexos_q = (
+        AnexoIndefinidoContrato.query
+        .order_by(AnexoIndefinidoContrato.fecha_anexo.desc(), AnexoIndefinidoContrato.id.desc())
+        .limit(300)
+        .all()
+    )
+
+    if current_user.has_role("ADMIN"):
+        anexos = anexos_q
+    else:
+        # Filtrado defensivo sin asumir helpers adicionales del user model
+        anexos = []
+        for a in anexos_q:
+            # Si no tiene obra asociada, no mostrar a no-admin
+            if not a.obra_id:
+                continue
+            try:
+                if current_user.can_access_obra(int(a.obra_id)):
+                    anexos.append(a)
+            except Exception:
+                # Si por cualquier motivo no puede validar acceso, mejor no mostrar
+                continue
+
+    return render_template(
+        "anexos_indefinidos/listado_global.html",
+        anexos=anexos,
+    )

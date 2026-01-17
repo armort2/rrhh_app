@@ -7,7 +7,7 @@ from pathlib import Path
 from flask import current_app
 
 from ..models import Desvinculacion, Trabajador, Contrato
-from ..templates.utils.dates import fecha_larga_es
+from ..utils import fecha_larga_es
 from ..services.docx_engine import build_contract_docx  # reutilizamos engine
 from ..services.pdf_convert import convert_docx_to_pdf
 

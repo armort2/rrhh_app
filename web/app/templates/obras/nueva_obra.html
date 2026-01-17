@@ -1,0 +1,129 @@
+{# web/app/templates/obras/nueva_obra.html #}
+{% extends "base.html" %}
+
+{% block title %}Nueva Obra · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div class="section-header mb-0">
+        <h1 class="section-title">Nueva obra</h1>
+        <div class="section-subtitle">
+          Registra una nueva obra para asociar trabajadores y documentación.
+        </div>
+        <div class="section-divider"></div>
+      </div>
+
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('obras.lista_obras') }}" class="btn btn-outline-secondary">
+          ← Volver
+        </a>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <form method="post">
+        <h2 class="section-title mb-3">Datos de la obra</h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-3">
+            <label for="codigo" class="form-label">Código</label>
+            <input type="text" id="codigo" name="codigo" class="form-control"
+                   required placeholder="Ej: QNTO-01"
+                   value="{{ request.form.get('codigo','') }}">
+          </div>
+
+          <div class="col-12 col-md-9">
+            <label for="nombre" class="form-label">Nombre de la obra</label>
+            <input type="text" id="nombre" name="nombre" class="form-control"
+                   required placeholder="Nombre descriptivo de la obra"
+                   value="{{ request.form.get('nombre','') }}">
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="centro_costo" class="form-label">Centro de costo</label>
+            <input type="text" id="centro_costo" name="centro_costo" class="form-control"
+                   placeholder="Ej: QUINTERO"
+                   value="{{ request.form.get('centro_costo','') }}">
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="comuna" class="form-label">Comuna</label>
+            <input type="text" id="comuna" name="comuna" class="form-control"
+                   placeholder="Comuna donde se ejecuta la obra"
+                   value="{{ request.form.get('comuna','') }}">
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="estado" class="form-label">Estado</label>
+            {% set est = request.form.get('estado','ACTIVA') %}
+            <select id="estado" name="estado" class="form-select">
+              <option value="ACTIVA" {% if est == 'ACTIVA' %}selected{% endif %}>ACTIVA</option>
+              <option value="CERRADA" {% if est == 'CERRADA' %}selected{% endif %}>CERRADA</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label for="direccion" class="form-label">Dirección</label>
+            <input type="text" id="direccion" name="direccion" class="form-control"
+                   placeholder="Ej: Av. Los Constructores 1234" maxlength="300"
+                   value="{{ request.form.get('direccion','') }}">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="fecha_inicio" class="form-label">Fecha inicio</label>
+            <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control"
+                   value="{{ request.form.get('fecha_inicio','') }}">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="fecha_cierre" class="form-label">Fecha cierre</label>
+            <input type="date" id="fecha_cierre" name="fecha_cierre" class="form-control"
+                   value="{{ request.form.get('fecha_cierre','') }}">
+            <div class="form-text">
+              Normalmente se completa al cerrar la obra.
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between gap-2 mt-4 flex-wrap">
+          <a href="{{ url_for('obras.lista_obras') }}" class="btn btn-outline-secondary">
+            Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary">
+            💾 Guardar obra
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // UX simple: si el usuario marca CERRADA y no hay fecha_cierre, propone hoy.
+  (function () {
+    const estado = document.getElementById("estado");
+    const cierre = document.getElementById("fecha_cierre");
+    if (!estado || !cierre) return;
+
+    function todayISO() {
+      const d = new Date();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${d.getFullYear()}-${mm}-${dd}`;
+    }
+
+    estado.addEventListener("change", function () {
+      if (estado.value === "CERRADA" && !cierre.value) {
+        cierre.value = todayISO();
+      }
+      if (estado.value === "ACTIVA") {
+        // Si prefieres mantener fecha manual incluso en ACTIVA, comenta esta línea:
+        cierre.value = "";
+      }
+    });
+  })();
+</script>
+{% endblock %}

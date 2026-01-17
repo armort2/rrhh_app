@@ -13,7 +13,7 @@ from ..services.docx_engine import replace_placeholders
 from ..services.paths_nextcloud import get_nc_paths
 from ..services.pdf_convert import convert_docx_to_pdf
 from ..services.storage_nextcloud_fs import ensure_dir
-from ..templates.utils.dates import fecha_larga_es
+from ..utils import fecha_larga_es
 
 from docx import Document
 

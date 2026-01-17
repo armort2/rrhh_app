@@ -1,71 +1,89 @@
+{# web/app/templates/inasistencias/revision.html #}
 {% extends "base.html" %}
 {% block title %}Revisión de inasistencias{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <h1 class="card-title">Revisión de inasistencias</h1>
-    <p class="card-subtitle">Control previo al ingreso en remuneraciones</p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Revisión de inasistencias</h1>
+      <div class="section-subtitle">Control previo al ingreso en remuneraciones.</div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.listado') }}">⬅ Volver</a>
+    </div>
   </div>
 
-  <div class="card-body">
-    <form method="get" class="form form-grid">
-      <div class="form-group">
-        <label>Centro de costo</label>
-        <select name="cc">
-          <option value="">— Todos —</option>
-          {% for c in centros_costo %}
-            <option value="{{ c }}" {% if cc == c %}selected{% endif %}>{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
+  <div class="card">
+    <div class="card-body">
 
-      <div class="form-group">
-        <label>Mes</label>
-        <input type="month" name="mes" value="{{ mes }}">
-      </div>
+      <form method="get">
+        <div class="row g-3">
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Centro de costo</label>
+            <select name="cc" class="form-select">
+              <option value="">— Todos —</option>
+              {% for c in centros_costo %}
+                <option value="{{ c }}" {% if cc == c %}selected{% endif %}>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-      <div class="form-group" style="align-self:end">
-        <button class="btn">Filtrar</button>
-      </div>
-    </form>
+          <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Mes</label>
+            <input type="month" name="mes" class="form-control" value="{{ mes }}">
+          </div>
 
-    <form method="post">
-      <table class="table" style="margin-top:12px;">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Fecha</th>
-            <th>Trabajador</th>
-            <th>Tipo</th>
-            <th>Tiempo</th>
-            <th>Motivo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for it in items %}
-          <tr {% if it.procesada %}style="opacity:.5"{% endif %}>
-            <td>
-              {% if not it.procesada %}
-              <input type="checkbox" name="inasistencia_id" value="{{ it.id }}">
-              {% else %}
-              ✔
-              {% endif %}
-            </td>
-            <td>{{ it.fecha }}</td>
-            <td>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno }} {{ it.trabajador.nombres }}</td>
-            <td>{{ it.tipo }}</td>
-            <td>{{ fmt_hhmm(it.minutos_ausentes) if it.tipo == 'HORAS' else '—' }}</td>
-            <td>{{ it.motivo }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          <div class="col-12 d-flex gap-2 flex-wrap justify-content-end">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+          </div>
+        </div>
+      </form>
 
-      <div style="margin-top:12px;">
-        <button class="btn btn-primary" type="submit">Marcar seleccionadas como procesadas</button>
-      </div>
-    </form>
+      <form method="post">
+        <div class="table-responsive mt-3">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 56px;"></th>
+                <th>Fecha</th>
+                <th>Trabajador</th>
+                <th>Tipo</th>
+                <th>Tiempo</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for it in items %}
+                <tr {% if it.procesada %}style="opacity:.5"{% endif %}>
+                  <td>
+                    {% if not it.procesada %}
+                      <input type="checkbox" name="inasistencia_id" value="{{ it.id }}">
+                    {% else %}
+                      ✔
+                    {% endif %}
+                  </td>
+                  <td>{{ it.fecha }}</td>
+                  <td>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno }} {{ it.trabajador.nombres }}</td>
+                  <td>{{ it.tipo }}</td>
+                  <td>{{ fmt_hhmm(it.minutos_ausentes) if it.tipo == 'HORAS' else '—' }}</td>
+                  <td>{{ it.motivo }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+          <button class="btn btn-primary" type="submit">Marcar seleccionadas como procesadas</button>
+        </div>
+      </form>
+
+    </div>
   </div>
+
 </div>
 {% endblock %}

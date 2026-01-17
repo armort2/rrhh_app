@@ -1,44 +1,58 @@
+{# web/app/templates/anexos/anexo_extension_generar.html #}
 {% extends "base.html" %}
-
 {% block title %}Generar anexo extensión · #{{ anexo.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Generar / Regenerar anexo de extensión</h1>
-      <p class="card-subtitle">
-        Anexo <strong>#{{ anexo.id }}</strong>
-        · Contrato <strong>#{{ contrato.id }}</strong>
-        · Trabajador: <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
-      </p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Generar / Regenerar anexo de extensión</h1>
+      <div class="section-subtitle">
+        Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ contrato.id }}</strong> ·
+        Trabajador: <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+      </div>
+      <div class="section-divider"></div>
     </div>
-    <div class="card-actions">
+
+    <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-secondary" href="{{ url_for('anexos.anexo_extension_detalle', anexo_id=anexo.id) }}">
-        ← Volver
+        ⬅ Volver
       </a>
     </div>
   </div>
 
-  <form method="post" class="form form-sectioned"
-        onsubmit="this.querySelector('button[type=submit]').disabled=true;">
-    <h2 class="section-title">Formato de salida</h2>
+  <div class="card">
+    <div class="card-body">
 
-    <div class="form-grid">
-      <div class="form-group">
-        <label for="formato">Selecciona formato</label>
-        <select id="formato" name="formato" required>
-          <option value="DOCX" {{ 'selected' if formato_default == 'DOCX' else '' }}>DOCX (Word)</option>
-          <option value="PDF" {{ 'selected' if formato_default == 'PDF' else '' }}>PDF</option>
-          <option value="AMBOS" {{ 'selected' if formato_default == 'AMBOS' else '' }}>DOCX + PDF</option>
-        </select>
-        <small>Esta acción no crea un nuevo registro; solo (re)genera archivos en Nextcloud.</small>
-      </div>
-    </div>
+      <form method="post"
+            class="form"
+            onsubmit="this.querySelector('button[type=submit]').disabled=true;">
 
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">🔄 Generar ahora</button>
+        <div class="row g-3">
+
+          <div class="col-12 col-md-6">
+            <label for="formato" class="form-label">Formato de salida</label>
+            <select id="formato" name="formato" class="form-select" required>
+              <option value="DOCX" {{ 'selected' if formato_default == 'DOCX' else '' }}>DOCX (Word)</option>
+              <option value="PDF" {{ 'selected' if formato_default == 'PDF' else '' }}>PDF</option>
+              <option value="AMBOS" {{ 'selected' if formato_default == 'AMBOS' else '' }}>DOCX + PDF</option>
+            </select>
+            <div class="form-text">
+              Esta acción no crea un nuevo registro; solo (re)genera archivos en Nextcloud.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+          <button type="submit" class="btn btn-primary">🔄 Generar ahora</button>
+        </div>
+
+      </form>
+
     </div>
-  </form>
+  </div>
+
 </div>
 {% endblock %}

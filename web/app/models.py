@@ -985,3 +985,37 @@ class AnticipoDetalle(db.Model):
     observacion = db.Column(db.String(300))
     estado_linea = db.Column(db.String(20), nullable=False, default="OK")
     # OK / NO_ENCONTRADO / OBRA_NO_CALZA / DUPLICADA / OBSERVADA
+
+# ==========================
+# HORAS EXTRAS
+# ==========================
+
+class HorasExtra(db.Model):
+    __tablename__ = "horas_extras"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    trabajador_id = db.Column(db.Integer, ForeignKey("trabajadores.id"), nullable=False, index=True)
+    obra_id = db.Column(db.Integer, ForeignKey("obras.id"), nullable=False, index=True)
+
+    fecha = db.Column(db.Date, nullable=False, index=True)
+    hora_inicio = db.Column(db.Time, nullable=False)
+    hora_termino = db.Column(db.Time, nullable=False)
+
+    minutos_totales = db.Column(db.Integer, nullable=False, default=0)
+
+    motivo = db.Column(db.Text, nullable=True)
+
+    estado = db.Column(db.String(20), nullable=False, default="PENDIENTE", index=True)
+    autorizado_por = db.Column(db.String(120), nullable=True)
+    observacion_revision = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    trabajador = relationship("Trabajador")
+    obra = relationship("Obra")
+
+    __table_args__ = (
+        CheckConstraint("minutos_totales >= 0", name="ck_horas_extras_minutos_no_neg"),
+    )

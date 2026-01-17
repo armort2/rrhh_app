@@ -1,255 +1,139 @@
+{# web/app/templates/trabajadores/trabajadores_listado.html #}
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-  /* Reutilizamos el look & feel de contratos */
-  .filters-card {
-    border-top: 1px solid rgba(0,0,0,.06);
-    padding-top: 12px;
-    margin-top: 12px;
-  }
+<div class="container py-3">
 
-  .filters-row {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 12px;
-    align-items: end;
-  }
-
-  .col-12 { grid-column: span 12; }
-  .col-6  { grid-column: span 6; }
-  .col-4  { grid-column: span 4; }
-  .col-3  { grid-column: span 3; }
-
-  @media (max-width: 1100px) {
-    .col-6, .col-4, .col-3 { grid-column: span 12; }
-  }
-
-  .multi-select { min-height: 120px; }
-
-  .help-inline {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 8px;
-    align-items: center;
-  }
-
-  .btn-xs {
-    padding: 6px 10px;
-    font-size: 12px;
-    line-height: 1.1;
-  }
-
-  .muted {
-    color: #6c757d;
-    font-size: 12px;
-  }
-
-  .filters-actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-    padding-top: 12px;
-    padding-bottom: 12px;
-    border-top: 1px solid rgba(0,0,0,.06);
-    margin-bottom: 12px;
-  }
-
-  .filters-actions .left,
-  .filters-actions .right {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .table-wrapper { margin-top: 8px; }
-
-  /* ✅ Nuevo: stack para apilar buscador + estado */
-  .stack {
-    display: grid;
-    gap: 12px;
-  }
-
-  /* Badges (si no existen en tu CSS global, igual se verán decentes) */
-  .badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    line-height: 1.2;
-    border: 1px solid rgba(0,0,0,.12);
-    background: rgba(0,0,0,.04);
-  }
-  .badge-success {
-    border-color: rgba(25,135,84,.25);
-    background: rgba(25,135,84,.12);
-  }
-  .badge-muted {
-    border-color: rgba(108,117,125,.25);
-    background: rgba(108,117,125,.10);
-  }
-</style>
-
-<div class="container">
-  <section class="page">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2 class="card-title">Trabajadores</h2>
-          <p class="card-subtitle">
+  <div class="card shadow-sm">
+    <div class="card-body border-bottom">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+        <div class="section-header mb-0">
+          <h1 class="section-title">Trabajadores</h1>
+          <div class="section-subtitle">
             Listado de trabajadores registrados. Filtra por empleador, obra, cargo y estado.
-          </p>
+          </div>
+          <div class="section-divider"></div>
         </div>
+
+
         <a href="{{ url_for('trabajadores.nuevo_trabajador', next=request.full_path) }}" class="btn btn-primary">
           ➕ Agregar trabajador
         </a>
-
       </div>
+    </div>
+
+    <div class="card-body">
 
       <!-- ==========================
-           FILTROS AVANZADOS
+           FILTROS
       =========================== -->
-      <div class="filters-card">
-        <form method="get" class="form" id="form-filtros-trabajadores">
-          <div class="filters-row">
+      <form method="get" id="form-filtros-trabajadores">
 
-            <!-- Empleadores -->
-            <div class="form-group col-6">
-              <label for="empleador_ids">Empleadores</label>
-              <select id="empleador_ids" name="empleador_id" class="multi-select" multiple>
-                {% for e in empleadores %}
-                  <option value="{{ e.id }}"
-                    {% if filtro_empleador_ids is defined and e.id in filtro_empleador_ids %}selected{% endif %}>
-                    {{ e.razon_social }}
-                  </option>
-                {% endfor %}
-              </select>
+        <div class="row g-3">
+          <!-- Empleadores -->
+          <div class="col-12 col-lg-6">
+            <label for="empleador_ids" class="form-label">Empleadores</label>
+            <select id="empleador_ids" name="empleador_id" class="form-select" multiple size="7">
+              {% for e in empleadores %}
+                <option value="{{ e.id }}" {% if filtro_empleador_ids is defined and e.id in filtro_empleador_ids %}selected{% endif %}>
+                  {{ e.razon_social }}
+                </option>
+              {% endfor %}
+            </select>
 
-              <div class="help-inline">
-                <button type="button" class="btn btn-secondary btn-xs" data-select-all="#empleador_ids">
-                  Seleccionar todos
-                </button>
-                <button type="button" class="btn btn-secondary btn-xs" data-clear-all="#empleador_ids">
-                  Limpiar selección
-                </button>
-                <span class="muted">Tip: Ctrl (Windows) / ⌘ (Mac) para selección puntual.</span>
-              </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="#empleador_ids">Seleccionar todos</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-clear-all="#empleador_ids">Limpiar selección</button>
+              <span class="text-muted small">Tip: Ctrl (Windows) / ⌘ (Mac) para selección puntual.</span>
             </div>
+          </div>
 
-            <!-- Obras -->
-            <div class="form-group col-6">
-              <label for="obra_ids">Obras</label>
-              <select id="obra_ids" name="obra_id" class="multi-select" multiple>
-                {% for o in obras %}
-                  <option value="{{ o.id }}"
-                    {% if filtro_obra_ids is defined and o.id in filtro_obra_ids %}selected{% endif %}>
-                    {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
-                  </option>
-                {% endfor %}
-              </select>
+          <!-- Obras -->
+          <div class="col-12 col-lg-6">
+            <label for="obra_ids" class="form-label">Obras</label>
+            <select id="obra_ids" name="obra_id" class="form-select" multiple size="7">
+              {% for o in obras %}
+                <option value="{{ o.id }}" {% if filtro_obra_ids is defined and o.id in filtro_obra_ids %}selected{% endif %}>
+                  {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                </option>
+              {% endfor %}
+            </select>
 
-              <div class="help-inline">
-                <button type="button" class="btn btn-secondary btn-xs" data-select-all="#obra_ids">
-                  Seleccionar todas
-                </button>
-                <button type="button" class="btn btn-secondary btn-xs" data-clear-all="#obra_ids">
-                  Limpiar selección
-                </button>
-                <span class="muted">Consejo: por obra queda “listado listo para comité”.</span>
-              </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="#obra_ids">Seleccionar todas</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-clear-all="#obra_ids">Limpiar selección</button>
+              <span class="text-muted small">Consejo: por obra queda “listado listo para comité”.</span>
             </div>
+          </div>
 
-            <!-- Cargos -->
-            <div class="form-group col-6">
-              <label for="cargo_ids">Cargos</label>
-              <select id="cargo_ids" name="cargo_id" class="multi-select" multiple>
-                {% for c in cargos %}
-                  <option value="{{ c.id }}"
-                    {% if filtro_cargo_ids is defined and c.id in filtro_cargo_ids %}selected{% endif %}>
-                    {{ c.nombre }}
-                  </option>
-                {% endfor %}
-              </select>
+          <!-- Cargos -->
+          <div class="col-12 col-lg-6">
+            <label for="cargo_ids" class="form-label">Cargos</label>
+            <select id="cargo_ids" name="cargo_id" class="form-select" multiple size="7">
+              {% for c in cargos %}
+                <option value="{{ c.id }}" {% if filtro_cargo_ids is defined and c.id in filtro_cargo_ids %}selected{% endif %}>
+                  {{ c.nombre }}
+                </option>
+              {% endfor %}
+            </select>
 
-              <div class="help-inline">
-                <button type="button" class="btn btn-secondary btn-xs" data-select-all="#cargo_ids">
-                  Seleccionar todos
-                </button>
-                <button type="button" class="btn btn-secondary btn-xs" data-clear-all="#cargo_ids">
-                  Limpiar selección
-                </button>
-                <span class="muted">Control de dotación en modo “gerencia”.</span>
-              </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="#cargo_ids">Seleccionar todos</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-clear-all="#cargo_ids">Limpiar selección</button>
+              <span class="text-muted small">Control de dotación en modo “gerencia”.</span>
             </div>
+          </div>
 
-            <!-- ✅ Buscador + Estado apilados (columna derecha) -->
-            <div class="col-6 stack">
-
-              <!-- Buscador (Nombre / Apellido / RUT) -->
-              <div class="form-group">
-                <label for="q">Buscar trabajador</label>
-                <input
-                  type="text"
-                  id="q"
-                  name="q"
-                  value="{{ q or '' }}"
-                  placeholder="Ej: 12.345.678-9, Juan, Pérez, Juan Pérez"
-                  autocomplete="off"
-                />
-                <div class="help-inline">
-                  <span class="muted">Busca por RUT, nombres o apellidos. Soporta RUT con o sin puntos/guión.</span>
-                </div>
+          <!-- Buscador + Estado -->
+          <div class="col-12 col-lg-6">
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="q" class="form-label">Buscar trabajador</label>
+                <input type="text" class="form-control" id="q" name="q" value="{{ q or '' }}"
+                       placeholder="Ej: 12.345.678-9, Juan, Pérez, Juan Pérez" autocomplete="off">
+                <div class="form-text">Busca por RUT, nombres o apellidos. Soporta RUT con o sin puntos/guión.</div>
               </div>
 
-              <!-- Estado trabajador (según contrato vigente) -->
-              <div class="form-group">
-                <label for="estado">Estado trabajador</label>
-                <select id="estado" name="estado">
+              <div class="col-12">
+                <label for="estado" class="form-label">Estado trabajador</label>
+                <select id="estado" name="estado" class="form-select">
                   <option value="" {% if not filtro_estado %}selected{% endif %}>Todos</option>
                   <option value="VIGENTE" {% if filtro_estado == "VIGENTE" %}selected{% endif %}>Vigente</option>
                   <option value="NO_VIGENTE" {% if filtro_estado == "NO_VIGENTE" %}selected{% endif %}>No vigente</option>
                 </select>
-                <div class="help-inline">
-                  <span class="muted">“Vigente” = tiene al menos 1 contrato vigente hoy.</span>
-                </div>
+                <div class="form-text">“Vigente” = tiene al menos 1 contrato vigente hoy.</div>
               </div>
-
-            </div>
-
-          </div>
-
-          <div class="filters-actions">
-            <div class="left">
-              <button type="submit" class="btn btn-primary">Aplicar filtros</button>
-              <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="btn btn-secondary">Limpiar todo</a>
-            </div>
-            <div class="right">
-              <span class="muted">
-                Tip ejecutivo: Empleador + Obra + “Buscar” = auditoría feliz.
-              </span>
             </div>
           </div>
-        </form>
-      </div>
+        </div>
+
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-top pt-3 mt-3">
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+            <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="btn btn-outline-secondary">Limpiar todo</a>
+          </div>
+          <div class="text-muted small d-flex align-items-center">
+            Tip ejecutivo: Empleador + Obra + “Buscar” = auditoría feliz.
+          </div>
+        </div>
+      </form>
 
       <!-- ==========================
            TABLA
       =========================== -->
+      <hr class="my-4">
+
       {% if trabajadores %}
-        <div class="table-wrapper">
-          <table class="table">
-            <thead>
+        <div class="table-responsive">
+          <table class="table align-middle table-striped table-hover">
+            <thead class="table-light">
               <tr>
                 <th>RUT</th>
                 <th>Nombre</th>
                 <th>Cargo</th>
                 <th>Obra</th>
                 <th>Estado</th>
-                <th>Acciones</th>
+                <th class="text-end">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -262,14 +146,14 @@
                 <td>
                   {% set est = estado_trabajador_map.get(t.id, "NO_VIGENTE") %}
                   {% if est == "VIGENTE" %}
-                    <span class="badge badge-success">Vigente</span>
+                    <span class="badge text-bg-success">Vigente</span>
                   {% else %}
-                    <span class="badge badge-muted">No vigente</span>
+                    <span class="badge text-bg-secondary">No vigente</span>
                   {% endif %}
                 </td>
-                <td>
+                <td class="text-end">
                   <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=t.id, next=request.full_path) }}"
-                    class="btn btn-secondary">
+                     class="btn btn-sm btn-outline-secondary">
                     🔍 Ver ficha
                   </a>
                 </td>
@@ -277,84 +161,81 @@
               {% endfor %}
             </tbody>
           </table>
-
-          {% if total_pages > 1 %}
-          <div class="pagination-wrapper">
-            <nav class="pagination">
-              {% if page > 1 %}
-                <a href="{{ url_for('trabajadores.listado_trabajadores',
-                                    page=page-1,
-                                    q=q,
-                                    empleador_id=filtro_empleador_ids,
-                                    obra_id=filtro_obra_ids,
-                                    cargo_id=filtro_cargo_ids,
-                                    estado=filtro_estado) }}"
-                   class="page-link">
-                  🔙 Anterior
-                </a>
-              {% endif %}
-
-              {% for p in range(1, total_pages + 1) %}
-                {% if p == page %}
-                  <span class="page-link current">{{ p }}</span>
-                {% else %}
-                  <a href="{{ url_for('trabajadores.listado_trabajadores',
-                                      page=p,
-                                      q=q,
-                                      empleador_id=filtro_empleador_ids,
-                                      obra_id=filtro_obra_ids,
-                                      cargo_id=filtro_cargo_ids,
-                                      estado=filtro_estado) }}"
-                     class="page-link">
-                    {{ p }}
-                  </a>
-                {% endif %}
-              {% endfor %}
-
-              {% if page < total_pages %}
-                <a href="{{ url_for('trabajadores.listado_trabajadores',
-                                    page=page+1,
-                                    q=q,
-                                    empleador_id=filtro_empleador_ids,
-                                    obra_id=filtro_obra_ids,
-                                    cargo_id=filtro_cargo_ids,
-                                    estado=filtro_estado) }}"
-                   class="page-link">
-                  Siguiente 🔜
-                </a>
-              {% endif %}
-            </nav>
-          </div>
-          {% endif %}
         </div>
+
+        {% if total_pages > 1 %}
+        <nav class="d-flex justify-content-center mt-3" aria-label="Paginación">
+          <ul class="pagination mb-0">
+            {% if page > 1 %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('trabajadores.listado_trabajadores',
+                                                    page=page-1,
+                                                    q=q,
+                                                    empleador_id=filtro_empleador_ids,
+                                                    obra_id=filtro_obra_ids,
+                                                    cargo_id=filtro_cargo_ids,
+                                                    estado=filtro_estado) }}">Anterior</a>
+              </li>
+            {% endif %}
+
+            {% for p in range(1, total_pages + 1) %}
+              {% if p == page %}
+                <li class="page-item active" aria-current="page"><span class="page-link">{{ p }}</span></li>
+              {% else %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('trabajadores.listado_trabajadores',
+                                                      page=p,
+                                                      q=q,
+                                                      empleador_id=filtro_empleador_ids,
+                                                      obra_id=filtro_obra_ids,
+                                                      cargo_id=filtro_cargo_ids,
+                                                      estado=filtro_estado) }}">{{ p }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+
+            {% if page < total_pages %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('trabajadores.listado_trabajadores',
+                                                    page=page+1,
+                                                    q=q,
+                                                    empleador_id=filtro_empleador_ids,
+                                                    obra_id=filtro_obra_ids,
+                                                    cargo_id=filtro_cargo_ids,
+                                                    estado=filtro_estado) }}">Siguiente</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
       {% else %}
-        <p class="empty-state">
+        <div class="alert alert-light border mb-0">
           No hay trabajadores que cumplan con los filtros seleccionados.
-        </p>
+        </div>
       {% endif %}
 
     </div>
-  </section>
+  </div>
 </div>
 
 <script>
-  (function () {
-    // Select all / clear all
-    document.querySelectorAll("[data-select-all]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const sel = document.querySelector(btn.getAttribute("data-select-all"));
-        if (!sel) return;
-        Array.from(sel.options).forEach(o => o.selected = true);
-      });
+(function () {
+  document.querySelectorAll("[data-select-all]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sel = document.querySelector(btn.getAttribute("data-select-all"));
+      if (!sel) return;
+      Array.from(sel.options).forEach(o => o.selected = true);
     });
+  });
 
-    document.querySelectorAll("[data-clear-all]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const sel = document.querySelector(btn.getAttribute("data-clear-all"));
-        if (!sel) return;
-        Array.from(sel.options).forEach(o => o.selected = false);
-      });
+  document.querySelectorAll("[data-clear-all]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sel = document.querySelector(btn.getAttribute("data-clear-all"));
+      if (!sel) return;
+      Array.from(sel.options).forEach(o => o.selected = false);
     });
-  })();
+  });
+})();
 </script>
 {% endblock %}

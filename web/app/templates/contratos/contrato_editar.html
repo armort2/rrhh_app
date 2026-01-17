@@ -1,0 +1,258 @@
+{# web/app/templates/contratos/contrato_editar.html #}
+{% extends "base.html" %}
+
+{% block title %}Editar contrato{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+        <h1 class="section-title">Editar contrato</h1>
+        <div class="section-subtitle">
+        Trabajador:
+        <strong>{{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}</strong>
+        · RUT: {{ trabajador.rut }}
+        · Contrato ID: {{ contrato.id }}
+        </div>
+        <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+        Volver al detalle
+      </a>
+      <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-outline-secondary">
+        Ficha trabajador
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" class="needs-validation" novalidate>
+
+        {% if next_url %}
+          <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
+
+        <h2 class="h6 mb-3">Datos del contrato</h2>
+
+        <div class="row g-3">
+
+          <div class="col-12 col-md-4">
+            <label for="empleador_id" class="form-label">Empleador</label>
+            <select id="empleador_id" name="empleador_id" class="form-select" required>
+              <option value="">Selecciona empleador</option>
+              {% for e in empleadores %}
+                <option value="{{ e.id }}" {% if contrato.empleador_id == e.id %}selected{% endif %}>
+                  {{ e.razon_social }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback">Selecciona un empleador.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="obra_id" class="form-label">Obra</label>
+            <select id="obra_id" name="obra_id" class="form-select" required>
+              <option value="">Selecciona obra</option>
+              {% for o in obras %}
+                <option value="{{ o.id }}" {% if contrato.obra_id == o.id %}selected{% endif %}>
+                  {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback">Selecciona una obra.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="cargo_id" class="form-label">Cargo</label>
+            <select id="cargo_id" name="cargo_id" class="form-select" required>
+              <option value="">Selecciona cargo</option>
+              {% for c in cargos %}
+                <option value="{{ c.id }}" {% if contrato.cargo_id == c.id %}selected{% endif %}>
+                  {{ c.id }} - {{ c.nombre }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Si el contrato queda VIGENTE, se sincroniza la ficha del trabajador con este cargo/obra.</div>
+            <div class="invalid-feedback">Selecciona un cargo.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="tipo_contrato" class="form-label">Tipo de contrato</label>
+            <select id="tipo_contrato" name="tipo_contrato" class="form-select" required>
+              <option value="">Selecciona tipo</option>
+              <option value="INDEFINIDO" {% if contrato.tipo_contrato == "INDEFINIDO" %}selected{% endif %}>Indefinido</option>
+              <option value="PLAZO_FIJO" {% if contrato.tipo_contrato == "PLAZO_FIJO" %}selected{% endif %}>Plazo fijo</option>
+              <option value="FAENA" {% if contrato.tipo_contrato == "FAENA" %}selected{% endif %}>Por faena</option>
+              <option value="PART_TIME" {% if contrato.tipo_contrato == "PART_TIME" %}selected{% endif %}>Part time</option>
+            </select>
+            <div class="invalid-feedback">Selecciona un tipo de contrato.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="fecha_inicio" class="form-label">Fecha inicio</label>
+            <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control" required value="{{ contrato.fecha_inicio }}">
+            <div class="invalid-feedback">Indica la fecha de inicio.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label for="fecha_termino" class="form-label">Fecha término</label>
+            <input type="date" id="fecha_termino" name="fecha_termino" class="form-control" value="{{ contrato.fecha_termino }}">
+            <div class="form-text">Solo para plazo fijo o faena. Para indefinido puedes dejarlo en blanco.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="horario_id" class="form-label">Horario de trabajo</label>
+            <select id="horario_id" name="horario_id" class="form-select">
+              <option value="">Selecciona horario</option>
+              {% for h in horarios %}
+                <option value="{{ h.id }}"
+                        data-desc="{{ (h.descripcion or '')|e }}"
+                        {% if contrato.horario_id == h.id %}selected{% endif %}>
+                  {{ h.nombre }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Si el contrato tiene horario, se recomienda mantenerlo por consistencia documental.</div>
+          </div>
+
+          <div class="col-12 col-md-6" id="horario_preview_wrap" style="display:none;">
+            <label class="form-label">Descripción del horario (plantilla)</label>
+            <div class="card">
+              <div class="card-body" id="horario_preview" style="white-space: pre-wrap;"></div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label for="jornada" class="form-label">Jornada (texto)</label>
+            <textarea id="jornada" name="jornada" rows="3" class="form-control"
+                      placeholder="Ej: Lunes a Jueves... / Viernes...">{{ contrato.jornada or '' }}</textarea>
+            <div class="form-text">Para excepciones o complementos. Si usas plantilla, idealmente esto va vacío.</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="horas_semanales" class="form-label">Horas semanales</label>
+            <input type="number" id="horas_semanales" name="horas_semanales" min="1" max="60"
+                   class="form-control" placeholder="Ej: 44" value="{{ contrato.horas_semanales or '' }}">
+            <div class="form-text">Debe coincidir con la jornada pactada. Ej: jornada normal suele ser 44.</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="sueldo_base" class="form-label">Sueldo base ($)</label>
+            <input type="text" id="sueldo_base" name="sueldo_base" class="form-control"
+                   placeholder="Ej: 650000" value="{{ contrato.sueldo_base or '' }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="asignacion_movilizacion" class="form-label">Asignación movilización ($)</label>
+            <input type="text" id="asignacion_movilizacion" name="asignacion_movilizacion" class="form-control"
+                   placeholder="Ej: 30000" value="{{ contrato.asignacion_movilizacion or '' }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="asignacion_colacion" class="form-label">Asignación colación ($)</label>
+            <input type="text" id="asignacion_colacion" name="asignacion_colacion" class="form-control"
+                   placeholder="Ej: 50000" value="{{ contrato.asignacion_colacion or '' }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="asignacion_herramientas" class="form-label">Asignación herramientas ($)</label>
+            <input type="text" id="asignacion_herramientas" name="asignacion_herramientas" class="form-control"
+                   placeholder="Ej: 15000" value="{{ contrato.asignacion_herramientas or '' }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="estado_contrato" class="form-label">Estado contrato</label>
+            <select id="estado_contrato" name="estado_contrato" class="form-select">
+              <option value="VIGENTE" {% if contrato.estado_contrato == "VIGENTE" %}selected{% endif %}>Vigente</option>
+              <option value="TERMINADO" {% if contrato.estado_contrato == "TERMINADO" %}selected{% endif %}>Terminado</option>
+            </select>
+          </div>
+
+        </div>
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-end gap-2 flex-wrap">
+          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const selHorario = document.getElementById("horario_id");
+    const wrap = document.getElementById("horario_preview_wrap");
+    const box = document.getElementById("horario_preview");
+
+    const selTipo = document.getElementById("tipo_contrato");
+    const inpHoras = document.getElementById("horas_semanales");
+
+    if (selHorario && wrap && box) {
+        function refreshHorarioPreview() {
+            const opt = selHorario.options[selHorario.selectedIndex];
+            const desc = (opt && opt.dataset) ? (opt.dataset.desc || "") : "";
+            if (desc.trim()) {
+                box.textContent = desc;
+                wrap.style.display = "block";
+            } else {
+                box.textContent = "";
+                wrap.style.display = "none";
+            }
+        }
+        selHorario.addEventListener("change", refreshHorarioPreview);
+        refreshHorarioPreview();
+    }
+
+    function defaultHorasPorTipo(tipo) {
+        const map = {
+            "PART_TIME": 18,
+            "INDEFINIDO": 44,
+            "PLAZO_FIJO": 44,
+            "FAENA": 44
+        };
+        return map[tipo] || "";
+    }
+
+    function refreshHoras() {
+        if (!selTipo || !inpHoras) return;
+
+        const tipo = (selTipo.value || "").trim();
+        const current = (inpHoras.value || "").trim();
+
+        // En editar: mismo criterio, no pisar si ya hay valor
+        if (!current) {
+            const def = defaultHorasPorTipo(tipo);
+            if (def) inpHoras.value = String(def);
+        }
+    }
+
+    if (selTipo && inpHoras) {
+        selTipo.addEventListener("change", refreshHoras);
+        refreshHoras();
+    }
+});
+</script>
+
+
+<script>
+(function () {
+  const forms = document.querySelectorAll(".needs-validation");
+  Array.from(forms).forEach(form => {
+    form.addEventListener("submit", event => {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add("was-validated");
+    }, false);
+  });
+})();
+</script>
+{% endblock %}

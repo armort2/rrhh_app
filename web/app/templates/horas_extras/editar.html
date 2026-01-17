@@ -1,0 +1,80 @@
+{# web/app/templates/horas_extras/editar.html #}
+{% extends "base.html" %}
+
+{% block title %}Editar Hora Extra · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Editar hora extra</h1>
+      <div class="section-subtitle">
+        Ajuste de registro existente (tramo y motivo).
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ next_url or url_for('horas_extras.listado') }}">⬅ Volver</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-start">
+        <div class="col-12 col-md-6">
+          <div class="fw-semibold">
+            {{ item.trabajador.ap_paterno }} {{ item.trabajador.ap_materno }} {{ item.trabajador.nombres }}
+          </div>
+          <div class="text-muted small">RUT: {{ item.trabajador.rut }}</div>
+        </div>
+        <div class="col-12 col-md-6 text-md-end">
+          <div class="fw-semibold">{{ item.obra.nombre if item.obra else '-' }}</div>
+          <div class="text-muted small">
+            CC: {{ item.obra.centro_costo if item.obra and item.obra.centro_costo else '-' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <form method="post">
+        <input type="hidden" name="next" value="{{ next_url }}">
+
+        <div class="row g-3">
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Fecha</label>
+            <input class="form-control" type="date" name="fecha" value="{{ item.fecha }}" required>
+          </div>
+
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Hora inicio</label>
+            <input class="form-control" type="time" name="hora_inicio" value="{{ hhmm_ini }}" required>
+          </div>
+
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Hora término</label>
+            <input class="form-control" type="time" name="hora_termino" value="{{ hhmm_fin }}" required>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Motivo</label>
+            <textarea class="form-control" name="motivo" rows="2">{{ item.motivo or '' }}</textarea>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+          <a class="btn btn-secondary" href="{{ next_url or url_for('horas_extras.listado') }}">Cancelar</a>
+          <button class="btn btn-primary" type="submit">Guardar cambios</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

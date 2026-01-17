@@ -1,97 +1,120 @@
+{# web/app/templates/desvinculaciones/desvinculacion_detalle.html #}
 {% extends "base.html" %}
-{% set title = "Detalle Desvinculación" %}
+
+{% block title %}Detalle Desvinculación · #{{ desv.id }}{% endblock %}
 
 {% block content %}
-<div class="page">
-  <div class="container">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h1 class="card-title">Desvinculación #{{ desv.id }}</h1>
-          <p class="card-subtitle">
-            {{ desv.trabajador.nombres }} {{ desv.trabajador.ap_paterno }} {{ desv.trabajador.ap_materno }}
-            · Contrato #{{ desv.contrato_id }}
-          </p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Detalle de desvinculación</h1>
+      <div class="section-subtitle">
+        Desvinculación <strong>#{{ desv.id }}</strong> · Contrato <strong>#{{ desv.contrato_id }}</strong>
+        · {{ desv.trabajador.nombres }} {{ desv.trabajador.ap_paterno }} {{ desv.trabajador.ap_materno }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=desv.trabajador_id) }}">
+        ⬅ Volver a ficha
+      </a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('desvinculaciones.listado') }}">
+        Ir al listado
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-12 col-lg-4">
+          <div class="text-muted">Estado</div>
+          <div>
+            {% if desv.estado == "EMITIDA" %}
+              <span class="badge text-bg-success">Emitida</span>
+            {% else %}
+              <span class="badge text-bg-secondary">{{ desv.estado or "BORRADOR" }}</span>
+            {% endif %}
+          </div>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <a class="btn btn-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=desv.trabajador_id) }}">Volver a ficha</a>
-          <a class="btn btn-secondary" href="{{ url_for('desvinculaciones.listado') }}">Ir al listado</a>
+
+        <div class="col-12 col-lg-8">
+          <div class="text-muted">Causal</div>
+          <div class="fw-semibold">{{ desv.causal.causal_resumida }}</div>
+          <div class="text-muted small">{{ desv.causal.causal_finiquito }}</div>
         </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Fecha de término</div>
+          <div class="fw-semibold">{{ desv.fecha_termino.strftime("%d-%m-%Y") if desv.fecha_termino else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Fecha de aviso</div>
+          <div class="fw-semibold">{{ desv.fecha_aviso.strftime("%d-%m-%Y") if desv.fecha_aviso else "-" }}</div>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted">Detalle</div>
+          <div class="fw-semibold">{{ desv.motivo_detalle or "-" }}</div>
+        </div>
+
       </div>
 
-      <div class="kv">
-        <div class="k">Estado</div>
-        <div class="v">
-          {% if desv.estado == "EMITIDA" %}
-            <span class="badge badge-success">Emitida</span>
-          {% elif desv.estado == "ANULADA" %}
-            <span class="badge badge-danger">Anulada</span>
-          {% else %}
-            <span class="badge badge-warn">Borrador</span>
+      <div class="d-flex justify-content-between gap-3 flex-wrap mt-3">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <form method="post" action="{{ url_for('desvinculaciones.generar_carta', desvinculacion_id=desv.id) }}">
+            <button type="submit" class="btn btn-outline-secondary">📄 Generar carta aviso</button>
+          </form>
+
+          <form method="post" action="{{ url_for('desvinculaciones.generar_finiquito', desvinculacion_id=desv.id) }}">
+            <button type="submit" class="btn btn-outline-secondary">🧾 Generar finiquito</button>
+          </form>
+
+          {% if desv.carta_ruta %}
+            <span class="text-muted small">Carta: {{ desv.carta_nombre or 'Generada' }}</span>
+          {% endif %}
+
+          {% if desv.finiquito_ruta %}
+            <span class="text-muted small">Finiquito: {{ desv.finiquito_nombre or 'Generado' }}</span>
           {% endif %}
         </div>
 
-        <div class="k">Causal</div>
-        <div class="v">
-          <strong>{{ desv.causal.causal_resumida }}</strong><br>
-          <span class="card-subtitle">{{ desv.causal.causal_finiquito }}</span>
-        </div>
-
-        <div class="k">Fecha de término</div>
-        <div class="v">{{ desv.fecha_termino.strftime("%d-%m-%Y") if desv.fecha_termino else "-" }}</div>
-
-        <div class="k">Fecha de aviso</div>
-        <div class="v">{{ desv.fecha_aviso.strftime("%d-%m-%Y") if desv.fecha_aviso else "-" }}</div>
-
-        <div class="k">Detalle</div>
-        <div class="v">{{ desv.motivo_detalle or "-" }}</div>
-      </div>
-
-      <div class="form-actions" style="justify-content: space-between; margin-top: 18px;">
-        
-        <div class="empty-state">
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <form method="post" action="{{ url_for('desvinculaciones.generar_carta', desvinculacion_id=desv.id) }}">
-              <button type="submit" class="btn btn-outline-secondary">📄 Generar carta aviso</button>
-            </form>
-
-            <form method="post" action="{{ url_for('desvinculaciones.generar_finiquito', desvinculacion_id=desv.id) }}">
-              <button type="submit" class="btn btn-outline-secondary">🧾 Generar finiquito</button>
-            </form>
-
-            {% if desv.carta_ruta %}
-              <span class="card-subtitle">Carta: {{ desv.carta_nombre or 'Generada' }}</span>
-            {% endif %}
-
-            {% if desv.finiquito_ruta %}
-              <span class="card-subtitle">Finiquito: {{ desv.finiquito_nombre or 'Generado' }}</span>
-            {% endif %}
-          </div>
-
-        </div>
-
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
           {% if desv.estado == "BORRADOR" %}
-            <a class="btn btn-outline-secondary" href="{{ url_for('desvinculaciones.editar', desvinculacion_id=desv.id) }}">✏️ Editar borrador</a>
+            <a class="btn btn-outline-secondary"
+               href="{{ url_for('desvinculaciones.editar', desvinculacion_id=desv.id) }}">
+              ✏️ Editar borrador
+            </a>
           {% endif %}
 
           {% if desv.estado in ["BORRADOR", "EMITIDA"] %}
-            <form method="post" action="{{ url_for('desvinculaciones.anular', desvinculacion_id=desv.id) }}" style="display:flex; gap:8px; flex-wrap:wrap;">
-              <input type="text" name="motivo_anulacion" placeholder="Motivo anulación (obligatorio)" required
-                    style="min-width: 260px;">
-              <button type="submit" class="btn btn-outline-primary">🧾 Anular</button>
+            <form method="post" action="{{ url_for('desvinculaciones.anular', desvinculacion_id=desv.id) }}">
+              <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <input type="text"
+                       name="motivo_anulacion"
+                       class="form-control"
+                       placeholder="Motivo anulación (obligatorio)"
+                       required>
+                <button type="submit" class="btn btn-outline-primary">🧾 Anular</button>
+              </div>
+            </form>
+          {% endif %}
+
+          {% if desv.estado == "BORRADOR" %}
+            <form method="post" action="{{ url_for('desvinculaciones.emitir', desvinculacion_id=desv.id) }}">
+              <button type="submit" class="btn btn-danger">Emitir (cierra contrato)</button>
             </form>
           {% endif %}
         </div>
-
-        {% if desv.estado == "BORRADOR" %}
-          <form method="post" action="{{ url_for('desvinculaciones.emitir', desvinculacion_id=desv.id) }}">
-            <button type="submit" class="btn btn-danger">Emitir (cierra contrato)</button>
-          </form>
-        {% endif %}
       </div>
 
     </div>
   </div>
+
 </div>
 {% endblock %}

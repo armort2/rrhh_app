@@ -1,5 +1,4 @@
 # web/app/__init__.py
-
 from __future__ import annotations
 
 from flask import Flask, redirect, request, url_for
@@ -12,17 +11,6 @@ try:
     from .extensions import migrate  # type: ignore
 except Exception:  # pragma: no cover
     migrate = None  # fallback seguro
-
-from .utils import format_rut_parts
-
-# Blueprint Horarios (lo tienes separado)
-from .blueprints.horarios import bp as horarios_bp
-
-# Blueprint Inasistencias
-from app.blueprints.inasistencias import bp as inasistencias_bp
-
-#Blueprint Anticipos
-from .blueprints.anticipos.routes import bp as anticipos_bp
 
 
 def create_app(config_class=DevConfig):
@@ -42,7 +30,7 @@ def create_app(config_class=DevConfig):
         migrate.init_app(app, db)
 
     # ---------------------------
-    # Blueprints
+    # Blueprints (imports locales para evitar circulares)
     # ---------------------------
     from .blueprints import (
         core_bp,
@@ -50,12 +38,15 @@ def create_app(config_class=DevConfig):
         contratos_bp,
         obras_bp,
         admin_bp,
-        anexos_bp,              # anexos extensión
-        anexos_indefinidos_bp,  # anexos indefinidos
+        anexos_bp,
+        anexos_indefinidos_bp,
     )
     from .blueprints.documentos import bp as documentos_bp
     from .blueprints.desvinculaciones.routes import bp as desvinculaciones_bp
-
+    from .blueprints.horarios import bp as horarios_bp
+    from .blueprints.inasistencias import bp as inasistencias_bp
+    from .blueprints.anticipos.routes import bp as anticipos_bp
+    from .blueprints.horas_extras.routes import bp as horas_extras_bp
 
     # Registro
     app.register_blueprint(horarios_bp)
@@ -70,6 +61,7 @@ def create_app(config_class=DevConfig):
     app.register_blueprint(desvinculaciones_bp)
     app.register_blueprint(inasistencias_bp)
     app.register_blueprint(anticipos_bp)
+    app.register_blueprint(horas_extras_bp)
 
     # Auth blueprint
     from .auth import auth as auth_bp
@@ -110,6 +102,8 @@ def create_app(config_class=DevConfig):
     # ---------------------------
     # Filtro Jinja: RUT trabajador
     # ---------------------------
+    from .utils import format_rut_parts  # una sola fuente
+
     @app.template_filter("rut_trabajador")
     def rut_trabajador_filter(t):
         if not t:
@@ -119,7 +113,7 @@ def create_app(config_class=DevConfig):
         return format_rut_parts(rut_digits, dv) or (str(rut_digits) if rut_digits else "")
 
     # ---------------------------
-    # CLI (un solo punto de registro - Solución B)
+    # CLI (un solo punto de registro)
     # ---------------------------
     from .cli import register_cli
     register_cli(app)

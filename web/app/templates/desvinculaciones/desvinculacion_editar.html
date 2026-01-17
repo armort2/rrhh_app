@@ -1,29 +1,34 @@
+{# web/app/templates/desvinculaciones/desvinculacion_editar.html #}
 {% extends "base.html" %}
-{% set title = "Editar Desvinculación" %}
+
+{% block title %}Editar Desvinculación · #{{ desv.id }}{% endblock %}
 
 {% block content %}
-<div class="page">
-  <div class="container">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h1 class="card-title">Editar desvinculación #{{ desv.id }}</h1>
-          <p class="card-subtitle">
-            {{ desv.trabajador.nombres }} {{ desv.trabajador.ap_paterno }} {{ desv.trabajador.ap_materno }}
-            · Contrato #{{ desv.contrato_id }}
-          </p>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <a class="btn btn-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">Volver</a>
-          <a class="btn btn-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=desv.trabajador_id) }}">Ir a ficha</a>
-        </div>
-      </div>
+<div class="container-fluid py-3">
 
-      <form method="post" action="{{ url_for('desvinculaciones.editar_post', desvinculacion_id=desv.id) }}" class="form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="causal_id">Causal de término</label>
-            <select name="causal_id" id="causal_id" required>
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Editar desvinculación</h1>
+      <div class="section-subtitle">
+        Desvinculación <strong>#{{ desv.id }}</strong> · Contrato <strong>#{{ desv.contrato_id }}</strong>
+        · {{ desv.trabajador.nombres }} {{ desv.trabajador.ap_paterno }} {{ desv.trabajador.ap_materno }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">⬅ Volver</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=desv.trabajador_id) }}">Ir a ficha</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('desvinculaciones.editar_post', desvinculacion_id=desv.id) }}">
+        <div class="row g-3">
+          <div class="col-12">
+            <label for="causal_id" class="form-label">Causal de término</label>
+            <select name="causal_id" id="causal_id" class="form-select" required>
               <option value="">-- Seleccionar --</option>
               {% for c in causales %}
                 <option value="{{ c.id }}" {% if c.id == desv.causal_id %}selected{% endif %}>
@@ -33,35 +38,39 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="fecha_termino">Fecha de término</label>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_termino" class="form-label">Fecha de término</label>
             <input type="date" name="fecha_termino" id="fecha_termino"
+                   class="form-control"
                    value="{{ desv.fecha_termino.isoformat() if desv.fecha_termino else '' }}" required>
           </div>
 
-          <div class="form-group">
-            <label for="fecha_aviso">Fecha de aviso (opcional)</label>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_aviso" class="form-label">Fecha de aviso (opcional)</label>
             <input type="date" name="fecha_aviso" id="fecha_aviso"
+                   class="form-control"
                    value="{{ desv.fecha_aviso.isoformat() if desv.fecha_aviso else '' }}">
           </div>
 
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label for="motivo_detalle">Motivo / detalle (opcional)</label>
+          <div class="col-12">
+            <label for="motivo_detalle" class="form-label">Motivo / detalle (opcional)</label>
             <textarea name="motivo_detalle" id="motivo_detalle" rows="3"
+                      class="form-control"
                       placeholder="Ej: reestructuración, término de faena, renuncia presentada, etc.">{{ desv.motivo_detalle or '' }}</textarea>
           </div>
         </div>
 
-        <div class="form-actions">
+        <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
           <a class="btn btn-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">Cancelar</a>
           <button type="submit" class="btn btn-primary">Guardar cambios</button>
         </div>
       </form>
 
-      <div class="empty-state" style="margin-top: 10px;">
+      <div class="text-muted small mt-3">
         Solo se pueden editar desvinculaciones en estado <strong>BORRADOR</strong>.
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}

@@ -1,4 +1,4 @@
-{# templates/anticipos/anticipos_imprimir_pdf.html #}
+{# templates/anticipos/anticipos_imprimir.html #}
 {% extends "print_base_pdf.html" %}
 
 {% block title %}Anticipos PDF · Nómina #{{ nomina.id }}{% endblock %}
@@ -48,14 +48,11 @@
     {% for item in detalles %}
       {% set d = item.d %}
 
-      {# Normalización tipo #}
       {% set tipo = (item.tipo_trabajador or "SIN TIPO") %}
       {% set tipo_key = (tipo|trim|upper) if (tipo|trim|upper) else "SIN TIPO" %}
 
-      {# Detectar cambio de grupo #}
       {% if ns.current_tipo != tipo_key %}
 
-        {# Cerrar grupo anterior si existía #}
         {% if ns.current_tipo is not none %}
             </tbody>
           </table>
@@ -68,14 +65,12 @@
             ${{ "{:,.0f}".format(ns.subtotal_act|float).replace(",", ".") }}
           </div>
 
-          {# OJO: page-break solo si efectivamente viene otra sección #}
           {% set next_item0 = detalles[loop.index] if not loop.last else None %}
           {% if next_item0 %}
             <div class="page-break"></div>
           {% endif %}
         {% endif %}
 
-        {# Abrir grupo nuevo #}
         {% set ns.current_tipo = tipo_key %}
         {% set ns.subtotal_prev = 0 %}
         {% set ns.subtotal_act = 0 %}
@@ -98,7 +93,6 @@
           <tbody>
       {% endif %}
 
-      {# Acumular #}
       {% set ns.subtotal_prev = ns.subtotal_prev + (item.monto_prev|float) %}
       {% set ns.subtotal_act = ns.subtotal_act + (d.monto|float) %}
       {% set ns.total_prev = ns.total_prev + (item.monto_prev|float) %}
@@ -113,7 +107,6 @@
         <td class="money">${{ "{:,.0f}".format(d.monto|float).replace(",", ".") }}</td>
       </tr>
 
-      {# Cierre final: si es el último del loop, cerramos tabla y mostramos totales + firmas #}
       {% if loop.last %}
           </tbody>
         </table>

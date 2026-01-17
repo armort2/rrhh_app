@@ -1,72 +1,74 @@
+{# web/app/templates/anticipos/anticipos_nueva.html #}
 {% extends "base.html" %}
 {% block title %}Nueva nómina · Anticipos{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Nueva Nómina de Anticipos</h1>
-      <p class="card-subtitle">
-        Crea o abre una nómina por Centro de Costo y período. Al guardar, el sistema sincroniza trabajadores del CC
-        (por ahora incluye VIGENTES y NO VIGENTES).
-      </p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Nueva nómina de anticipos</h1>
+      <div class="section-subtitle">
+        Crea o abre una nómina por Centro de Costo y período. El sistema sincroniza trabajadores del CC.
+      </div>
+      <div class="section-divider"></div>
     </div>
-    <div class="card-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">Volver</a>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">⬅ Volver</a>
     </div>
   </div>
 
-  <div class="card-body">
-    <form method="post" class="form">
-      <div class="form-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
-        <div class="form-group">
-          <label>Centro de costo</label>
-          <select name="centro_costo" class="form-control" required>
+  <div class="card">
+    <div class="card-body">
+
+      <form method="post" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Centro de costo</label>
+          <select name="centro_costo" class="form-select" required>
             <option value="">(Seleccione)</option>
             {% for cc in centros %}
               <option value="{{ cc }}">{{ cc }}</option>
             {% endfor %}
           </select>
-          <div class="small" style="margin-top:6px; color:#666;">
+          <div class="form-text">
             Tip: este CC se toma desde <strong>Obras</strong> (obras.centro_costo) y se usa para armar la planilla.
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Año</label>
-          <input class="form-control" type="number" name="anio" min="2000" max="2100" value="{{ anio_default }}" required>
-          <div class="small" style="margin-top:6px; color:#666;">
-            Formato: año calendario (ej: {{ anio_default }}).
-          </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label">Año</label>
+          <input class="form-control" type="number" name="anio" min="2000" max="2100"
+                 value="{{ anio_default }}" required>
+          <div class="form-text">Formato: año calendario (ej: {{ anio_default }}).</div>
         </div>
 
-        <div class="form-group">
-          <label>Mes</label>
-          <input class="form-control" type="number" name="mes" min="1" max="12" value="{{ mes_default }}" required>
-          <div class="small" style="margin-top:6px; color:#666;">
-            Rango válido: 1–12. (Ej: 1 = enero, 12 = diciembre)
-          </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label">Mes</label>
+          <input class="form-control" type="number" name="mes" min="1" max="12"
+                 value="{{ mes_default }}" required>
+          <div class="form-text">Rango válido: 1–12.</div>
         </div>
-      </div>
 
-      <div class="card" style="margin-top:14px;">
-        <div class="card-body">
-          <div class="small" style="color:#555;">
+        <div class="col-12">
+          <div class="alert alert-info mb-0">
             <strong>Qué pasará al crear/abrir:</strong>
-            <ul style="margin:8px 0 0 18px;">
+            <ul class="mb-0 mt-2">
               <li>Si la nómina existe, se abre para edición (no duplica).</li>
-              <li>Se sincronizan trabajadores del Centro de Costo y se agregan los faltantes con monto 0.</li>
-              <li>En la planilla podrás <strong>editar montos</strong> y <strong>observaciones</strong>.</li>
-              <li>Si existe nómina del mes anterior, la verás como referencia y podrás copiar montos desde allí.</li>
+              <li>Se sincronizan trabajadores del Centro de Costo y se agregan faltantes con monto 0.</li>
+              <li>En la planilla podrás editar montos y observaciones.</li>
+              <li>Si existe nómina del mes anterior, podrás usarla como referencia y copiar montos.</li>
             </ul>
           </div>
         </div>
-      </div>
 
-      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 12px;">
-        <button class="btn btn-primary" type="submit">➕ Crear / Abrir nómina</button>
-      </div>
-    </form>
+        <div class="col-12 d-flex justify-content-end">
+          <button class="btn btn-primary" type="submit">➕ Crear / Abrir nómina</button>
+        </div>
+      </form>
+
+    </div>
   </div>
+
 </div>
 {% endblock %}

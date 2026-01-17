@@ -16,9 +16,8 @@
     margin: 0;
   }
 
-  /* Texto acompañante (compacto, pegadito al título) */
   .header-meta {
-    margin-top: 2mm;      /* antes se veía muy separado */
+    margin-top: 2mm;
     font-size: 10px;
     color: #444;
     line-height: 1.25;
@@ -58,13 +57,8 @@
   }
   .total .big { font-size: 13px; font-weight: 900; }
 
-  /* Empuje suave (NO exagerado) para que firmas bajen si hay espacio,
-     pero sin obligar salto a página siguiente */
-  .push-soft {
-    height: 6mm; /* pequeño. Ajustable a gusto */
-  }
+  .push-soft { height: 6mm; }
 
-  /* Firmas: mantener juntas, pero sin “inflarlas” tanto que se vayan a otra página */
   .signatures {
     margin-top: 6mm;
     break-inside: avoid;
@@ -73,10 +67,9 @@
 
   .sign-title {
     font-weight: 800;
-    margin-bottom: 20mm; /* MÁS espacio para firmar (antes era corto). Ajustable */
+    margin-bottom: 20mm;
   }
 
-  /* Evita que cada firma “crezca” demasiado (esto era lo que provocaba el salto) */
   .sign-col { padding: 0 10px; }
 </style>
 {% endblock %}
@@ -217,7 +210,6 @@
           </div>
         </div>
 
-        {# Empuje SUAVE: ayuda a bajar firmas cuando hay aire, sin forzar salto #}
         <div class="push-soft"></div>
 
         <div class="signatures">

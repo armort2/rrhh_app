@@ -1,26 +1,31 @@
+{# web/app/templates/anexos/anexo_extension_detalle.html #}
 {% extends "base.html" %}
 {% block title %}Detalle anexo extensión · #{{ anexo.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Detalle Anexo de Extensión</h1>
+<div class="container-fluid py-3">
 
-      {% set c = anexo.contrato if anexo.contrato is defined and anexo.contrato else none %}
+  {% set c = anexo.contrato if anexo.contrato is defined and anexo.contrato else none %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Detalle anexo de extensión</h1>
+
       {% if c and c.trabajador %}
-        <p class="card-subtitle">
+        <div class="section-subtitle">
           Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ c.id }}</strong> ·
           Trabajador: <strong>{{ c.trabajador.nombres }} {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno }}</strong>
-        </p>
+        </div>
       {% else %}
-        <p class="card-subtitle">
+        <div class="section-subtitle">
           Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ anexo.contrato_id }}</strong> · Trabajador <strong>#{{ anexo.trabajador_id }}</strong>
-        </p>
+        </div>
       {% endif %}
+
+      <div class="section-divider"></div>
     </div>
 
-    <div class="card-actions">
+    <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-primary"
          href="{{ url_for('anexos.anexo_extension_generar', anexo_id=anexo.id) }}">
         🔄 Regenerar (Nextcloud)
@@ -38,87 +43,94 @@
     </div>
   </div>
 
-  <div class="card-body">
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Fecha anexo</label>
-        <div>{{ anexo.fecha_anexo.strftime("%d-%m-%Y") if anexo.fecha_anexo else "-" }}</div>
-      </div>
+  <div class="card">
+    <div class="card-body">
 
-      <div class="form-group">
-        <label>Término anterior</label>
-        <div>
-          {% if anexo.fecha_termino_anterior %}
-            {{ anexo.fecha_termino_anterior.strftime("%d-%m-%Y") }}
+      <div class="row g-3">
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Fecha anexo</label>
+          <div>{{ anexo.fecha_anexo.strftime("%d-%m-%Y") if anexo.fecha_anexo else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Término anterior</label>
+          <div>
+            {% if anexo.fecha_termino_anterior %}
+              {{ anexo.fecha_termino_anterior.strftime("%d-%m-%Y") }}
+            {% else %}
+              Sin término definido
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Nuevo término</label>
+          <div>{{ anexo.fecha_termino_nueva.strftime("%d-%m-%Y") if anexo.fecha_termino_nueva else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Formato</label>
+          <div>{{ anexo.formato or "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <div>
+            {% if anexo.estado == "VIGENTE" %}
+              <span class="badge badge-success">Vigente</span>
+            {% elif anexo.estado %}
+              <span class="badge badge-muted">{{ anexo.estado }}</span>
+            {% else %}
+              <span class="badge badge-muted">-</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <div>{{ anexo.observaciones or "—" }}</div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Archivos (Nextcloud)</label>
+
+          <div class="text-muted mb-2">
+            Si necesitas “reparar” los archivos sin crear otro registro, usa <strong>Regenerar (Nextcloud)</strong>.
+          </div>
+
+          {% if anexo.docx_ruta %}
+            <div><strong>DOCX:</strong> {{ anexo.docx_nombre or "—" }}</div>
+            <div class="text-muted small text-break">{{ anexo.docx_ruta }}</div>
           {% else %}
-            Sin término definido
+            <div>DOCX: —</div>
+          {% endif %}
+
+          {% if anexo.pdf_ruta %}
+            <div class="mt-3"><strong>PDF:</strong> {{ anexo.pdf_nombre or "—" }}</div>
+            <div class="text-muted small text-break">{{ anexo.pdf_ruta }}</div>
+          {% else %}
+            <div class="mt-3">PDF: —</div>
           {% endif %}
         </div>
+
       </div>
 
-      <div class="form-group">
-        <label>Nuevo término</label>
-        <div>{{ anexo.fecha_termino_nueva.strftime("%d-%m-%Y") if anexo.fecha_termino_nueva else "-" }}</div>
-      </div>
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <a class="btn btn-outline-secondary" href="{{ url_for('anexos.anexos_listado') }}">📚 Ir a anexos</a>
 
-      <div class="form-group">
-        <label>Formato</label>
-        <div>{{ anexo.formato or "-" }}</div>
-      </div>
-
-      <div class="form-group">
-        <label>Estado</label>
-        <div>
-          {% if anexo.estado == "VIGENTE" %}
-            <span class="badge badge-success">Vigente</span>
-          {% elif anexo.estado %}
-            <span class="badge badge-muted">{{ anexo.estado }}</span>
-          {% else %}
-            <span class="badge badge-muted">-</span>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="form-group" style="grid-column: 1 / -1;">
-        <label>Observaciones</label>
-        <div>{{ anexo.observaciones or "—" }}</div>
-      </div>
-
-      <div class="form-group" style="grid-column: 1 / -1;">
-        <label>Archivos (Nextcloud)</label>
-
-        <div class="text-muted" style="margin-bottom:8px;">
-          Si necesitas “reparar” los archivos sin crear otro registro, usa <strong>Regenerar (Nextcloud)</strong>.
-        </div>
-
-        {% if anexo.docx_ruta %}
-          <div><strong>DOCX:</strong> {{ anexo.docx_nombre or "—" }}</div>
-          <div class="text-muted" style="font-size: 0.9em; word-break: break-all;">{{ anexo.docx_ruta }}</div>
-        {% else %}
-          <div>DOCX: —</div>
-        {% endif %}
-
-        {% if anexo.pdf_ruta %}
-          <div style="margin-top:10px;"><strong>PDF:</strong> {{ anexo.pdf_nombre or "—" }}</div>
-          <div class="text-muted" style="font-size: 0.9em; word-break: break-all;">{{ anexo.pdf_ruta }}</div>
-        {% else %}
-          <div style="margin-top:10px;">PDF: —</div>
+        {% if current_user.is_authenticated and current_user.has_role('ADMIN') %}
+          <form method="post"
+                action="{{ url_for('anexos.anexo_extension_eliminar', anexo_id=anexo.id) }}"
+                onsubmit="return confirm('¿Eliminar este anexo de la base de datos? (Los archivos NO se borrarán del disco)');"
+                class="d-inline">
+            <button class="btn btn-danger" type="submit">🗑️ Eliminar</button>
+          </form>
         {% endif %}
       </div>
-    </div>
 
-    <div class="form-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-      <a class="btn btn-outline-secondary" href="{{ url_for('anexos.anexos_listado') }}">📚 Ir a anexos</a>
-
-      {% if current_user.is_authenticated and current_user.has_role('ADMIN') %}
-        <form method="post"
-              action="{{ url_for('anexos.anexo_extension_eliminar', anexo_id=anexo.id) }}"
-              onsubmit="return confirm('¿Eliminar este anexo de la base de datos? (Los archivos NO se borrarán del disco)');"
-              style="display:inline;">
-          <button class="btn btn-danger" type="submit">🗑️ Eliminar</button>
-        </form>
-      {% endif %}
     </div>
   </div>
+
 </div>
 {% endblock %}

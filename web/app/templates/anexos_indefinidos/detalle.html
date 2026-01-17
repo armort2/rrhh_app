@@ -1,19 +1,21 @@
+{# web/app/templates/anexos_indefinidos/detalle.html #}
 {% extends "base.html" %}
 
 {% block title %}Detalle anexo indefinido · #{{ anexo.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Anexo a indefinido</h1>
-      <p class="card-subtitle">
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Anexo a indefinido</h1>
+      <div class="section-subtitle">
         Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ contrato.id }}</strong>
         · Trabajador: <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
-      </p>
+      </div>
+      <div class="section-divider"></div>
     </div>
 
-    <div class="card-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+    <div class="d-flex gap-2 flex-wrap justify-content-end">
       <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}" class="btn btn-secondary">
         ⬅ Volver al contrato
       </a>
@@ -33,103 +35,119 @@
     </div>
   </div>
 
-  <div class="card-body">
-    <div class="form-grid readonly-grid">
-      <div>
-        <strong>Trabajador:</strong><br>
-        {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
-      </div>
-
-      <div>
-        <strong>Empleador:</strong><br>
-        {{ contrato.empleador.razon_social if contrato.empleador else "-" }}
-      </div>
-
-      <div>
-        <strong>Obra:</strong><br>
-        {{ contrato.obra.nombre if contrato.obra else "-" }}
-      </div>
-
-      <div>
-        <strong>Cargo:</strong><br>
-        {{ contrato.cargo.nombre if contrato.cargo else "-" }}
-      </div>
-
-      <div>
-        <strong>Fecha anexo:</strong><br>
-        {{ anexo.fecha_anexo.strftime("%d-%m-%Y") if anexo.fecha_anexo else "-" }}
-      </div>
-
-      <div>
-        <strong>Desde:</strong><br>
-        {{ anexo.fecha_indefinido_desde.strftime("%d-%m-%Y") if anexo.fecha_indefinido_desde else "-" }}
-      </div>
-
-      <div>
-        <strong>Término referencial:</strong><br>
-        {{ anexo.fecha_termino_referencial.strftime("%d-%m-%Y") if anexo.fecha_termino_referencial else "-" }}
-      </div>
-
-      <div>
-        <strong>Formato:</strong><br>
-        {{ anexo.formato or "-" }}
-      </div>
-
-      <div>
-        <strong>Estado:</strong><br>
-        {% if anexo.estado == "VIGENTE" %}
-          <span class="badge badge-success">Vigente</span>
-        {% else %}
-          <span class="badge badge-muted">{{ anexo.estado or "-" }}</span>
-        {% endif %}
-      </div>
-
-      <div class="col-12">
-        <strong>Observaciones:</strong><br>
-        {{ anexo.observaciones or "—" }}
-      </div>
-
-      <div class="col-12">
-        <strong>Archivos:</strong>
-
-        {% if anexo.docx_ruta %}
-          <div style="margin-top:8px;"><strong>DOCX:</strong> {{ anexo.docx_nombre or "—" }}</div>
-          <div class="text-muted" style="font-size: 0.9em;">{{ anexo.docx_ruta }}</div>
-        {% else %}
-          <div style="margin-top:8px;">DOCX: —</div>
-        {% endif %}
-
-        {% if anexo.pdf_ruta %}
-          <div style="margin-top:8px;"><strong>PDF:</strong> {{ anexo.pdf_nombre or "—" }}</div>
-          <div class="text-muted" style="font-size: 0.9em;">{{ anexo.pdf_ruta }}</div>
-        {% else %}
-          <div style="margin-top:8px;">PDF: —</div>
-        {% endif %}
-      </div>
-
-      <div class="col-12">
-        <strong>Última generación:</strong><br>
-        {% set gen = (anexo.meta or {}).get("generacion", {}) %}
-        <div>
-          <strong>Resultado:</strong> {{ gen.get("ultimo_resultado", "—") }} ·
-          <strong>Formato:</strong> {{ gen.get("ultimo_formato", "—") }} ·
-          <strong>Fecha:</strong> {{ gen.get("ultimo_ts", "—") }}
+  <div class="card">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <div class="text-muted">Trabajador</div>
+          <div class="fw-semibold">
+            {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+          </div>
         </div>
-        <small class="text-muted">
-          Control operativo: esto confirma si el último intento de generación terminó OK sin duplicar registros.
-        </small>
+
+        <div class="col-12 col-lg-6">
+          <div class="text-muted">Empleador</div>
+          <div class="fw-semibold">{{ contrato.empleador.razon_social if contrato.empleador else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="text-muted">Obra</div>
+          <div class="fw-semibold">{{ contrato.obra.nombre if contrato.obra else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="text-muted">Cargo</div>
+          <div class="fw-semibold">{{ contrato.cargo.nombre if contrato.cargo else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Fecha anexo</div>
+          <div class="fw-semibold">{{ anexo.fecha_anexo.strftime("%d-%m-%Y") if anexo.fecha_anexo else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Desde</div>
+          <div class="fw-semibold">{{ anexo.fecha_indefinido_desde.strftime("%d-%m-%Y") if anexo.fecha_indefinido_desde else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Término referencial</div>
+          <div class="fw-semibold">{{ anexo.fecha_termino_referencial.strftime("%d-%m-%Y") if anexo.fecha_termino_referencial else "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Formato</div>
+          <div class="fw-semibold">{{ anexo.formato or "-" }}</div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Estado</div>
+          <div>
+            {% if anexo.estado == "VIGENTE" %}
+              <span class="badge badge-success">Vigente</span>
+            {% else %}
+              <span class="badge badge-muted">{{ anexo.estado or "-" }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted">Observaciones</div>
+          <div class="fw-semibold">{{ anexo.observaciones or "—" }}</div>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted mb-1">Archivos</div>
+
+          <div class="row g-2">
+            <div class="col-12 col-lg-6">
+              <div class="fw-semibold">DOCX</div>
+              {% if anexo.docx_ruta %}
+                <div>{{ anexo.docx_nombre or "—" }}</div>
+                <div class="text-muted small">{{ anexo.docx_ruta }}</div>
+              {% else %}
+                <div class="text-muted">—</div>
+              {% endif %}
+            </div>
+
+            <div class="col-12 col-lg-6">
+              <div class="fw-semibold">PDF</div>
+              {% if anexo.pdf_ruta %}
+                <div>{{ anexo.pdf_nombre or "—" }}</div>
+                <div class="text-muted small">{{ anexo.pdf_ruta }}</div>
+              {% else %}
+                <div class="text-muted">—</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted">Última generación</div>
+          {% set gen = (anexo.meta or {}).get("generacion", {}) %}
+          <div class="fw-semibold">
+            <span class="me-2"><strong>Resultado:</strong> {{ gen.get("ultimo_resultado", "—") }}</span>
+            <span class="me-2"><strong>Formato:</strong> {{ gen.get("ultimo_formato", "—") }}</span>
+            <span><strong>Fecha:</strong> {{ gen.get("ultimo_ts", "—") }}</span>
+          </div>
+          <div class="text-muted small mt-1">
+            Control operativo: confirma si el último intento de generación terminó OK sin duplicar registros.
+          </div>
+        </div>
+
+        {% if current_user.has_role("ADMIN") %}
+          <div class="col-12">
+            <div class="d-flex justify-content-end">
+              <form method="post"
+                    action="{{ url_for('anexos_indefinidos.eliminar', anexo_id=anexo.id) }}"
+                    onsubmit="return confirm('¿Eliminar este anexo de la base de datos? (No borra archivos)');">
+                <button type="submit" class="btn btn-outline-danger">🗑️ Eliminar</button>
+              </form>
+            </div>
+          </div>
+        {% endif %}
       </div>
     </div>
-
-    {% if current_user.has_role("ADMIN") %}
-      <div class="mt-3" style="margin-top:16px;">
-        <form method="post"
-              action="{{ url_for('anexos_indefinidos.eliminar', anexo_id=anexo.id) }}"
-              onsubmit="return confirm('¿Eliminar este anexo de la base de datos? (No borra archivos)');">
-          <button type="submit" class="btn btn-outline-danger">🗑️ Eliminar</button>
-        </form>
-      </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}

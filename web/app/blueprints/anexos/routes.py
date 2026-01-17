@@ -20,7 +20,7 @@ from ...services.docx_engine import replace_placeholders
 from ...services.paths_nextcloud import get_nc_paths
 from ...services.pdf_convert import convert_docx_to_pdf
 from ...services.storage_nextcloud_fs import ensure_dir
-from ...templates.utils.dates import fecha_larga_es
+from ...utils import fecha_larga_es
 from ...utils import parse_date
 from . import bp
 
@@ -244,7 +244,7 @@ def anexos_listado():
     anexos_nuevos = q.all()
 
     return render_template(
-        "anexos_listado.html",
+        "anexos/anexos_extension_listado.html",
         anexos_nuevos=anexos_nuevos,
         filtro_trabajador_id=trabajador_id,
         filtro_contrato_id=contrato_id,

@@ -1,64 +1,84 @@
+{# web/app/templates/anexos_indefinidos/editar.html #}
 {% extends "base.html" %}
 
 {% block title %}Editar anexo indefinido · #{{ anexo.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Editar anexo a indefinido</h1>
-      <p class="card-subtitle">
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Editar anexo a indefinido</h1>
+      <div class="section-subtitle">
         Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ contrato.id }}</strong>
-      </p>
+      </div>
+      <div class="section-divider"></div>
     </div>
-    <div class="card-actions">
-      <a href="{{ url_for('anexos_indefinidos.detalle', anexo_id=anexo.id) }}" class="btn btn-outline-secondary">
+
+    <div class="d-flex gap-2 flex-wrap justify-content-end">
+      <a href="{{ url_for('anexos_indefinidos.detalle', anexo_id=anexo.id) }}" class="btn btn-secondary">
         ⬅ Volver
       </a>
     </div>
   </div>
 
-  <div class="card-body">
-    <form method="post" action="{{ url_for('anexos_indefinidos.editar_post', anexo_id=anexo.id) }}" class="form">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="fecha_anexo">Fecha del anexo</label>
-          <input type="date" id="fecha_anexo" name="fecha_anexo"
-                 value="{{ anexo.fecha_anexo.isoformat() if anexo.fecha_anexo else '' }}">
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('anexos_indefinidos.editar_post', anexo_id=anexo.id) }}">
+        <div class="row g-3">
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_anexo" class="form-label">Fecha del anexo</label>
+            <input type="date"
+                   id="fecha_anexo"
+                   name="fecha_anexo"
+                   class="form-control"
+                   value="{{ anexo.fecha_anexo.isoformat() if anexo.fecha_anexo else '' }}">
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_termino_referencial" class="form-label">Fecha término referencial</label>
+            <input type="date"
+                   id="fecha_termino_referencial"
+                   name="fecha_termino_referencial"
+                   class="form-control"
+                   value="{{ anexo.fecha_termino_referencial.isoformat() if anexo.fecha_termino_referencial else '' }}">
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_indefinido_desde" class="form-label">Pasa a indefinido desde</label>
+            <input type="date"
+                   id="fecha_indefinido_desde"
+                   name="fecha_indefinido_desde"
+                   class="form-control"
+                   required
+                   value="{{ anexo.fecha_indefinido_desde.isoformat() if anexo.fecha_indefinido_desde else '' }}">
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="formato" class="form-label">Formato</label>
+            <select id="formato" name="formato" class="form-select">
+              <option value="AMBOS" {% if (anexo.formato or '') == 'AMBOS' %}selected{% endif %}>AMBOS</option>
+              <option value="DOCX" {% if (anexo.formato or '') == 'DOCX' %}selected{% endif %}>DOCX</option>
+              <option value="PDF" {% if (anexo.formato or '') == 'PDF' %}selected{% endif %}>PDF</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label for="observaciones" class="form-label">Observaciones</label>
+            <textarea id="observaciones"
+                      name="observaciones"
+                      rows="3"
+                      class="form-control">{{ anexo.observaciones or '' }}</textarea>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="fecha_termino_referencial">Fecha término referencial</label>
-          <input type="date" id="fecha_termino_referencial" name="fecha_termino_referencial"
-                 value="{{ anexo.fecha_termino_referencial.isoformat() if anexo.fecha_termino_referencial else '' }}">
+        <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+          <a href="{{ url_for('anexos_indefinidos.detalle', anexo_id=anexo.id) }}" class="btn btn-secondary">
+            Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary">💾 Guardar cambios</button>
         </div>
-
-        <div class="form-group">
-          <label for="fecha_indefinido_desde">Pasa a indefinido desde</label>
-          <input type="date" id="fecha_indefinido_desde" name="fecha_indefinido_desde" required
-                 value="{{ anexo.fecha_indefinido_desde.isoformat() if anexo.fecha_indefinido_desde else '' }}">
-        </div>
-
-        <div class="form-group">
-          <label for="formato">Formato</label>
-          <select id="formato" name="formato">
-            <option value="AMBOS" {% if (anexo.formato or '') == 'AMBOS' %}selected{% endif %}>AMBOS</option>
-            <option value="DOCX" {% if (anexo.formato or '') == 'DOCX' %}selected{% endif %}>DOCX</option>
-            <option value="PDF" {% if (anexo.formato or '') == 'PDF' %}selected{% endif %}>PDF</option>
-          </select>
-        </div>
-
-        <div class="form-group col-12">
-          <label for="observaciones">Observaciones</label>
-          <textarea id="observaciones" name="observaciones" rows="3">{{ anexo.observaciones or '' }}</textarea>
-        </div>
-      </div>
-
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <button type="submit" class="btn btn-primary">💾 Guardar cambios</button>
-        <a href="{{ url_for('anexos_indefinidos.detalle', anexo_id=anexo.id) }}" class="btn btn-secondary">Cancelar</a>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}

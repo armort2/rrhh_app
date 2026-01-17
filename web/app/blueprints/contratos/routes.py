@@ -17,7 +17,7 @@ from ...services.pdf_convert import convert_docx_to_pdf
 from ...services.storage_nextcloud_fs import ensure_dir
 from ...utils import parse_date, parse_decimal, parse_int
 from . import bp
-from ...templates.utils.dates import fecha_larga_es
+from ...utils import fecha_larga_es
 
 
 # ==========================
@@ -125,7 +125,7 @@ def lista_contratos():
     obras = Obra.query.order_by(Obra.nombre).all()
 
     return render_template(
-        "contratos.html",
+        "contratos/contratos.html",
         contratos=contratos,
         empleadores=empleadores,
         obras=obras,
@@ -184,6 +184,11 @@ def nuevo_contrato():
         jornada = (request.form.get("jornada") or "").strip() or None
 
         horas_semanales = parse_int(request.form.get("horas_semanales"))
+
+        # Default horas semanales si viene vacío
+        if not horas_semanales and tipo_contrato:
+            horas_semanales = 18 if tipo_contrato == "PART_TIME" else 44
+
 
         sueldo_base = parse_decimal(request.form.get("sueldo_base"))
         asignacion_movilizacion = parse_decimal(request.form.get("asignacion_movilizacion"))
@@ -307,7 +312,7 @@ def nuevo_contrato():
             cargo_default_id = trabajador.cargo_id
 
     return render_template(
-        "nuevo_contrato.html",
+        "contratos/nuevo_contrato.html",
         trabajador=trabajador,
         empleadores=empleadores,
         obras=obras,
@@ -344,6 +349,9 @@ def editar_contrato(contrato_id):
         jornada = (request.form.get("jornada") or "").strip() or None
 
         horas_semanales = parse_int(request.form.get("horas_semanales"))
+
+        if not horas_semanales and tipo_contrato:
+            horas_semanales = 18 if tipo_contrato == "PART_TIME" else 44
 
         sueldo_base = parse_decimal(request.form.get("sueldo_base"))
         asignacion_movilizacion = parse_decimal(request.form.get("asignacion_movilizacion"))
@@ -456,7 +464,7 @@ def editar_contrato(contrato_id):
             horarios = [h_actual] + horarios_activos
 
     return render_template(
-        "contrato_editar.html",
+        "contratos/contrato_editar.html",
         contrato=contrato,
         trabajador=trabajador,
         empleadores=empleadores,
@@ -473,7 +481,7 @@ def editar_contrato(contrato_id):
 @bp.route("/<int:contrato_id>")
 def contrato_detalle(contrato_id):
     contrato = Contrato.query.get_or_404(contrato_id)
-    return render_template("contrato_detalle.html", contrato=contrato)
+    return render_template("contratos/contrato_detalle.html", contrato=contrato)
 
 
 # ==========================
@@ -484,7 +492,7 @@ def generar_contrato(contrato_id):
     contrato = Contrato.query.get_or_404(contrato_id)
 
     if request.method == "GET":
-        return render_template("contrato_generar.html", contrato=contrato)
+        return render_template("contratos/contrato_generar.html", contrato=contrato)
 
     formato = (request.form.get("formato") or "DOCX").upper()  # DOCX / PDF / AMBOS
     if formato not in ("DOCX", "PDF", "AMBOS"):

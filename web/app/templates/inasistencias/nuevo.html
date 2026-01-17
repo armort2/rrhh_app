@@ -1,100 +1,111 @@
+{# web/app/templates/inasistencias/nuevo.html #}
 {% extends "base.html" %}
 {% block title %}Registrar inasistencia{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Registrar inasistencia</h1>
-      <p class="card-subtitle">Se registran inasistencias para trabajadores con contrato vigente (o sin contrato, en modo operativo).</p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Registrar inasistencia</h1>
+      <div class="section-subtitle">
+        Se registran inasistencias para trabajadores con contrato vigente (o sin contrato, en modo operativo).
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.listado') }}">⬅ Volver</a>
     </div>
   </div>
 
-  <div class="card-body">
-    <form method="post" class="form" id="form-inasistencia">
-      <div class="form-grid">
+  <div class="card">
+    <div class="card-body">
+      <form method="post" id="form-inasistencia">
+        <div class="row g-3">
 
-        <div class="form-group">
-          <label for="trabajador_search">Trabajador</label>
+          <div class="col-12 col-lg-6">
+            <label for="trabajador_search" class="form-label">Trabajador</label>
 
-          <input
-            type="text"
-            id="trabajador_search"
-            name="trabajador_search"
-            list="lista_trabajadores"
-            autocomplete="off"
-            placeholder="Escribe para buscar, ej: Pérez, Juan, 12.345..."
-            required
-            value="{{ pre_trabajador_label or '' }}"
-          />
+            <input
+              type="text"
+              id="trabajador_search"
+              name="trabajador_search"
+              list="lista_trabajadores"
+              autocomplete="off"
+              class="form-control"
+              placeholder="Escribe para buscar, ej: Pérez, Juan, 12.345..."
+              required
+              value="{{ pre_trabajador_label or '' }}"
+            />
 
-          <datalist id="lista_trabajadores">
-            {% for t in trabajadores %}
-              <option
-                value="{{ t.id }} - {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}"
-                data-id="{{ t.id }}">
-              </option>
-            {% endfor %}
-          </datalist>
+            <datalist id="lista_trabajadores">
+              {% for t in trabajadores %}
+                <option
+                  value="{{ t.id }} - {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}"
+                  data-id="{{ t.id }}">
+                </option>
+              {% endfor %}
+            </datalist>
 
-          <!-- valor real que se envía -->
-          <input type="hidden" name="trabajador_id" id="trabajador_id" value="{{ pre_trabajador_id or '' }}">
+            <input type="hidden" name="trabajador_id" id="trabajador_id" value="{{ pre_trabajador_id or '' }}">
 
-          <small style="display:block; opacity:.85; margin-top:4px;">
-            Al hacer clic se despliega la lista completa; al escribir, se filtran los trabajadores.
-            Debes escoger uno de la lista.
-          </small>
+            <div class="form-text">
+              Al hacer clic se despliega la lista completa; al escribir, se filtran los trabajadores.
+              Debes escoger uno de la lista.
+            </div>
 
-          <div id="trabajador_error" class="text-muted" style="display:none; margin-top:6px;">
-            Debes seleccionar un trabajador desde la lista (no solo escribirlo).
+            <div id="trabajador_error" class="text-muted small" style="display:none; margin-top:6px;">
+              Debes seleccionar un trabajador desde la lista (no solo escribirlo).
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Desde</label>
+            <input type="date" name="fecha_desde" class="form-control" value="{{ hoy }}" required>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Hasta (opcional)</label>
+            <input type="date" name="fecha_hasta" class="form-control">
+            <div class="form-text">Si no indicas “Hasta”, se registra solo un día.</div>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Tipo</label>
+            <select name="tipo" id="tipo" class="form-select" required>
+              <option value="DIA">Día completo</option>
+              <option value="HORAS">Horas / minutos</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3" id="box-horas" style="display:none;">
+            <label class="form-label">Horas (HH:MM)</label>
+            <input type="time" name="hhmm" step="60" class="form-control" placeholder="01:30">
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Motivo</label>
+            <input type="text" name="motivo" maxlength="80"
+                   class="form-control"
+                   placeholder="Ej: Inasistencia injustificada / Licencia médica / Accidente / Permiso..."
+                   required>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Observación</label>
+            <input type="text" name="observacion" maxlength="255" class="form-control" placeholder="Detalles adicionales (opcional)">
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Desde</label>
-          <input type="date" name="fecha_desde" value="{{ hoy }}" required>
+        <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+          <a class="btn btn-secondary" href="{{ url_for('inasistencias.listado') }}">Cancelar</a>
+          <button class="btn btn-primary" type="submit">Guardar</button>
         </div>
-
-        <div class="form-group">
-          <label>Hasta (opcional)</label>
-          <input type="date" name="fecha_hasta">
-          <small style="display:block; opacity:.8; margin-top:4px;">
-            Si no indicas “Hasta”, se registra solo un día.
-          </small>
-        </div>
-
-        <div class="form-group">
-          <label>Tipo</label>
-          <select name="tipo" id="tipo" required>
-            <option value="DIA">Día completo</option>
-            <option value="HORAS">Horas / minutos</option>
-          </select>
-        </div>
-
-        <div class="form-group" id="box-horas" style="display:none;">
-          <label>Horas (HH:MM)</label>
-          <input type="time" name="hhmm" step="60" placeholder="01:30">
-        </div>
-
-        <div class="form-group">
-          <label>Motivo</label>
-          <input type="text" name="motivo" maxlength="80"
-                 placeholder="Ej: Inasistencia injustificada / Licencia médica / Accidente / Permiso..."
-                 required>
-        </div>
-
-        <div class="form-group">
-          <label>Observación</label>
-          <input type="text" name="observacion" maxlength="255" placeholder="Detalles adicionales (opcional)">
-        </div>
-      </div>
-
-      <div style="margin-top: 12px;">
-        <button class="btn btn-primary" type="submit">Guardar</button>
-        <a class="btn btn-secondary" href="{{ url_for('inasistencias.listado') }}">Volver</a>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
+
 </div>
 
 <script>
@@ -143,7 +154,6 @@
 
     document.getElementById("form-inasistencia").addEventListener("submit", validateTrabajadorSelected);
 
-    // Si venimos con preselección y texto cargado, normalizamos estado del error
     syncHiddenTrabajadorId();
   });
 </script>

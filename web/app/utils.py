@@ -1,6 +1,6 @@
 # web/app/utils.py
 
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 import re
 
@@ -48,3 +48,14 @@ def format_rut_parts(rut_digits: str | None, dv: str | None) -> str:
     chunks = [rev[i:i + 3] for i in range(0, len(rev), 3)]
     with_dots = ".".join(c[::-1] for c in chunks[::-1])
     return f"{with_dots}-{dv}"
+
+MESES_ES = {
+    1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
+    5: "mayo", 6: "junio", 7: "julio", 8: "agosto",
+    9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre",
+}
+
+def fecha_larga_es(fecha: date | None) -> str:
+    if not fecha:
+        return ""
+    return f"{fecha.day} de {MESES_ES[fecha.month]} de {fecha.year}"

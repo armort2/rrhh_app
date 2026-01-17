@@ -1,0 +1,236 @@
+{# web/app/templates/cargos/cargos_listado.html #}
+{% extends "base.html" %}
+{% block title %}Cargos · GRUPO CS{% endblock %}
+
+{% block content %}
+
+{% set qv = q or '' %}
+{% set estado_v = estado or 'activos' %}
+{% set soporta = soporta_activo|default(false) %}
+{% set cargos_list = cargos|default([]) %}
+
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Catálogo de cargos</h1>
+      <div class="section-subtitle">
+        Administra el catálogo de cargos del sistema (ID, nombre, categoría, descripción y estado).
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('core.index') }}">⬅ Volver</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+
+      <form method="get" action="{{ url_for('core.cargos_listado') }}" class="row g-3 align-items-end">
+        <div class="col-12 col-lg-7">
+          <label for="q" class="form-label">Buscar</label>
+          <input
+            id="q"
+            type="text"
+            class="form-control"
+            name="q"
+            value="{{ qv }}"
+            placeholder="ID, nombre, categoría o descripción"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label for="estado" class="form-label">Estado</label>
+
+          <select id="estado" name="estado" class="form-select" {% if not soporta %}disabled{% endif %}>
+            <option value="activos"   {% if estado_v == 'activos' %}selected{% endif %}>Vigentes</option>
+            <option value="inactivos" {% if estado_v == 'inactivos' %}selected{% endif %}>No vigentes</option>
+            <option value="todos"     {% if estado_v == 'todos' %}selected{% endif %}>Todos</option>
+          </select>
+
+          {% if not soporta %}
+            <input type="hidden" name="estado" value="{{ estado_v }}">
+            <div class="form-text">
+              La baja lógica se habilita con el campo <code>activo</code>.
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-2 d-flex gap-2 flex-wrap">
+          <button class="btn btn-primary" type="submit">Aplicar</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('core.cargos_listado') }}">Limpiar</a>
+        </div>
+      </form>
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+        <div class="text-muted small">
+          Mostrando <strong>{{ cargos_list|length }}</strong> cargo(s)
+          {% if soporta %}— filtro: <strong>{{ estado_v }}</strong>{% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-2">
+        <div>
+          <h2 class="h6 mb-1">Agregar cargo</h2>
+          <div class="text-muted small">Crea un nuevo cargo en el catálogo.</div>
+        </div>
+      </div>
+
+      <form method="post" action="{{ url_for('core.cargo_crear') }}" class="row g-3 align-items-end">
+        {% if csrf_token is defined %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+
+        <input type="hidden" name="q" value="{{ qv }}">
+        <input type="hidden" name="estado" value="{{ estado_v }}">
+
+        <div class="col-12 col-lg-4">
+          <label for="nuevo_nombre" class="form-label">Nombre</label>
+          <input id="nuevo_nombre" class="form-control" type="text" name="nombre" required
+                 placeholder="Ej: Maestro Albañil" autocomplete="off">
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label for="nuevo_categoria" class="form-label">Categoría</label>
+          <input id="nuevo_categoria" class="form-control" type="text" name="categoria"
+                 placeholder="Ej: Obra / Administrativo" autocomplete="off">
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label for="nuevo_descripcion" class="form-label">Descripción</label>
+          <input id="nuevo_descripcion" class="form-control" type="text" name="descripcion"
+                 placeholder="Descripción breve del cargo" autocomplete="off">
+        </div>
+
+        <div class="col-12 col-lg-2 d-grid">
+          <button class="btn btn-primary" type="submit">Agregar cargo</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      {% if cargos_list|length == 0 %}
+        <p class="text-muted mb-0">No se encontraron cargos con los filtros seleccionados.</p>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width:90px;">ID</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
+                <th style="width:140px;">Estado</th>
+                <th class="text-end" style="width:260px;">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for c in cargos_list %}
+                {% set form_id = "cargo-form-" ~ c.id %}
+                <tr {% if soporta and not c.activo %}class="text-muted"{% endif %}>
+                  <td>{{ c.id }}</td>
+
+                  <td colspan="3">
+                    <form id="{{ form_id }}" method="post"
+                          action="{{ url_for('core.cargo_editar', cargo_id=c.id) }}">
+                      {% if csrf_token is defined %}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      {% endif %}
+
+                      <input type="hidden" name="q" value="{{ qv }}">
+                      <input type="hidden" name="estado" value="{{ estado_v }}">
+
+                      <div class="row g-2 align-items-center">
+                        <div class="col-12 col-xl-4">
+                          <input class="form-control" type="text" name="nombre"
+                                 value="{{ c.nombre|default('') }}" required aria-label="Nombre del cargo">
+                        </div>
+
+                        <div class="col-12 col-xl-3">
+                          <input class="form-control" type="text" name="categoria"
+                                 value="{{ c.categoria|default('') }}" placeholder="Categoría" aria-label="Categoría del cargo">
+                        </div>
+
+                        <div class="col-12 col-xl-5">
+                          <input class="form-control" type="text" name="descripcion"
+                                 value="{{ c.descripcion|default('') }}" placeholder="Descripción breve" aria-label="Descripción del cargo">
+                        </div>
+                      </div>
+                    </form>
+                  </td>
+
+                  <td>
+                    {% if soporta %}
+                      {# Upgrade final: pill verde solo para "vigente/activo"; resto gris #}
+                      {% if c.activo %}
+                        <span class="badge text-bg-success">Vigente</span>
+                      {% else %}
+                        <span class="badge text-bg-secondary">No vigente</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="badge text-bg-secondary">N/A</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-end">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                      <button class="btn btn-sm btn-outline-primary"
+                              type="submit"
+                              form="{{ form_id }}"
+                              aria-label="Guardar cambios del cargo {{ c.id }}">
+                        Guardar
+                      </button>
+
+                      {% if soporta %}
+                        {% set msg = "¿Confirmas la acción sobre el cargo: " + c.nombre|default("") + " ?" %}
+                        <form method="post"
+                              action="{{ url_for('core.cargo_toggle_activo', cargo_id=c.id, q=qv, estado=estado_v) }}"
+                              onsubmit="return confirm('{{ msg|e }}');"
+                              class="d-inline">
+                          {% if csrf_token is defined %}
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          {% endif %}
+
+                          {% if c.activo %}
+                            <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                    aria-label="Dar de baja cargo {{ c.id }}">
+                              Dar de baja
+                            </button>
+                          {% else %}
+                            <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                    aria-label="Reactivar cargo {{ c.id }}">
+                              Reactivar
+                            </button>
+                          {% endif %}
+                        </form>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

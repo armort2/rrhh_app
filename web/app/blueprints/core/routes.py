@@ -118,7 +118,7 @@ def cargos_listado():
     cargos = query.order_by(Cargo.id.asc()).all()
 
     return render_template(
-        "cargos_listado.html",
+        "cargos/cargos_listado.html",
         cargos=cargos,
         q=q,
         estado=estado,

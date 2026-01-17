@@ -37,7 +37,7 @@ def lista_obras():
         .order_by((Obra.estado == "ACTIVA").desc(), Obra.nombre.asc())
         .all()
     )
-    return render_template("obras.html", obras=obras)
+    return render_template("obras/obras.html", obras=obras)
 
 
 @bp.route("/nueva", methods=["GET", "POST"])
@@ -90,7 +90,7 @@ def nueva_obra():
         flash("Obra creada correctamente.", "success")
         return redirect(url_for("obras.lista_obras"))
 
-    return render_template("nueva_obra.html")
+    return render_template("obras/nueva_obra.html")
 
 
 @bp.route("/<int:obra_id>/editar", methods=["GET", "POST"])
@@ -105,7 +105,7 @@ def editar_obra(obra_id: int):
             flash("Nombre y código son obligatorios.", "warning")
             return redirect(url_for("obras.editar_obra", obra_id=obra.id))
 
-        # 1) Leer estado y fechas primero (para no usar variables no definidas)
+        # 1) Leer estado y fechas primero
         estado = (request.form.get("estado") or obra.estado or "ACTIVA").strip() or "ACTIVA"
         if estado not in ("ACTIVA", "CERRADA"):
             flash("Estado inválido.", "danger")
@@ -142,7 +142,7 @@ def editar_obra(obra_id: int):
         flash("Obra actualizada correctamente.", "success")
         return redirect(url_for("obras.editar_obra", obra_id=obra.id))
 
-    return render_template("obras_editar.html", obra=obra)
+    return render_template("obras/obras_editar.html", obra=obra)
 
 
 @bp.post("/<int:obra_id>/toggle-estado")

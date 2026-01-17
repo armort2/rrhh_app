@@ -1,3 +1,4 @@
+# web/app/blueprints/horarios/routes.py
 from __future__ import annotations
 
 from datetime import time
@@ -94,7 +95,7 @@ def _leer_tramos_desde_form() -> List[Tuple[int, time, time, int]]:
 def horarios_listado():
     _require_admin()
 
-    q = (request.args.get("q") or "").strip().lower()
+    q = (request.args.get("q") or "").strip()
     solo_activos = request.args.get("activos") == "1"
 
     query = Horario.query
@@ -106,7 +107,7 @@ def horarios_listado():
     horarios = query.order_by(Horario.activo.desc(), Horario.nombre.asc()).all()
 
     return render_template(
-        "horarios_listado.html",
+        "horarios/horarios_listado.html",
         horarios=horarios,
         q=q,
         solo_activos=solo_activos,
@@ -168,7 +169,7 @@ def horario_nuevo():
 
     # GET: pre-cargamos una fila vacía para UX
     return render_template(
-        "horario_form.html",
+        "horarios/horario_form.html",
         modo="nuevo",
         horario=None,
         tramos=[],
@@ -216,7 +217,8 @@ def horario_editar(horario_id: int):
         horario.activo = activo
 
         # Reemplazo simple y seguro: borramos tramos y recreamos.
-        HorarioTramo.query.filter_by(horario_id=horario.id).delete()
+        HorarioTramo.query.filter_by(horario_id=horario.id).delete(synchronize_session=False)
+
         for (dia, ini, ter, orden) in tramos:
             db.session.add(
                 HorarioTramo(
@@ -239,7 +241,7 @@ def horario_editar(horario_id: int):
         .all()
     )
     return render_template(
-        "horario_form.html",
+        "horarios/horario_form.html",
         modo="editar",
         horario=horario,
         tramos=tramos,
@@ -282,6 +284,9 @@ def horario_eliminar(horario_id: int):
             "error",
         )
         return redirect(url_for("horarios.horarios_listado"))
+
+    # Por si no existe cascade en el modelo, eliminamos tramos primero.
+    HorarioTramo.query.filter_by(horario_id=horario.id).delete(synchronize_session=False)
 
     db.session.delete(horario)
     db.session.commit()

@@ -1,42 +1,30 @@
+{# web/app/templates/anticipos/anticipos_listado.html #}
 {% extends "base.html" %}
 {% block title %}Anticipos · Nóminas{% endblock %}
 
 {% block content %}
-<style>
-  .badge {
-    display:inline-flex;
-    align-items:center;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    border: 1px solid #ddd;
-    background: #f7f7f7;
-  }
-  .badge--borrador { background:#f5fbff; border-color:#cfe3f5; }
-  .badge--enviada { background:#fffaf0; border-color:#f0dfb5; }
-  .badge--visada { background:#f4fff7; border-color:#bfe6c9; }
-  .badge--cerrada { background:#f7f7f7; border-color:#ddd; color:#666; }
-</style>
+<div class="container-fluid py-3">
 
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Anticipos · Nóminas</h1>
-      <p class="card-subtitle">Listado por centro de costo y período.</p>
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Anticipos</h1>
+      <div class="section-subtitle">Listado de nóminas por centro de costo y período.</div>
+      <div class="section-divider"></div>
     </div>
-    <div class="card-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+
+    <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-primary" href="{{ url_for('anticipos.nueva') }}">➕ Nueva nómina</a>
       <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.importar') }}">📥 Importar nómina</a>
     </div>
   </div>
 
-  <div class="card-body">
-    <form method="get" class="form" style="margin-bottom: 16px;">
-      <div class="form-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
-        <div class="form-group">
-          <label>Centro de Costo</label>
-          <select name="centro_costo" class="form-control">
+  <div class="card">
+    <div class="card-body">
+
+      <form method="get" class="row g-3 align-items-end mb-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Centro de costo</label>
+          <select name="centro_costo" class="form-select">
             <option value="">(Todos)</option>
             {% for cc in centros %}
               <option value="{{ cc }}" {% if q_cc == cc %}selected{% endif %}>{{ cc }}</option>
@@ -44,14 +32,14 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label>Período (YYYY-MM)</label>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Período (YYYY-MM)</label>
           <input class="form-control" name="periodo" value="{{ q_periodo }}" placeholder="2026-01">
         </div>
 
-        <div class="form-group">
-          <label>Estado</label>
-          <select name="estado" class="form-control">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
             <option value="">(Todos)</option>
             {% for st in ["BORRADOR","ENVIADA_A_VISACION","VISADA","CERRADA"] %}
               <option value="{{ st }}" {% if q_estado == st %}selected{% endif %}>{{ st }}</option>
@@ -59,82 +47,82 @@
           </select>
         </div>
 
-        <div class="form-group" style="display:flex; align-items:flex-end; gap:8px;">
+        <div class="col-12 col-md-3 d-flex gap-2 justify-content-end">
           <button class="btn btn-outline-primary" type="submit">Filtrar</button>
           <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">Limpiar</a>
         </div>
-      </div>
-    </form>
+      </form>
 
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Período</th>
-            <th>Centro de costo</th>
-            <th>Estado</th>
-            <th>Origen</th>
-            <th>Importado</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for n in nominas %}
-            {% set estado = (n.estado or "") %}
-            {% set badge_class = "" %}
-            {% if estado == "BORRADOR" %}
-              {% set badge_class = "badge--borrador" %}
-            {% elif estado == "ENVIADA_A_VISACION" %}
-              {% set badge_class = "badge--enviada" %}
-            {% elif estado == "VISADA" %}
-              {% set badge_class = "badge--visada" %}
-            {% elif estado == "CERRADA" %}
-              {% set badge_class = "badge--cerrada" %}
-            {% endif %}
-
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0">
+          <thead>
             <tr>
-              <td>{{ n.id }}</td>
-              <td>{{ "%04d-%02d"|format(n.anio, n.mes) }}</td>
-              <td>{{ n.centro_costo }}</td>
-              <td><span class="badge {{ badge_class }}">{{ n.estado }}</span></td>
-
-              <td>
-                {% if n.origen is defined and n.origen %}
-                  {{ n.origen }}
-                {% elif n.origen_archivo %}
-                  {{ n.origen_archivo }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-
-              <td>
-                {% if n.importado_en %}
-                  {{ n.importado_en.strftime("%Y-%m-%d %H:%M") if n.importado_en.strftime is defined else n.importado_en }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-
-              <td style="text-align:right;">
-                <div style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
-                  <a class="btn btn-sm btn-primary" href="{{ url_for('anticipos.detalle', nomina_id=n.id) }}">Ver</a>
-
-                  <a class="btn btn-sm btn-outline-secondary"
-                     href="{{ url_for('anticipos.imprimir_pdf', nomina_id=n.id, v=n.id ~ '-' ~ (n.estado or '') ) }}"
-                     target="_blank" rel="noopener noreferrer">
-                    🖨️ Imprimir PDF
-                  </a>
-                </div>
-              </td>
+              <th>ID</th>
+              <th>Período</th>
+              <th>Centro de costo</th>
+              <th>Estado</th>
+              <th>Origen</th>
+              <th>Importado</th>
+              <th class="text-end"></th>
             </tr>
-          {% else %}
-            <tr><td colspan="7">Sin resultados.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for n in nominas %}
+              <tr>
+                <td>{{ n.id }}</td>
+                <td>{{ "%04d-%02d"|format(n.anio, n.mes) }}</td>
+                <td>{{ n.centro_costo }}</td>
+
+                <td>
+                  {% set estado = (n.estado or "") %}
+                  {% if estado == "VISADA" %}
+                    <span class="badge text-bg-success">VISADA</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">{{ estado or "-" }}</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if n.origen is defined and n.origen %}
+                    {{ n.origen }}
+                  {% elif n.origen_archivo %}
+                    {{ n.origen_archivo }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if n.importado_en %}
+                    {{ n.importado_en.strftime("%Y-%m-%d %H:%M") if n.importado_en.strftime is defined else n.importado_en }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <a class="btn btn-sm btn-primary" href="{{ url_for('anticipos.detalle', nomina_id=n.id) }}">Ver</a>
+
+                    <a class="btn btn-sm btn-outline-secondary"
+                       href="{{ url_for('anticipos.imprimir_pdf', nomina_id=n.id, v=n.id ~ '-' ~ (n.estado or '') ) }}"
+                       target="_blank" rel="noopener noreferrer">
+                      🖨️ Imprimir PDF
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-muted">Sin resultados.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
     </div>
   </div>
+
 </div>
 {% endblock %}

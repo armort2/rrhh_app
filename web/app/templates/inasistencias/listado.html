@@ -1,113 +1,124 @@
+{# web/app/templates/inasistencias/listado.html #}
 {% extends "base.html" %}
 {% block title %}Inasistencias{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Inasistencias</h1>
-      <p class="card-subtitle">Registro de ausencias por día completo o por horas/minutos.</p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Inasistencias</h1>
+      <div class="section-subtitle">Registro de ausencias por día completo o por horas/minutos.</div>
+      <div class="section-divider"></div>
     </div>
-    <div class="card-actions">
+
+    <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-primary" href="{{ url_for('inasistencias.nuevo') }}">+ Registrar inasistencia</a>
-      <a class="btn btn-secondary" href="{{ url_for('inasistencias.revision') }}">📌 Revisión remuneraciones</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.revision') }}">📌 Revisión remuneraciones</a>
     </div>
   </div>
 
-  <div class="card-body">
-    <form method="get" class="form">
-      <div class="form-grid">
+  <div class="card">
+    <div class="card-body">
 
-        <div class="form-group">
-          <label>Centro de costo</label>
-          <select name="cc">
-            <option value="">— Todos —</option>
-            {% for c in centros_costo %}
-              <option value="{{ c }}" {% if cc == c %}selected{% endif %}>{{ c }}</option>
+      <form method="get">
+        <div class="row g-3">
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Centro de costo</label>
+            <select name="cc" class="form-select">
+              <option value="">— Todos —</option>
+              {% for c in centros_costo %}
+                <option value="{{ c }}" {% if cc == c %}selected{% endif %}>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-8 col-lg-6">
+            <label class="form-label">Trabajador</label>
+            <select name="trabajador_id" class="form-select">
+              <option value="">— Todos —</option>
+              {% for t in trabajadores %}
+                <option value="{{ t.id }}" {% if trabajador_id == t.id %}selected{% endif %}>
+                  {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Mes (YYYY-MM)</label>
+            <input type="month" name="mes" class="form-control" value="{{ mes }}">
+          </div>
+
+          <div class="col-12 d-flex gap-2 flex-wrap justify-content-end">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-secondary" href="{{ url_for('inasistencias.listado') }}">Limpiar</a>
+          </div>
+        </div>
+      </form>
+
+      <div class="table-responsive mt-3">
+        <table class="table table-striped table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Centro de costo</th>
+              <th>Trabajador</th>
+              <th>Tipo</th>
+              <th>Tiempo</th>
+              <th>Motivo</th>
+              <th>Obs.</th>
+              <th class="text-end" style="width: 170px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in items %}
+              <tr>
+                <td>{{ it.fecha }}</td>
+                <td>{{ it.trabajador.obra.centro_costo if it.trabajador.obra else "" }}</td>
+                <td>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno }} {{ it.trabajador.nombres }}</td>
+                <td>{{ "Día" if it.tipo == "DIA" else "Horas" }}</td>
+                <td>
+                  {% if it.tipo == "HORAS" %}
+                    {{ fmt_hhmm(it.minutos_ausentes) }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>{{ it.motivo }}</td>
+                <td>{{ it.observacion or "" }}</td>
+                <td class="text-end">
+                  <div class="d-inline-flex gap-2 flex-wrap justify-content-end">
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{{ url_for('inasistencias.editar', item_id=it.id, next=next_url) }}">
+                      Editar
+                    </a>
+
+                    <form method="post"
+                          action="{{ url_for('inasistencias.eliminar', item_id=it.id, next=next_url) }}"
+                          class="d-inline"
+                          onsubmit="return confirm('¿Eliminar esta inasistencia?');">
+                      <input type="hidden" name="next" value="{{ next_url }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
             {% endfor %}
-          </select>
-        </div>
 
-        <div class="form-group">
-          <label>Trabajador</label>
-          <select name="trabajador_id">
-            <option value="">— Todos —</option>
-            {% for t in trabajadores %}
-              <option value="{{ t.id }}" {% if trabajador_id == t.id %}selected{% endif %}>
-                {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Mes (YYYY-MM)</label>
-          <input type="month" name="mes" value="{{ mes }}">
-        </div>
-
-        <div class="form-group" style="align-self:end">
-          <button class="btn" type="submit">Filtrar</button>
-          <a class="btn btn-secondary" href="{{ url_for('inasistencias.listado') }}">Limpiar</a>
-        </div>
+            {% if items|length == 0 %}
+              <tr>
+                <td colspan="8" class="text-center py-3 text-muted">
+                  Sin registros para el filtro seleccionado.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
       </div>
-    </form>
 
-    <div class="table-responsive" style="margin-top: 12px;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Centro de costo</th>
-            <th>Trabajador</th>
-            <th>Tipo</th>
-            <th>Tiempo</th>
-            <th>Motivo</th>
-            <th>Obs.</th>
-            <th style="width: 170px;">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for it in items %}
-          <tr>
-            <td>{{ it.fecha }}</td>
-            <td>{{ it.trabajador.obra.centro_costo if it.trabajador.obra else "" }}</td>
-            <td>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno }} {{ it.trabajador.nombres }}</td>
-            <td>{{ "Día" if it.tipo == "DIA" else "Horas" }}</td>
-            <td>
-              {% if it.tipo == "HORAS" %}
-                {{ fmt_hhmm(it.minutos_ausentes) }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-            <td>{{ it.motivo }}</td>
-            <td>{{ it.observacion or "" }}</td>
-            <td>
-              <a class="btn btn-small"
-                 href="{{ url_for('inasistencias.editar', item_id=it.id, next=next_url) }}">
-                Editar
-              </a>
-
-              <form method="post"
-                    action="{{ url_for('inasistencias.eliminar', item_id=it.id, next=next_url) }}"
-                    style="display:inline"
-                    onsubmit="return confirm('¿Eliminar esta inasistencia?');">
-                <input type="hidden" name="next" value="{{ next_url }}">
-                <button class="btn btn-small btn-danger" type="submit">Eliminar</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-
-          {% if items|length == 0 %}
-          <tr>
-            <td colspan="8" style="text-align:center; padding: 18px;">Sin registros para el filtro seleccionado.</td>
-          </tr>
-          {% endif %}
-        </tbody>
-      </table>
     </div>
-
   </div>
+
 </div>
 {% endblock %}

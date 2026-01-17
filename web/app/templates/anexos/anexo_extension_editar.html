@@ -1,72 +1,89 @@
+{# web/app/templates/anexos/anexo_extension_editar.html #}
 {% extends "base.html" %}
 {% block title %}Editar anexo extensión · #{{ anexo.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h1 class="card-title">Editar Anexo de Extensión</h1>
-      <p class="card-subtitle">
-        Anexo #{{ anexo.id }} · Contrato #{{ anexo.contrato_id }} · Trabajador #{{ anexo.trabajador_id }}
-      </p>
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Editar anexo de extensión</h1>
+      <div class="section-subtitle">
+        Anexo <strong>#{{ anexo.id }}</strong> · Contrato <strong>#{{ anexo.contrato_id }}</strong> · Trabajador <strong>#{{ anexo.trabajador_id }}</strong>
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-secondary" href="{{ url_for('anexos.anexo_extension_detalle', anexo_id=anexo.id) }}">⬅ Volver</a>
+      <button class="btn btn-primary" type="submit" form="form-anexo-extension-editar">💾 Guardar cambios</button>
     </div>
   </div>
 
-  <div class="card-body">
-    <form method="post" class="form">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="fecha_anexo">Fecha del anexo</label>
-          <input type="date" id="fecha_anexo" name="fecha_anexo"
-                 value="{{ anexo.fecha_anexo.strftime('%Y-%m-%d') if anexo.fecha_anexo else '' }}">
-        </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="post" class="form" id="form-anexo-extension-editar">
 
-        <div class="form-group">
-          <label>Término anterior</label>
-          <div>
-            {% if anexo.fecha_termino_anterior %}
-              {{ anexo.fecha_termino_anterior.strftime('%d-%m-%Y') }}
-            {% else %}
-              <span class="text-muted">Sin término</span>
-            {% endif %}
+        <div class="row g-3">
+
+          <div class="col-12 col-md-3">
+            <label for="fecha_anexo" class="form-label">Fecha del anexo</label>
+            <input type="date"
+                   id="fecha_anexo"
+                   name="fecha_anexo"
+                   class="form-control"
+                   value="{{ anexo.fecha_anexo.strftime('%Y-%m-%d') if anexo.fecha_anexo else '' }}">
           </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Término anterior</label>
+            <div>
+              {% if anexo.fecha_termino_anterior %}
+                {{ anexo.fecha_termino_anterior.strftime('%d-%m-%Y') }}
+              {% else %}
+                <span class="text-muted">Sin término</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="fecha_termino_nueva" class="form-label">Nuevo término</label>
+            <input type="date"
+                   id="fecha_termino_nueva"
+                   name="fecha_termino_nueva"
+                   class="form-control"
+                   required
+                   value="{{ anexo.fecha_termino_nueva.strftime('%Y-%m-%d') if anexo.fecha_termino_nueva else '' }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="formato" class="form-label">Formato</label>
+            <select id="formato" name="formato" class="form-select">
+              <option value="DOCX" {% if (anexo.formato or '') == 'DOCX' %}selected{% endif %}>DOCX</option>
+              <option value="PDF" {% if (anexo.formato or '') == 'PDF' %}selected{% endif %}>PDF</option>
+              <option value="AMBOS" {% if (anexo.formato or '') == 'AMBOS' %}selected{% endif %}>AMBOS</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="estado" class="form-label">Estado</label>
+            <select id="estado" name="estado" class="form-select">
+              <option value="VIGENTE" {% if (anexo.estado or '') == 'VIGENTE' %}selected{% endif %}>VIGENTE</option>
+              <option value="ANULADO" {% if (anexo.estado or '') == 'ANULADO' %}selected{% endif %}>ANULADO</option>
+              <option value="REEMPLAZADO" {% if (anexo.estado or '') == 'REEMPLAZADO' %}selected{% endif %}>REEMPLAZADO</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label for="observaciones" class="form-label">Observaciones</label>
+            <textarea id="observaciones" name="observaciones" rows="3" class="form-control">{{ anexo.observaciones or '' }}</textarea>
+          </div>
+
         </div>
 
-        <div class="form-group">
-          <label for="fecha_termino_nueva">Nuevo término</label>
-          <input type="date" id="fecha_termino_nueva" name="fecha_termino_nueva" required
-                 value="{{ anexo.fecha_termino_nueva.strftime('%Y-%m-%d') if anexo.fecha_termino_nueva else '' }}">
-        </div>
-
-        <div class="form-group">
-          <label for="formato">Formato</label>
-          <select id="formato" name="formato">
-            <option value="DOCX" {% if (anexo.formato or '') == 'DOCX' %}selected{% endif %}>DOCX</option>
-            <option value="PDF" {% if (anexo.formato or '') == 'PDF' %}selected{% endif %}>PDF</option>
-            <option value="AMBOS" {% if (anexo.formato or '') == 'AMBOS' %}selected{% endif %}>AMBOS</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="estado">Estado</label>
-          <select id="estado" name="estado">
-            <option value="VIGENTE" {% if (anexo.estado or '') == 'VIGENTE' %}selected{% endif %}>VIGENTE</option>
-            <option value="ANULADO" {% if (anexo.estado or '') == 'ANULADO' %}selected{% endif %}>ANULADO</option>
-            <option value="REEMPLAZADO" {% if (anexo.estado or '') == 'REEMPLAZADO' %}selected{% endif %}>REEMPLAZADO</option>
-          </select>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label for="observaciones">Observaciones</label>
-          <textarea id="observaciones" name="observaciones" rows="3">{{ anexo.observaciones or '' }}</textarea>
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <a class="btn btn-secondary" href="{{ url_for('anexos.anexo_extension_detalle', anexo_id=anexo.id) }}">⬅ Volver</a>
-        <button class="btn btn-primary" type="submit">💾 Guardar cambios</button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
+
 </div>
 {% endblock %}

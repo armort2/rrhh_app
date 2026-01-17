@@ -1,0 +1,70 @@
+{# web/app/templates/contratos/contrato_generar.html #}
+{% extends "base.html" %}
+
+{% block title %}Generar contrato{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Generar contrato</h1>
+      <div class="section-subtitle">
+        Trabajador:
+        <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+        · Contrato ID: {{ contrato.id }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">
+        ← Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" class="needs-validation" novalidate>
+        <h2 class="h6 mb-3">Formato de salida</h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label for="formato" class="form-label">Selecciona formato</label>
+            <select id="formato" name="formato" class="form-select" required>
+              <option value="DOCX" selected>DOCX (Word)</option>
+              <option value="PDF">PDF</option>
+              <option value="AMBOS">DOCX + PDF</option>
+            </select>
+            <div class="form-text">Recomendación operativa: generar ambos para archivo y envío.</div>
+            <div class="invalid-feedback">Selecciona un formato.</div>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary">Generar ahora</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const forms = document.querySelectorAll(".needs-validation");
+  Array.from(forms).forEach(form => {
+    form.addEventListener("submit", event => {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add("was-validated");
+    }, false);
+  });
+})();
+</script>
+{% endblock %}

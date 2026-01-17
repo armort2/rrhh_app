@@ -1,0 +1,105 @@
+{# web/app/templates/obras/obras_editar.html #}
+{% extends "base.html" %}
+
+{% block title %}Editar obra · {{ obra.codigo }} · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div class="section-header mb-0">
+        <h1 class="section-title">Editar obra</h1>
+        <div class="section-subtitle">
+          Código: <strong>{{ obra.codigo }}</strong> · Estado:
+          <span class="badge rounded-pill {% if obra.estado == 'ACTIVA' %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+            {{ obra.estado }}
+          </span>
+        </div>
+        <div class="section-divider"></div>
+      </div>
+
+
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <a class="btn btn-outline-secondary" href="{{ url_for('obras.lista_obras') }}">⬅ Volver</a>
+
+        {# Toggle fuera del form principal (NO anidar forms) #}
+        <form method="post"
+              action="{{ url_for('obras.toggle_estado', obra_id=obra.id) }}"
+              onsubmit="return confirm('¿Confirmas el cambio de estado de esta obra?');">
+          <button type="submit"
+                  class="btn {% if obra.estado == 'ACTIVA' %}btn-danger{% else %}btn-success{% endif %}">
+            {% if obra.estado == 'ACTIVA' %}⛔ Cerrar{% else %}✅ Reabrir{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card-body">
+      {# Form principal SOLO para guardar cambios #}
+      <form method="post" class="form form-sectioned">
+        <h2 class="section-title">Datos de la obra</h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-3">
+            <label for="codigo" class="form-label">Código</label>
+            <input type="text" class="form-control" id="codigo" name="codigo" value="{{ obra.codigo }}" required>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="nombre" name="nombre" value="{{ obra.nombre }}" required>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="centro_costo" class="form-label">Centro de costo</label>
+            <input type="text" class="form-control" id="centro_costo" name="centro_costo" value="{{ obra.centro_costo or '' }}">
+          </div>
+
+          <div class="col-12 col-lg-8">
+            <label for="direccion" class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="direccion" name="direccion" value="{{ obra.direccion or '' }}" maxlength="300">
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <label for="comuna" class="form-label">Comuna</label>
+            <input type="text" class="form-control" id="comuna" name="comuna" value="{{ obra.comuna or '' }}" maxlength="100">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="fecha_inicio" class="form-label">Fecha inicio</label>
+            <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio"
+                   value="{{ obra.fecha_inicio.strftime('%Y-%m-%d') if obra.fecha_inicio else '' }}">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="fecha_cierre" class="form-label">Fecha cierre</label>
+            <input type="date" class="form-control" id="fecha_cierre" name="fecha_cierre"
+                   value="{{ obra.fecha_cierre.strftime('%Y-%m-%d') if obra.fecha_cierre else '' }}">
+            <div class="form-text">
+              Normalmente se completa al cerrar la obra.
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="estado" class="form-label">Estado</label>
+            <select id="estado" name="estado" class="form-select">
+              <option value="ACTIVA" {% if obra.estado == 'ACTIVA' %}selected{% endif %}>ACTIVA</option>
+              <option value="CERRADA" {% if obra.estado == 'CERRADA' %}selected{% endif %}>CERRADA</option>
+            </select>
+            <div class="form-text">
+              Recomendación: si cierras la obra, el sistema asigna fecha de cierre automáticamente si está vacía.
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between gap-2 mt-4 flex-wrap">
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-primary">💾 Guardar cambios</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('obras.lista_obras') }}">Cancelar</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

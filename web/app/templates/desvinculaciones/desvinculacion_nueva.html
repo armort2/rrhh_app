@@ -1,28 +1,36 @@
+{# web/app/templates/desvinculaciones/desvinculacion_nueva.html #}
 {% extends "base.html" %}
-{% set title = "Nueva Desvinculación" %}
+
+{% block title %}Nueva Desvinculación{% endblock %}
 
 {% block content %}
-<div class="page">
-  <div class="container">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h1 class="card-title">Nueva desvinculación</h1>
-          <p class="card-subtitle">
-            {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
-            · Contrato vigente #{{ contrato.id }}
-          </p>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <a class="btn btn-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}">Volver a ficha</a>
-        </div>
-      </div>
+<div class="container-fluid py-3">
 
-      <form method="post" action="{{ url_for('desvinculaciones.crear_desvinculacion', trabajador_id=trabajador.id) }}" class="form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="causal_id">Causal de término</label>
-            <select name="causal_id" id="causal_id" required>
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Nueva desvinculación</h1>
+      <div class="section-subtitle">
+        {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
+        · Contrato vigente <strong>#{{ contrato.id }}</strong>
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}">
+        ⬅ Volver a ficha
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('desvinculaciones.crear_desvinculacion', trabajador_id=trabajador.id) }}">
+        <div class="row g-3">
+          <div class="col-12">
+            <label for="causal_id" class="form-label">Causal de término</label>
+            <select name="causal_id" id="causal_id" class="form-select" required>
               <option value="">-- Seleccionar --</option>
               {% for c in causales %}
                 <option value="{{ c.id }}">{{ c.id }} · {{ c.causal_resumida }} — {{ c.causal_finiquito }}</option>
@@ -30,28 +38,31 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="fecha_termino">Fecha de término</label>
-            <input type="date" name="fecha_termino" id="fecha_termino" required>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_termino" class="form-label">Fecha de término</label>
+            <input type="date" name="fecha_termino" id="fecha_termino" class="form-control" required>
           </div>
 
-          <div class="form-group">
-            <label for="fecha_aviso">Fecha de aviso (opcional)</label>
-            <input type="date" name="fecha_aviso" id="fecha_aviso">
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="fecha_aviso" class="form-label">Fecha de aviso (opcional)</label>
+            <input type="date" name="fecha_aviso" id="fecha_aviso" class="form-control">
           </div>
 
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label for="motivo_detalle">Motivo / detalle (opcional)</label>
-            <textarea name="motivo_detalle" id="motivo_detalle" rows="3" placeholder="Ej: reestructuración, término de faena, renuncia presentada, etc."></textarea>
+          <div class="col-12">
+            <label for="motivo_detalle" class="form-label">Motivo / detalle (opcional)</label>
+            <textarea name="motivo_detalle" id="motivo_detalle" rows="3"
+                      class="form-control"
+                      placeholder="Ej: reestructuración, término de faena, renuncia presentada, etc."></textarea>
           </div>
         </div>
 
-        <div class="form-actions">
+        <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
           <a class="btn btn-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}">Cancelar</a>
           <button type="submit" class="btn btn-primary">Guardar borrador</button>
         </div>
       </form>
     </div>
   </div>
+
 </div>
 {% endblock %}

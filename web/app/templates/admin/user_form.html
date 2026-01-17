@@ -1,153 +1,189 @@
+{# web/app/templates/admin/user_form.html #}
 {% extends "base.html" %}
+{% block title %}Administración · {% if mode == "new" %}Nuevo Usuario{% else %}Editar Usuario{% endif %}{% endblock %}
+
 {% block content %}
-<div class="container">
-  <div class="page-header" style="margin: 18px 0 10px 0;">
-    <h2 style="margin:0;">
-      Administración · {% if mode == "new" %}Nuevo Usuario{% else %}Editar Usuario{% endif %}
-    </h2>
-    <div style="color:#6b7280; margin-top:6px;">
-      Gestiona credenciales, datos básicos y asignaciones de roles/obras.
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">
+        Administración · {% if mode == "new" %}Nuevo Usuario{% else %}Editar Usuario{% endif %}
+      </h1>
+      <div class="section-subtitle">
+        Gestiona credenciales, datos básicos y asignaciones de roles/obras.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.users_list') }}">⬅ Volver</a>
     </div>
   </div>
 
-  <div class="card" style="background:#fff; border:1px solid #e5e5e5;">
-    <div class="card-body" style="padding:16px;">
+  <div class="card">
+    <div class="card-body">
+
       <form method="POST"
             action="{% if mode == 'new' %}{{ url_for('admin.users_new_post') }}{% else %}{{ url_for('admin.users_edit_post', user_id=user.id) }}{% endif %}">
-        <div class="form-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
 
-          <div>
-            <label style="display:block; font-weight:600; margin-bottom:6px;">Nombre (visible)</label>
-            <input
-              name="nombre"
-              value="{{ user.nombre if user else '' }}"
-              placeholder="Ej: Juan Pérez"
-              style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
-            <div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">
+        <h2 class="section-title mb-3">Datos del usuario</h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Nombre (visible)</label>
+            <input class="form-control"
+                   name="nombre"
+                   value="{{ user.nombre if user else '' }}"
+                   placeholder="Ej: Juan Pérez">
+            <div class="form-text">
               Este es el nombre que se verá en listados (no es el username de acceso).
             </div>
           </div>
 
-          <div>
-            <label style="display:block; font-weight:600; margin-bottom:6px;">RUT</label>
-            <input
-              name="rut"
-              value="{{ user.rut if user else '' }}"
-              placeholder="Ej: 12.345.678-9"
-              style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
-            <div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">
+          <div class="col-12 col-lg-6">
+            <label class="form-label">RUT</label>
+            <input class="form-control"
+                   name="rut"
+                   value="{{ user.rut if user else '' }}"
+                   placeholder="Ej: 12.345.678-9">
+            <div class="form-text">
               Se normaliza y guarda sin puntos (con guion). Ej: 12345678-9
             </div>
           </div>
 
-          <div>
-            <label style="display:block; font-weight:600; margin-bottom:6px;">Username (login)</label>
-            <input
-              name="username"
-              value="{{ user.username if user else '' }}"
-              placeholder="Ej: jperez"
-              style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;"
-              required>
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Username (login)</label>
+            <input class="form-control"
+                   name="username"
+                   value="{{ user.username if user else '' }}"
+                   placeholder="Ej: jperez"
+                   required>
           </div>
 
-          <div>
-            <label style="display:block; font-weight:600; margin-bottom:6px;">Email (opcional)</label>
-            <input
-              name="email"
-              value="{{ user.email if user else '' }}"
-              placeholder="Ej: jperez@empresa.cl"
-              style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Email (opcional)</label>
+            <input class="form-control"
+                   name="email"
+                   value="{{ user.email if user else '' }}"
+                   placeholder="Ej: jperez@empresa.cl">
           </div>
 
           {% if mode == "new" %}
-          <div style="grid-column: 1 / -1;">
-            <label style="display:block; font-weight:600; margin-bottom:6px;">Contraseña inicial</label>
-            <input
-              name="password"
-              type="password"
-              style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;"
-              required>
-            <div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">
-              Mínimo 8 caracteres.
+            <div class="col-12">
+              <label class="form-label">Contraseña inicial</label>
+              <input class="form-control"
+                     name="password"
+                     type="password"
+                     required>
+              <div class="form-text">Mínimo 8 caracteres.</div>
             </div>
-          </div>
           {% endif %}
 
-          <div style="grid-column: 1 / -1; padding:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px;">
-            <label style="display:flex; gap:10px; align-items:center; margin:0;">
-              <input type="checkbox" name="is_active" {% if (user and user.is_active) or (not user) %}checked{% endif %}>
-              <span><strong>Usuario activo</strong></span>
-            </label>
-            <div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">
-              Si está deshabilitado, no podrá iniciar sesión.
-            </div>
-          </div>
-
-          <div>
-            <label style="display:block; font-weight:600; margin-bottom:6px;">Roles</label>
-            <div style="border:1px solid #e5e7eb; border-radius:10px; padding:10px; max-height:220px; overflow:auto;">
-              {% for r in roles %}
-                <label style="display:flex; gap:10px; align-items:center; padding:6px 4px; margin:0;">
-                  <input type="checkbox" name="roles" value="{{ r.id }}"
-                         {% if (r.id|string) in selected_role_ids %}checked{% endif %}>
-                  <span>{{ r.name }}</span>
+          <div class="col-12">
+            <div class="p-3 border rounded-3 bg-light">
+              <div class="form-check m-0">
+                <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                       {% if (user and user.is_active) or (not user) %}checked{% endif %}>
+                <label class="form-check-label" for="is_active">
+                  <strong>Usuario activo</strong>
                 </label>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div>
-            <label style="display:block; font-weight:600; margin-bottom:6px;">Obras asignadas</label>
-            <div style="border:1px solid #e5e7eb; border-radius:10px; padding:10px; max-height:220px; overflow:auto;">
-              {% for o in obras %}
-                <label style="display:flex; gap:10px; align-items:center; padding:6px 4px; margin:0;">
-                  <input type="checkbox" name="obras" value="{{ o.id }}"
-                         {% if (o.id|string) in selected_obra_ids %}checked{% endif %}>
-                  <span>{{ o.nombre }}</span>
-                </label>
-              {% endfor %}
-            </div>
-            <div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">
-              Para OPERADOR/REVISOR se recomienda asignar al menos 1 obra.
+              </div>
+              <div class="form-text mt-1">
+                Si está deshabilitado, no podrá iniciar sesión.
+              </div>
             </div>
           </div>
         </div>
 
-        <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
-          <button type="submit" style="padding:10px 14px; border:1px solid #111827; background:#111827; color:#fff; border-radius:10px; cursor:pointer;">
-            Guardar
-          </button>
-          <a href="{{ url_for('admin.users_list') }}"
-             style="padding:10px 14px; text-decoration:none; border:1px solid #d1d5db; border-radius:10px; color:#111827;">
-            Volver
-          </a>
+        <div class="row g-3 mt-2">
+
+          <div class="col-12 col-lg-6">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Roles</div>
+                  <div class="card-subtitle">Define permisos del usuario en el sistema.</div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="border rounded-3 p-2" style="max-height: 260px; overflow:auto;">
+                  {% for r in roles %}
+                    <div class="form-check px-2 py-1 m-0">
+                      <input class="form-check-input" type="checkbox" name="roles" id="role_{{ r.id }}" value="{{ r.id }}"
+                             {% if (r.id|string) in selected_role_ids %}checked{% endif %}>
+                      <label class="form-check-label" for="role_{{ r.id }}">
+                        {{ r.name }}
+                      </label>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Obras asignadas</div>
+                  <div class="card-subtitle">Controla alcance operativo por obra.</div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="border rounded-3 p-2" style="max-height: 260px; overflow:auto;">
+                  {% for o in obras %}
+                    <div class="form-check px-2 py-1 m-0">
+                      <input class="form-check-input" type="checkbox" name="obras" id="obra_{{ o.id }}" value="{{ o.id }}"
+                             {% if (o.id|string) in selected_obra_ids %}checked{% endif %}>
+                      <label class="form-check-label" for="obra_{{ o.id }}">
+                        {{ o.nombre }}
+                      </label>
+                    </div>
+                  {% endfor %}
+                </div>
+                <div class="form-text mt-2">
+                  Para OPERADOR/REVISOR se recomienda asignar al menos 1 obra.
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
+
+        <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
+          <a class="btn btn-outline-secondary" href="{{ url_for('admin.users_list') }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+
       </form>
     </div>
   </div>
 
   {% if mode == "edit" %}
-  <div class="card" style="margin-top:14px; background:#fff; border:1px solid #e5e5e5;">
-    <div class="card-body" style="padding:16px;">
-      <h3 style="margin:0 0 10px 0;">Reset de contraseña</h3>
+    <div class="card mt-3">
+      <div class="card-body">
+        <h2 class="section-title mb-2">Reset de contraseña</h2>
 
-      <form method="POST" action="{{ url_for('admin.users_reset_password', user_id=user.id) }}"
-            style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <input type="password" name="new_password" placeholder="Nueva contraseña (mín. 8)"
-               style="flex:1; min-width: 240px; padding:10px; border:1px solid #d1d5db; border-radius:10px;">
-        <button type="submit"
-                style="padding:10px 14px; border:1px solid #92400e; background:#92400e; color:#fff; border-radius:10px; cursor:pointer;">
-          Reset
-        </button>
-      </form>
+        <form method="POST" action="{{ url_for('admin.users_reset_password', user_id=user.id) }}"
+              class="row g-2 align-items-end">
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Nueva contraseña</label>
+            <input class="form-control" type="password" name="new_password" placeholder="Mín. 8 caracteres" required>
+          </div>
+          <div class="col-12 col-lg-auto">
+            <button type="submit" class="btn btn-outline-danger">Reset</button>
+          </div>
+        </form>
 
-      {% if user.must_change_password %}
-        <div style="margin-top:10px; color:#b45309;">
-          Este usuario está marcado para cambiar contraseña en el próximo ingreso.
-        </div>
-      {% endif %}
+        {% if user.must_change_password %}
+          <div class="alert alert-warning mt-3 mb-0">
+            Este usuario está marcado para cambiar contraseña en el próximo ingreso.
+          </div>
+        {% endif %}
+      </div>
     </div>
-  </div>
   {% endif %}
+
 </div>
 {% endblock %}

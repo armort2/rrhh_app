@@ -1,0 +1,179 @@
+{# web/app/templates/horarios/horario_form.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if modo == "nuevo" %}Nuevo horario{% else %}Editar horario{% endif %} · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">{% if modo == "nuevo" %}Nuevo horario{% else %}Editar horario{% endif %}</h1>
+      <div class="section-subtitle">Define una plantilla de jornada con tramos por día.</div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('horarios.horarios_listado') }}">⬅ Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <form method="post" id="form-horario">
+
+        <div class="mb-3">
+          <h2 class="section-title mb-0">Datos generales</h2>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-lg-8">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input
+              id="nombre"
+              name="nombre"
+              type="text"
+              class="form-control"
+              required
+              value="{{ horario.nombre if horario else '' }}"
+              placeholder="Ej: Horario Normal (L-J 08-13/14-18; V 08-13/14-17)">
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-4">
+            <label for="activo" class="form-label">Activo</label>
+            <select id="activo" name="activo" class="form-select">
+              <option value="1" {% if (horario and horario.activo) or (not horario) %}selected{% endif %}>Sí</option>
+              <option value="0" {% if horario and not horario.activo %}selected{% endif %}>No</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label for="descripcion" class="form-label">Descripción contractual</label>
+            <textarea
+              id="descripcion"
+              name="descripcion"
+              class="form-control"
+              rows="4"
+              placeholder="Ej: Lunes a jueves, de 08:00 hrs. a 13:00 hrs., y de 14:00 hrs. a 18:00 hrs. Viernes, ...">{{ horario.descripcion if horario and horario.descripcion else '' }}</textarea>
+            <div class="form-text">Este texto es el que se mostrará/inyectará en el contrato.</div>
+          </div>
+        </div>
+
+        <div class="mb-3 d-flex align-items-end justify-content-between gap-2 flex-wrap">
+          <h2 class="section-title mb-0">Tramos</h2>
+          <button type="button" class="btn btn-outline-secondary" id="btn-add-tramo">➕ Agregar tramo</button>
+        </div>
+
+        <div class="table-responsive mb-2">
+          <table class="table table-striped table-hover align-middle mb-0" id="tabla-tramos">
+            <thead>
+              <tr>
+                <th style="width: 220px;">Día</th>
+                <th style="width: 160px;">Inicio</th>
+                <th style="width: 160px;">Término</th>
+                <th style="width: 140px;">Orden</th>
+                <th class="text-end" style="width: 140px;">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if tramos and tramos|length > 0 %}
+                {% for t in tramos %}
+                  <tr>
+                    <td>
+                      <select name="tramos_dia" class="form-select">
+                        {% for k, v in DIA_LABELS.items() %}
+                          <option value="{{ k }}" {% if t.dia_semana == k %}selected{% endif %}>{{ v }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td>
+                      <input class="form-control" type="time" name="tramos_inicio" value="{{ t.hora_inicio.strftime('%H:%M') }}">
+                    </td>
+                    <td>
+                      <input class="form-control" type="time" name="tramos_termino" value="{{ t.hora_termino.strftime('%H:%M') }}">
+                    </td>
+                    <td>
+                      <input class="form-control" type="number" name="tramos_orden" min="1" value="{{ t.orden }}">
+                    </td>
+                    <td class="text-end">
+                      <button type="button" class="btn btn-sm btn-outline-danger btn-del">Quitar</button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td>
+                    <select name="tramos_dia" class="form-select">
+                      {% for k, v in DIA_LABELS.items() %}
+                        <option value="{{ k }}">{{ v }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input class="form-control" type="time" name="tramos_inicio" value=""></td>
+                  <td><input class="form-control" type="time" name="tramos_termino" value=""></td>
+                  <td><input class="form-control" type="number" name="tramos_orden" min="1" value="1"></td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-del">Quitar</button>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="text-muted small mb-4">
+          Recomendación: usa “Orden” para controlar el tramo 1 y 2 del mismo día (ej: 08:00-13:00 orden 1; 14:00-18:00 orden 2).
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('horarios.horarios_listado') }}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">
+            {% if modo == "nuevo" %}Guardar horario{% else %}Guardar cambios{% endif %}
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const tableBody = document.querySelector("#tabla-tramos tbody");
+  const btnAdd = document.getElementById("btn-add-tramo");
+
+  function bindDeleteButtons() {
+    document.querySelectorAll(".btn-del").forEach(btn => {
+      btn.onclick = () => {
+        const tr = btn.closest("tr");
+        if (tr) tr.remove();
+      };
+    });
+  }
+
+  btnAdd.addEventListener("click", () => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>
+        <select name="tramos_dia" class="form-select">
+          {% for k, v in DIA_LABELS.items() %}
+            <option value="{{ k }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td><input class="form-control" type="time" name="tramos_inicio" value=""></td>
+      <td><input class="form-control" type="time" name="tramos_termino" value=""></td>
+      <td><input class="form-control" type="number" name="tramos_orden" min="1" value="1"></td>
+      <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-del">Quitar</button></td>
+    `;
+    tableBody.appendChild(row);
+    bindDeleteButtons();
+  });
+
+  bindDeleteButtons();
+});
+</script>
+{% endblock %}

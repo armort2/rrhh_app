@@ -27,6 +27,41 @@
   <div class="card">
     <div class="card-body">
 
+      {# ==========================================================
+         Helper local: formatear RUT con puntos y DV
+         - BD: trabajadores.rut (cuerpo) y trabajadores.dv (dv)
+         - Fallback: si viene en un solo string, intentamos inferir dv
+         ========================================================== #}
+      {% macro rut_formateado(t) -%}
+        {%- set rut_raw = ((t.rut if t else "") or "")|string|trim -%}
+        {%- set rut_clean = rut_raw|replace(".","")|replace("-","")|replace(" ","")|upper -%}
+
+        {%- set dv = "" -%}
+        {%- set cuerpo = rut_clean -%}
+
+        {# Preferir dv en columna separada #}
+        {%- if t and (t.dv is defined) and t.dv -%}
+          {%- set dv = (t.dv|string|trim|upper) -%}
+          {%- set cuerpo = rut_clean -%}
+        {%- else -%}
+          {# Fallback: si rut viene con dv pegado, inferir el último char como DV #}
+          {%- if rut_clean|length >= 2 -%}
+            {%- set dv = rut_clean[-1] -%}
+            {%- set cuerpo = rut_clean[:-1] -%}
+          {%- endif -%}
+        {%- endif -%}
+
+        {%- if cuerpo and cuerpo|length > 0 -%}
+          {%- set cuerpo_num = cuerpo|int -%}
+          {%- set cuerpo_fmt = "{:,}".format(cuerpo_num)|replace(",", ".") -%}
+          {%- if dv -%}
+            {{- cuerpo_fmt ~ "-" ~ dv -}}
+          {%- else -%}
+            {{- cuerpo_fmt -}}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endmacro %}
+
       <form method="get">
         <div class="row g-3">
           <div class="col-12 col-md-4 col-lg-3">
@@ -47,7 +82,8 @@
               <option value="">— Todos —</option>
               {% for t in trabajadores %}
                 <option value="{{ t.id }}" {% if trabajador_id == t.id %}selected{% endif %}>
-                  {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}
+                  {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }}
+                  · RUT: {{ rut_formateado(t) }}
                 </option>
               {% endfor %}
             </select>

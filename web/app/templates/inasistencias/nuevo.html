@@ -41,8 +41,15 @@
 
             <datalist id="lista_trabajadores">
               {% for t in trabajadores %}
+                {# RUT formateado (cuerpo + dv) #}
+                {% set rut_num_raw = ((t.rut or "")|string)|replace(".","")|replace("-","")|replace(" ","") %}
+                {% set rut_num = (rut_num_raw|int) if rut_num_raw else 0 %}
+                {% set rut_fmt_num = ("{:,}".format(rut_num)|replace(",", ".")) if rut_num_raw else "" %}
+                {% set dv = ((t.dv or "")|string)|trim|upper %}
+                {% set rut_fmt = (rut_fmt_num ~ "-" ~ dv) if (rut_fmt_num and dv) else rut_fmt_num %}
+
                 <option
-                  value="{{ t.id }} - {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ t.rut }}"
+                  value="{{ t.id }} - {{ t.ap_paterno }} {{ t.ap_materno }} {{ t.nombres }} · RUT: {{ rut_fmt }}"
                   data-id="{{ t.id }}">
                 </option>
               {% endfor %}
@@ -86,15 +93,52 @@
 
           <div class="col-12 col-lg-6">
             <label class="form-label">Motivo</label>
-            <input type="text" name="motivo" maxlength="80"
-                   class="form-control"
-                   placeholder="Ej: Inasistencia injustificada / Licencia médica / Accidente / Permiso..."
-                   required>
+            <select name="motivo" id="motivo" class="form-select" required>
+              <optgroup label="Día completo" id="grp-dia">
+                {% for code, meta in motivos_dia %}
+                  <option value="{{ code }}"
+                          data-tipo="DIA"
+                          data-no-descuenta="{{ 1 if meta.no_descuenta else 0 }}">
+                    {{ meta.label }}
+                  </option>
+                {% endfor %}
+              </optgroup>
+
+              <optgroup label="Horas / minutos" id="grp-horas" hidden>
+                {% for code, meta in motivos_horas %}
+                  <option value="{{ code }}"
+                          data-tipo="HORAS"
+                          data-no-descuenta="{{ 1 if meta.no_descuenta else 0 }}">
+                    {{ meta.label }}
+                  </option>
+                {% endfor %}
+              </optgroup>
+            </select>
+
+            <div class="form-text" id="motivo_hint">
+              Selecciona el motivo según corresponda.
+            </div>
+
+            <div class="alert alert-danger mt-2 mb-0" id="motivo_tipo_error" style="display:none;">
+              Debes seleccionar un motivo válido para el tipo indicado.
+            </div>
+
+            <div class="alert alert-info mt-2 mb-0" id="info_no_descuenta" style="display:none;">
+              Este motivo se considera <strong>sin descuento</strong> (informativo).
+            </div>
+
+            <div class="alert alert-info mt-2 mb-0" id="info_duelo" style="display:none;">
+              <strong>Permiso por duelo (resumen legal):</strong>
+              10 días corridos por muerte de hijo; 7 días corridos por cónyuge/conviviente civil;
+              4 días hábiles por padre/madre/hermano; 7 días hábiles por hijo en gestación.
+              Se hace efectivo desde el fallecimiento y no se compensa en dinero.
+            </div>
           </div>
 
           <div class="col-12 col-lg-6">
             <label class="form-label">Observación</label>
-            <input type="text" name="observacion" maxlength="255" class="form-control" placeholder="Detalles adicionales (opcional)">
+            <input type="text" name="observacion" maxlength="255" class="form-control"
+                   placeholder="Detalles adicionales (opcional)">
           </div>
         </div>
 
@@ -113,6 +157,42 @@
     const tipo = document.getElementById('tipo').value;
     const box = document.getElementById('box-horas');
     box.style.display = (tipo === 'HORAS') ? 'block' : 'none';
+
+    // Alternar grupos de motivos
+    const grpDia = document.getElementById('grp-dia');
+    const grpHoras = document.getElementById('grp-horas');
+    grpDia.hidden = (tipo !== 'DIA');
+    grpHoras.hidden = (tipo !== 'HORAS');
+
+    // Alinear motivo con tipo (si quedó seleccionado uno del otro grupo)
+    forceMotivoMatchTipo();
+    updateMotivoInfo();
+  }
+
+  function forceMotivoMatchTipo() {
+    const tipo = document.getElementById('tipo').value;
+    const sel = document.getElementById('motivo');
+    const err = document.getElementById('motivo_tipo_error');
+
+    const opt = sel.options[sel.selectedIndex];
+    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
+
+    if (optTipo && optTipo !== tipo) {
+      // buscar primera opción del tipo actual
+      for (let i = 0; i < sel.options.length; i++) {
+        const o = sel.options[i];
+        const t = (o.getAttribute('data-tipo') || '').toUpperCase();
+        if (t === tipo) {
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+      err.style.display = 'none';
+      return true;
+    }
+
+    err.style.display = 'none';
+    return true;
   }
 
   function extractIdFromOptionValue(val) {
@@ -128,8 +208,7 @@
     const id = extractIdFromOptionValue(input.value);
     hidden.value = id;
 
-    if (!id) err.style.display = "block";
-    else err.style.display = "none";
+    err.style.display = id ? "none" : "block";
   }
 
   function validateTrabajadorSelected(e) {
@@ -144,6 +223,45 @@
     return true;
   }
 
+  function validateMotivoTipo(e) {
+    const tipo = document.getElementById('tipo').value;
+    const sel = document.getElementById('motivo');
+    const err = document.getElementById('motivo_tipo_error');
+
+    const opt = sel.options[sel.selectedIndex];
+    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
+
+    if (!optTipo || optTipo !== tipo) {
+      // reintentar alineación automática
+      forceMotivoMatchTipo();
+      const opt2 = sel.options[sel.selectedIndex];
+      const optTipo2 = opt2 ? (opt2.getAttribute('data-tipo') || '').toUpperCase() : '';
+
+      if (!optTipo2 || optTipo2 !== tipo) {
+        e.preventDefault();
+        err.style.display = 'block';
+        sel.focus();
+        return false;
+      }
+    }
+
+    err.style.display = 'none';
+    return true;
+  }
+
+  function updateMotivoInfo() {
+    const sel = document.getElementById('motivo');
+    const opt = sel.options[sel.selectedIndex];
+    const noDesc = opt && opt.getAttribute('data-no-descuenta') === '1';
+    const val = sel.value;
+
+    const boxNoDesc = document.getElementById('info_no_descuenta');
+    const boxDuelo = document.getElementById('info_duelo');
+
+    boxNoDesc.style.display = noDesc ? 'block' : 'none';
+    boxDuelo.style.display = (val === 'PERMISO_DUELO') ? 'block' : 'none';
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     toggleHoras();
     document.getElementById('tipo').addEventListener('change', toggleHoras);
@@ -152,9 +270,21 @@
     input.addEventListener("input", syncHiddenTrabajadorId);
     input.addEventListener("change", syncHiddenTrabajadorId);
 
-    document.getElementById("form-inasistencia").addEventListener("submit", validateTrabajadorSelected);
+    document.getElementById("motivo").addEventListener("change", () => {
+      forceMotivoMatchTipo();
+      updateMotivoInfo();
+    });
+
+    const form = document.getElementById("form-inasistencia");
+    form.addEventListener("submit", (e) => {
+      const okTrab = validateTrabajadorSelected(e);
+      if (!okTrab) return;
+      validateMotivoTipo(e);
+    });
 
     syncHiddenTrabajadorId();
+    forceMotivoMatchTipo();
+    updateMotivoInfo();
   });
 </script>
 {% endblock %}

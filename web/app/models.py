@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from flask_login import UserMixin
 from sqlalchemy.sql import func;
-from sqlalchemy import ForeignKey, CheckConstraint
+from sqlalchemy import ForeignKey, CheckConstraint, Boolean, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from werkzeug.security import check_password_hash, generate_password_hash
 from sqlalchemy.dialects.postgresql import JSONB
@@ -917,6 +917,13 @@ class Inasistencia(db.Model):
     creado_en: Mapped[datetime] = mapped_column(nullable=False, default=datetime.utcnow)
 
     actualizado_en: Mapped[datetime] = mapped_column(nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    trabajador = relationship("Trabajador", lazy="joined")
+    contrato = relationship("Contrato", lazy="joined")
+    creado_por = relationship("User", lazy="joined")
+
+    procesada: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    procesada_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     trabajador = relationship("Trabajador", lazy="joined")
     contrato = relationship("Contrato", lazy="joined")

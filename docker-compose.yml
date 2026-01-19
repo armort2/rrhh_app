@@ -6,6 +6,9 @@ services:
       POSTGRES_DB: rrhh_db
       POSTGRES_USER: rrhh_user
       POSTGRES_PASSWORD: rrhh_super_segura
+      TZ: America/Santiago
+      PGTZ: America/Santiago
+    command: ["postgres", "-c", "timezone=America/Santiago"]
     volumes:
       - ./data/db:/var/lib/postgresql/data
     networks:
@@ -21,6 +24,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://rrhh_user:rrhh_super_segura@db:5432/rrhh_db
       FLASK_ENV: development
       SECRET_KEY: cambia_esto_por_algo_mas_largo
+      TZ: America/Santiago
     depends_on:
       - db
     ports:

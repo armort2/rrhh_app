@@ -21,7 +21,7 @@
     <div class="card-body">
 
       <form method="get">
-        <div class="row g-3">
+        <div class="row g-3 align-items-end">
           <div class="col-12 col-md-6 col-lg-4">
             <label class="form-label">Centro de costo</label>
             <select name="cc" class="form-select">
@@ -37,53 +37,368 @@
             <input type="month" name="mes" class="form-control" value="{{ mes }}">
           </div>
 
-          <div class="col-12 d-flex gap-2 flex-wrap justify-content-end">
+          <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-select">
+              <option value="pendientes" {% if estado == "pendientes" %}selected{% endif %}>Por procesar</option>
+              <option value="procesadas" {% if estado == "procesadas" %}selected{% endif %}>Procesadas</option>
+              <option value="todas" {% if estado == "todas" %}selected{% endif %}>Todas</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-2 d-flex justify-content-end">
             <button class="btn btn-primary" type="submit">Filtrar</button>
           </div>
         </div>
       </form>
 
-      <form method="post">
-        <div class="table-responsive mt-3">
-          <table class="table table-striped table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th style="width: 56px;"></th>
-                <th>Fecha</th>
-                <th>Trabajador</th>
-                <th>Tipo</th>
-                <th>Tiempo</th>
-                <th>Motivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for it in items %}
-                <tr {% if it.procesada %}style="opacity:.5"{% endif %}>
-                  <td>
-                    {% if not it.procesada %}
-                      <input type="checkbox" name="inasistencia_id" value="{{ it.id }}">
-                    {% else %}
-                      ✔
-                    {% endif %}
-                  </td>
-                  <td>{{ it.fecha }}</td>
-                  <td>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno }} {{ it.trabajador.nombres }}</td>
-                  <td>{{ it.tipo }}</td>
-                  <td>{{ fmt_hhmm(it.minutos_ausentes) if it.tipo == 'HORAS' else '—' }}</td>
-                  <td>{{ it.motivo }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="mt-3">
+        {% if items and items|length > 0 %}
 
-        <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
-          <button class="btn btn-primary" type="submit">Marcar seleccionadas como procesadas</button>
-        </div>
-      </form>
+          {# Mini leyenda #}
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <div class="text-muted small">
+              <strong class="me-2">Leyenda:</strong>
+              <span class="badge bg-danger me-1">Con descuento</span>
+              <span class="badge bg-primary me-1">Sin descuento</span>
+              <span class="badge bg-warning text-dark">Licencias</span>
+              <span class="ms-2">·</span>
+              <span class="ms-2">Abre un trabajador y marca por trabajador o por registros puntuales.</span>
+            </div>
+          </div>
+
+          {# --------
+             Orden alfabético robusto:
+             Creamos una clave sort por registro y luego agrupamos por esa clave.
+             Esto evita que el “orden” dependa del trabajador_id.
+             -------- #}
+          {% set ns_items = namespace(rows=[]) %}
+          {% for it in items %}
+            {% set t = it.trabajador %}
+            {% set ap = (t.ap_paterno or "")|trim %}
+            {% set am = (t.ap_materno or "")|trim %}
+            {% set no = (t.nombres or "")|trim %}
+            {% set sortkey = (ap|lower ~ "|" ~ am|lower ~ "|" ~ no|lower ~ "|" ~ (t.id|string)) %}
+            {% set _ = ns_items.rows.append({'it': it, 't': t, 'sortkey': sortkey}) %}
+          {% endfor %}
+          {% set rows_sorted = ns_items.rows|sort(attribute='sortkey') %}
+
+          {# Form ÚNICO: sin forms anidados #}
+          <form method="post" id="form-revision">
+            <div class="accordion" id="accordionRevision">
+
+              {# Agrupar por clave alfabética #}
+              {% for g in rows_sorted|groupby('sortkey') %}
+                {% set regs_list = g.list | map(attribute='it') | list %}
+                {% set t = g.list[0].t if g.list and g.list[0].t else None %}
+
+                {% set idx = loop.index %}
+                {% set heading_id = "rev_heading_" ~ idx %}
+                {% set collapse_id = "rev_collapse_" ~ idx %}
+
+                {# Nombre del trabajador #}
+                {% set nombre = "Trabajador" %}
+                {% if t %}
+                  {% set nombre = (t.ap_paterno ~ " " ~ t.ap_materno ~ " " ~ t.nombres)|trim %}
+                {% endif %}
+
+                {# RUT formateado viene desde backend: rut_fmt_map[trabajador_id] #}
+                {% set rut_fmt = rut_fmt_map.get(t.id) if (rut_fmt_map is defined and t) else "" %}
+
+                {# Conteos rápidos: pendientes vs procesadas #}
+                {% set ns = namespace(pend=0, proc=0) %}
+                {% for it in regs_list %}
+                  {% if it.procesada %}
+                    {% set ns.proc = ns.proc + 1 %}
+                  {% else %}
+                    {% set ns.pend = ns.pend + 1 %}
+                  {% endif %}
+                {% endfor %}
+
+                <div class="accordion-item" data-worker-id="{{ t.id if t else '' }}">
+                  <h2 class="accordion-header" id="{{ heading_id }}" data-worker-header="{{ t.id if t else '' }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#{{ collapse_id }}"
+                            aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                            aria-controls="{{ collapse_id }}">
+
+                      <div class="d-flex align-items-center justify-content-between w-100 pe-3 flex-wrap gap-2">
+
+                        <div class="d-flex flex-column">
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <strong>{{ nombre }}</strong>
+
+                            {% if t and t.obra and t.obra.centro_costo %}
+                              <span class="badge text-bg-secondary">CC: {{ t.obra.centro_costo }}</span>
+                            {% endif %}
+
+                            <span class="text-muted">
+                              ({{ regs_list|length }} registro{% if regs_list|length != 1 %}s{% endif %})
+                            </span>
+                          </div>
+
+                          {% if rut_fmt %}
+                            <div class="text-muted small mt-1">
+                              RUT: <strong class="text-dark">{{ rut_fmt }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                          {% if ns.pend > 0 %}
+                            <span class="badge bg-warning text-dark">Pendientes: {{ ns.pend }}</span>
+                          {% endif %}
+                          {% if ns.proc > 0 %}
+                            <span class="badge bg-success">Procesadas: {{ ns.proc }}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                    </button>
+                  </h2>
+
+                  <div id="{{ collapse_id }}"
+                       class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                       aria-labelledby="{{ heading_id }}"
+                       data-bs-parent="#accordionRevision"
+                       data-worker-collapse="{{ t.id if t else '' }}">
+
+                    <div class="accordion-body p-0">
+
+                      {# Barra de acciones del trabajador #}
+                      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap px-3 py-2 border-bottom">
+                        <div class="text-muted small">
+                          {% if estado != "procesadas" %}
+                            Selección masiva y acción por trabajador.
+                          {% else %}
+                            Vista “Procesadas” (sin acciones).
+                          {% endif %}
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                          {% if ns.pend > 0 and estado != "procesadas" %}
+                            <button type="submit"
+                                    class="btn btn-sm btn-outline-primary js-submit-loading js-open-worker"
+                                    name="trabajador_id"
+                                    value="{{ t.id if t else '' }}"
+                                    data-worker-id="{{ t.id if t else '' }}"
+                                    data-loading-text="Procesando…"
+                                    data-loading-icon="spinner"
+                                    title="Marca como procesadas todas las pendientes de este trabajador (según filtros)">
+                              Marcar pendientes de este trabajador
+                            </button>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle mb-0">
+                          <thead>
+                            <tr>
+                              <th style="width: 56px;">
+                                {% if estado != "procesadas" %}
+                                  <input type="checkbox"
+                                         class="form-check-input"
+                                         data-select-all="{{ idx }}"
+                                         {% if ns.pend == 0 %}disabled{% endif %}
+                                         title="{% if ns.pend == 0 %}Sin pendientes para seleccionar{% else %}Seleccionar todo lo pendiente de este trabajador{% endif %}">
+                                {% endif %}
+                              </th>
+                              <th>Fecha</th>
+                              <th>Tipo</th>
+                              <th>Tiempo</th>
+                              <th>Motivo</th>
+                              <th>Obs.</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {% for it in regs_list %}
+                              {% set codigo = (it.motivo or "") %}
+                              {% set meta = motivo_meta.get(codigo) if motivo_meta else None %}
+                              {% set label = meta.label if meta else codigo %}
+
+                              {% if codigo in ["LICENCIA_MEDICA", "ACCIDENTE_LABORAL_MUTUAL"] %}
+                                {% set badge_cls = "bg-warning text-dark" %}
+                              {% elif meta and meta.get("no_descuenta") %}
+                                {% set badge_cls = "bg-primary" %}
+                              {% else %}
+                                {% set badge_cls = "bg-danger" %}
+                              {% endif %}
+
+                              <tr {% if it.procesada %}style="opacity:.55"{% endif %}>
+                                <td>
+                                  {% if not it.procesada %}
+                                    <input type="checkbox"
+                                           class="form-check-input chk-item"
+                                           name="inasistencia_id"
+                                           value="{{ it.id }}"
+                                           data-group="{{ idx }}"
+                                           data-worker-id="{{ t.id if t else '' }}">
+                                  {% else %}
+                                    ✔
+                                  {% endif %}
+                                </td>
+
+                                <td>{{ it.fecha }}</td>
+                                <td>{{ "Día" if it.tipo == "DIA" else "Horas" }}</td>
+                                <td>{{ fmt_hhmm(it.minutos_ausentes) if it.tipo == 'HORAS' else '—' }}</td>
+
+                                <td>
+                                  {% if label %}
+                                    <span class="badge {{ badge_cls }}">{{ label }}</span>
+                                  {% else %}
+                                    <span class="text-muted">—</span>
+                                  {% endif %}
+                                </td>
+
+                                <td>{{ it.observacion or "" }}</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+              {% endfor %}
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+              <button class="btn btn-primary js-submit-loading js-open-from-selection"
+                      type="submit"
+                      data-loading-text="Procesando…"
+                      data-loading-icon="spinner"
+                      {% if estado == "procesadas" %}disabled{% endif %}>
+                Marcar seleccionadas como procesadas
+              </button>
+            </div>
+          </form>
+
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            Sin registros para el filtro seleccionado.
+          </div>
+        {% endif %}
+      </div>
 
     </div>
   </div>
 
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // -----------------------
+    // Seleccionar todo por trabajador (solo lo pendiente)
+    // -----------------------
+    document.querySelectorAll('[data-select-all]').forEach(master => {
+      master.addEventListener('change', () => {
+        const group = master.getAttribute('data-select-all');
+        const checks = document.querySelectorAll(`.chk-item[data-group="${group}"]`);
+        checks.forEach(chk => { chk.checked = master.checked; });
+      });
+    });
+
+    // -----------------------
+    // Recordar qué trabajador abrir tras POST
+    // -----------------------
+    const KEY = 'inasistencias_revision_open_worker';
+
+    // Botón por trabajador: guarda worker_id
+    document.querySelectorAll('.js-open-worker').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wid = btn.getAttribute('data-worker-id') || '';
+        if (wid) sessionStorage.setItem(KEY, wid);
+      });
+    });
+
+    // Botón final: guarda worker_id del primer checkbox seleccionado (si existe)
+    const btnSelection = document.querySelector('.js-open-from-selection');
+    if (btnSelection) {
+      btnSelection.addEventListener('click', () => {
+        const firstChecked = document.querySelector('.chk-item:checked');
+        if (firstChecked) {
+          const wid = firstChecked.getAttribute('data-worker-id') || '';
+          if (wid) sessionStorage.setItem(KEY, wid);
+        } else {
+          // Si no hay selección, limpiamos para no abrir algo “viejo”
+          sessionStorage.removeItem(KEY);
+        }
+      });
+    }
+
+    // Al cargar, abrir el trabajador recordado (si existe)
+    const widToOpen = sessionStorage.getItem(KEY);
+    if (widToOpen) {
+      const collapseEl = document.querySelector(`[data-worker-collapse="${widToOpen}"]`);
+      const headerEl = document.querySelector(`[data-worker-header="${widToOpen}"]`);
+      if (collapseEl && window.bootstrap && window.bootstrap.Collapse) {
+        // Cerrar otros abiertos (por prolijidad)
+        document.querySelectorAll('#accordionRevision .accordion-collapse.show').forEach(openEl => {
+          if (openEl !== collapseEl) {
+            const inst = window.bootstrap.Collapse.getOrCreateInstance(openEl, { toggle: false });
+            inst.hide();
+          }
+        });
+
+        const inst = window.bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+        inst.show();
+
+        // Scroll suave al encabezado (si existe)
+        if (headerEl) {
+          headerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      // Importante: limpiamos la “intención” para que no quede pegada en la próxima visita
+      sessionStorage.removeItem(KEY);
+    }
+
+    // -----------------------
+    // UX: feedback inmediato al enviar (evita doble click + muestra "Procesando…")
+    // -----------------------
+    const form = document.getElementById('form-revision');
+    if (!form) return;
+
+    let locked = false;
+
+    form.addEventListener('submit', (e) => {
+      if (locked) {
+        e.preventDefault();
+        return;
+      }
+
+      locked = true;
+
+      const submits = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+      submits.forEach(btn => {
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled', 'true');
+      });
+
+      const submitter = e.submitter;
+      if (submitter && submitter.classList && submitter.classList.contains('js-submit-loading')) {
+        const txt = submitter.getAttribute('data-loading-text') || 'Procesando…';
+        const icon = submitter.getAttribute('data-loading-icon');
+
+        if (!submitter.dataset.originalHtml) {
+          submitter.dataset.originalHtml = submitter.innerHTML;
+        }
+
+        let html = '';
+        if (icon === 'spinner') {
+          html += '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>';
+        }
+        html += txt;
+
+        submitter.innerHTML = html;
+      }
+    });
+  });
+</script>
 {% endblock %}

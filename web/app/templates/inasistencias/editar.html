@@ -31,6 +31,15 @@
         </span>
       </div>
 
+      {% set motivo_actual = (item.motivo or "") %}
+
+      {# RUT formateado (cuerpo + dv) #}
+      {% set rut_num_raw = ((item.trabajador.rut or "")|string)|replace(".","")|replace("-","")|replace(" ","") %}
+      {% set rut_num = (rut_num_raw|int) if rut_num_raw else 0 %}
+      {% set rut_fmt_num = ("{:,}".format(rut_num)|replace(",", ".")) if rut_num_raw else "" %}
+      {% set dv = ((item.trabajador.dv or "")|string)|trim|upper %}
+      {% set rut_fmt = (rut_fmt_num ~ "-" ~ dv) if (rut_fmt_num and dv) else rut_fmt_num %}
+
       <form method="post" id="form-editar-inasistencia">
         <input type="hidden" name="next" value="{{ next_url or '' }}">
 
@@ -40,7 +49,7 @@
             <select class="form-select" disabled>
               <option selected>
                 {{ item.trabajador.ap_paterno }} {{ item.trabajador.ap_materno }} {{ item.trabajador.nombres }}
-                · RUT: {{ item.trabajador.rut }}
+                · RUT: {{ rut_fmt }}
               </option>
             </select>
           </div>
@@ -73,7 +82,56 @@
 
           <div class="col-12 col-md-6 col-lg-6">
             <label class="form-label">Motivo</label>
-            <input type="text" name="motivo" maxlength="80" class="form-control" value="{{ item.motivo }}" required>
+
+            <select name="motivo" id="motivo" class="form-select" required>
+              {# Si existe un motivo previo que no está en catálogo, lo preservamos (modo compatibilidad) #}
+              {% set codigos_dia = motivos_dia | map(attribute=0) | list %}
+              {% set codigos_horas = motivos_horas | map(attribute=0) | list %}
+              {% set esta_en_catalogo = (motivo_actual in codigos_dia) or (motivo_actual in codigos_horas) %}
+
+              {% if motivo_actual and not esta_en_catalogo %}
+                <option value="{{ motivo_actual }}" selected data-tipo="AMBOS" data-no-descuenta="0">
+                  (Actual) {{ motivo_actual }}
+                </option>
+              {% endif %}
+
+              <optgroup label="Día completo" id="grp-dia">
+                {% for code, meta in motivos_dia %}
+                  <option value="{{ code }}"
+                          data-tipo="DIA"
+                          data-no-descuenta="{{ 1 if meta.no_descuenta else 0 }}"
+                          {% if code == motivo_actual %}selected{% endif %}>
+                    {{ meta.label }}
+                  </option>
+                {% endfor %}
+              </optgroup>
+
+              <optgroup label="Horas / minutos" id="grp-horas" hidden>
+                {% for code, meta in motivos_horas %}
+                  <option value="{{ code }}"
+                          data-tipo="HORAS"
+                          data-no-descuenta="{{ 1 if meta.no_descuenta else 0 }}"
+                          {% if code == motivo_actual %}selected{% endif %}>
+                    {{ meta.label }}
+                  </option>
+                {% endfor %}
+              </optgroup>
+            </select>
+
+            <div class="alert alert-danger mt-2 mb-0" id="motivo_tipo_error" style="display:none;">
+              Debes seleccionar un motivo válido para el tipo indicado.
+            </div>
+
+            <div class="alert alert-info mt-2 mb-0" id="info_no_descuenta" style="display:none;">
+              Este motivo se considera <strong>sin descuento</strong> (informativo).
+            </div>
+
+            <div class="alert alert-info mt-2 mb-0" id="info_duelo" style="display:none;">
+              <strong>Permiso por duelo (resumen legal):</strong>
+              10 días corridos por muerte de hijo; 7 días corridos por cónyuge/conviviente civil;
+              4 días hábiles por padre/madre/hermano; 7 días hábiles por hijo en gestación.
+              Se hace efectivo desde el fallecimiento y no se compensa en dinero.
+            </div>
           </div>
 
           <div class="col-12 col-md-6 col-lg-6">
@@ -105,13 +163,63 @@
 
     const esHoras = (tipo === 'HORAS');
     box.style.display = esHoras ? 'block' : 'none';
-
     hhmm.required = esHoras;
 
     if (!esHoras) {
-      hhmm.value = '';
       err.style.display = 'none';
     }
+  }
+
+  function forceMotivoMatchTipo() {
+    const tipo = document.getElementById('tipo').value;
+    const sel = document.getElementById('motivo');
+    const err = document.getElementById('motivo_tipo_error');
+
+    // Alternar optgroups
+    const grpDia = document.getElementById('grp-dia');
+    const grpHoras = document.getElementById('grp-horas');
+    grpDia.hidden = (tipo !== 'DIA');
+    grpHoras.hidden = (tipo !== 'HORAS');
+
+    const opt = sel.options[sel.selectedIndex];
+    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
+
+    // Si la opción actual es "AMBOS" (compatibilidad), se permite.
+    if (optTipo === 'AMBOS') {
+      err.style.display = 'none';
+      return true;
+    }
+
+    if (!optTipo || optTipo !== tipo) {
+      // buscar primera opción del tipo actual (ignorando las ocultas de otros grupos)
+      for (let i = 0; i < sel.options.length; i++) {
+        const o = sel.options[i];
+        const t = (o.getAttribute('data-tipo') || '').toUpperCase();
+        if (t === tipo) {
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+      err.style.display = 'none';
+      return true;
+    }
+
+    err.style.display = 'none';
+    return true;
+  }
+
+  function updateMotivoInfo() {
+    const sel = document.getElementById('motivo');
+    const opt = sel.options[sel.selectedIndex];
+
+    const noDesc = opt && opt.getAttribute('data-no-descuenta') === '1';
+    const val = sel.value;
+
+    const boxNoDesc = document.getElementById('info_no_descuenta');
+    const boxDuelo = document.getElementById('info_duelo');
+
+    boxNoDesc.style.display = noDesc ? 'block' : 'none';
+    boxDuelo.style.display = (val === 'PERMISO_DUELO') ? 'block' : 'none';
   }
 
   function validateHoras(e) {
@@ -132,10 +240,51 @@
     return true;
   }
 
+  function validateMotivoTipo(e) {
+    const tipo = document.getElementById('tipo').value;
+    const sel = document.getElementById('motivo');
+    const err = document.getElementById('motivo_tipo_error');
+
+    const opt = sel.options[sel.selectedIndex];
+    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
+
+    if (optTipo !== 'AMBOS' && (!optTipo || optTipo !== tipo)) {
+      // reintentar alineación automática
+      forceMotivoMatchTipo();
+      const opt2 = sel.options[sel.selectedIndex];
+      const optTipo2 = opt2 ? (opt2.getAttribute('data-tipo') || '').toUpperCase() : '';
+      if (optTipo2 !== 'AMBOS' && (!optTipo2 || optTipo2 !== tipo)) {
+        e.preventDefault();
+        err.style.display = 'block';
+        sel.focus();
+        return false;
+      }
+    }
+
+    err.style.display = 'none';
+    return true;
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     toggleHoras();
-    document.getElementById('tipo').addEventListener('change', toggleHoras);
-    document.getElementById('form-editar-inasistencia').addEventListener('submit', validateHoras);
+    forceMotivoMatchTipo();
+    updateMotivoInfo();
+
+    document.getElementById('tipo').addEventListener('change', () => {
+      toggleHoras();
+      forceMotivoMatchTipo();
+      updateMotivoInfo();
+    });
+
+    document.getElementById('motivo').addEventListener('change', () => {
+      forceMotivoMatchTipo();
+      updateMotivoInfo();
+    });
+
+    document.getElementById('form-editar-inasistencia').addEventListener('submit', (e) => {
+      validateHoras(e);
+      validateMotivoTipo(e);
+    });
   });
 </script>
 {% endblock %}

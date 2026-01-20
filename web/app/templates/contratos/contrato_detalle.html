@@ -1,47 +1,60 @@
 {# web/app/templates/contratos/contrato_detalle.html #}
 {% extends "base.html" %}
 
-{% block title %}Detalle de contrato{% endblock %}
+{% block title %}Detalle de contrato · #{{ contrato.id }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3">
 
+  {% set next_url = request.args.get("next") %}
+  {% set rut_show = (rut_trabajador_formateado or contrato.trabajador.rut) %}
+
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
-        <h1 class="section-title">Detalle de contrato</h1>
-        <div class="section-subtitle">
+      <h1 class="section-title">Detalle de contrato</h1>
+      <div class="section-subtitle">
         Trabajador:
         <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
-        · RUT: {{ contrato.trabajador.rut }}
-        · ID: {{ contrato.id }}
-        </div>
-        <div class="section-divider"></div>
+        · RUT: {{ rut_show }}
+        · Contrato: <span class="fw-semibold">#{{ contrato.id }}</span>
+
+        {% if contrato.estado_contrato %}
+          {% if contrato.estado_contrato == "VIGENTE" %}
+            <span class="badge text-bg-success ms-2">Vigente</span>
+          {% elif contrato.estado_contrato == "TERMINADO" %}
+            <span class="badge text-bg-secondary ms-2">Terminado</span>
+          {% else %}
+            <span class="badge text-bg-secondary ms-2">{{ contrato.estado_contrato }}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="section-divider"></div>
     </div>
 
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-secondary"
-         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id) }}">
-        ← Volver a ficha
+         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id, next=next_url) if next_url else url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id) }}">
+        ⬅ Volver a ficha
       </a>
 
       <a class="btn btn-outline-primary"
-         href="{{ url_for('contratos.editar_contrato', contrato_id=contrato.id) }}">
-        Editar
+         href="{{ url_for('contratos.editar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.editar_contrato', contrato_id=contrato.id) }}">
+        ✏️ Editar
       </a>
 
       <a class="btn btn-outline-secondary"
-         href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}">
-        Documentos
+         href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}">
+        📁 Documentos
       </a>
 
-      <a class="btn btn-success"
-         href="{{ url_for('contratos.generar_contrato', contrato_id=contrato.id) }}">
-        Generar contrato
+      <a class="btn btn-primary"
+         href="{{ url_for('contratos.generar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.generar_contrato', contrato_id=contrato.id) }}">
+        📄 Generar contrato
       </a>
 
       <a class="btn btn-outline-primary"
-         href="{{ url_for('anexos.anexo_extension', contrato_id=contrato.id) }}">
-        Anexo extensión
+         href="{{ url_for('anexos.anexo_extension', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos.anexo_extension', contrato_id=contrato.id) }}">
+        ➕ Anexo extensión
       </a>
     </div>
   </div>
@@ -54,66 +67,63 @@
   <div class="card shadow-sm">
     <div class="card-body">
 
-      <h2 class="h6 mb-3">Información principal</h2>
+      <!-- ==========================
+           INFORMACIÓN PRINCIPAL
+      =========================== -->
+      <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">
+        Información principal
+      </h2>
 
       <div class="row g-3">
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Empleador</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Empleador</div>
           <div class="fw-semibold">
             {{ contrato.empleador.razon_social if contrato.empleador else "Sin empleador asignado" }}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Obra</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Obra</div>
           <div class="fw-semibold">
             {{ contrato.obra.nombre if contrato.obra else "Sin obra asignada" }}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Cargo</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Cargo</div>
           <div class="fw-semibold">
             {{ contrato.cargo.nombre if contrato.cargo else "Sin cargo asignado" }}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Tipo de contrato</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Tipo de contrato</div>
           <div class="fw-semibold">{{ contrato.tipo_contrato or "No especificado" }}</div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Fecha inicio</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Fecha inicio</div>
           <div class="fw-semibold">
-            {% if contrato.fecha_inicio %}
-              {{ contrato.fecha_inicio.strftime("%d-%m-%Y") }}
-            {% else %}
-              -
-            {% endif %}
+            {% if contrato.fecha_inicio %}{{ contrato.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Fecha término</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Fecha término</div>
           <div class="fw-semibold">
-            {% if contrato.fecha_termino %}
-              {{ contrato.fecha_termino.strftime("%d-%m-%Y") }}
-            {% else %}
-              Sin término definido
-            {% endif %}
+            {% if contrato.fecha_termino %}{{ contrato.fecha_termino.strftime("%d-%m-%Y") }}{% else %}Sin término definido{% endif %}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Estado del contrato</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Estado</div>
           <div class="fw-semibold">
             {% if contrato.estado_contrato == "VIGENTE" %}
               <span class="badge text-bg-success">Vigente</span>
             {% elif contrato.estado_contrato == "TERMINADO" %}
               <span class="badge text-bg-secondary">Terminado</span>
             {% else %}
-              <span class="badge text-bg-secondary">{{ contrato.estado_contrato }}</span>
+              <span class="badge text-bg-secondary">{{ contrato.estado_contrato or "-" }}</span>
             {% endif %}
           </div>
         </div>
@@ -121,73 +131,58 @@
 
       <hr class="my-4">
 
-      <h2 class="h6 mb-3">Jornada y remuneraciones</h2>
+      <!-- ==========================
+           JORNADA Y REMUNERACIONES
+      =========================== -->
+      <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">
+        Jornada y remuneraciones
+      </h2>
 
       <div class="row g-3">
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Horario (catálogo)</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Horario (catálogo)</div>
           <div class="fw-semibold">
-            {% if contrato.horario %}
-              {{ contrato.horario.nombre }}
-            {% else %}
-              -
-            {% endif %}
+            {% if contrato.horario %}{{ contrato.horario.nombre }}{% else %}-{% endif %}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Horas semanales</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Horas semanales</div>
           <div class="fw-semibold">{{ contrato.horas_semanales or "-" }}</div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Sueldo base</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Sueldo base</div>
           <div class="fw-semibold">
-            {% if sueldo_base %}
-              {{ "{:,.0f}".format(sueldo_base).replace(",", ".") }} CLP
-            {% else %}
-              -
-            {% endif %}
+            {% if sueldo_base %}{{ "{:,.0f}".format(sueldo_base).replace(",", ".") }} CLP{% else %}-{% endif %}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Asignación movilización</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Asignación movilización</div>
           <div class="fw-semibold">
-            {% if movilizacion %}
-              {{ "{:,.0f}".format(movilizacion).replace(",", ".") }} CLP
-            {% else %}
-              -
-            {% endif %}
+            {% if movilizacion %}{{ "{:,.0f}".format(movilizacion).replace(",", ".") }} CLP{% else %}-{% endif %}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Asignación colación</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Asignación colación</div>
           <div class="fw-semibold">
-            {% if colacion %}
-              {{ "{:,.0f}".format(colacion).replace(",", ".") }} CLP
-            {% else %}
-              -
-            {% endif %}
+            {% if colacion %}{{ "{:,.0f}".format(colacion).replace(",", ".") }} CLP{% else %}-{% endif %}
           </div>
         </div>
 
         <div class="col-12 col-md-4">
-          <div class="text-muted small">Asignación herramientas</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Asignación herramientas</div>
           <div class="fw-semibold">
-            {% if herramientas %}
-              {{ "{:,.0f}".format(herramientas).replace(",", ".") }} CLP
-            {% else %}
-              -
-            {% endif %}
+            {% if herramientas %}{{ "{:,.0f}".format(herramientas).replace(",", ".") }} CLP{% else %}-{% endif %}
           </div>
         </div>
       </div>
 
       {% if contrato.horario and contrato.horario.descripcion %}
         <div class="mt-4">
-          <div class="text-muted small mb-2"><strong>Descripción horario (plantilla)</strong></div>
+          <div class="text-muted small mb-2 fw-semibold">Descripción horario (plantilla)</div>
           <div class="card">
             <div class="card-body" style="white-space: pre-wrap;">{{ contrato.horario.descripcion }}</div>
           </div>
@@ -196,7 +191,7 @@
 
       {% if contrato.jornada %}
         <div class="mt-3">
-          <div class="text-muted small mb-2"><strong>Jornada (texto)</strong></div>
+          <div class="text-muted small mb-2 fw-semibold">Jornada (texto)</div>
           <div class="card">
             <div class="card-body" style="white-space: pre-wrap;">{{ contrato.jornada }}</div>
           </div>
@@ -205,23 +200,34 @@
 
       <hr class="my-4">
 
-      <h2 class="h6 mb-3">Término de contrato</h2>
+      <!-- ==========================
+           TÉRMINO DE CONTRATO
+      =========================== -->
+      <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">
+        Término de contrato
+      </h2>
 
       <div class="row g-3">
         <div class="col-12 col-md-6">
-          <div class="text-muted small">Causal de término</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Causal de término</div>
           <div class="fw-semibold">{{ contrato.causal_termino or "-" }}</div>
         </div>
 
         <div class="col-12 col-md-6">
-          <div class="text-muted small">Fecha de finiquito</div>
+          <div class="small text-muted text-uppercase" style="letter-spacing:.06em;">Fecha de finiquito</div>
           <div class="fw-semibold">
-            {% if contrato.fecha_finiquito %}
-              {{ contrato.fecha_finiquito.strftime("%d-%m-%Y") }}
-            {% else %}
-              -
-            {% endif %}
+            {% if contrato.fecha_finiquito %}{{ contrato.fecha_finiquito.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
           </div>
+        </div>
+      </div>
+
+      <div class="alert alert-light border mt-4 mb-0">
+        <div class="d-flex align-items-start gap-2">
+          <div class="fw-semibold">Nota operativa</div>
+        </div>
+        <div class="text-muted small mt-1">
+          Si este contrato está <strong>VIGENTE</strong>, cualquier cambio relevante (obra/cargo/jornada) debería reflejarse también en la ficha del trabajador.
+          Si no queda reflejado, revisa la edición del contrato o la sincronización de campos.
         </div>
       </div>
 
@@ -230,20 +236,12 @@
     <div class="card-footer d-flex justify-content-between flex-wrap gap-2 text-muted small">
       <div>
         Creado:
-        {% if contrato.creado_en %}
-          {{ contrato.creado_en.strftime("%d-%m-%Y %H:%M") }}
-        {% else %}
-          -
-        {% endif %}
+        {% if contrato.creado_en %}{{ contrato.creado_en.strftime("%d-%m-%Y %H:%M") }}{% else %}-{% endif %}
       </div>
 
       <div>
         Actualizado:
-        {% if contrato.actualizado_en %}
-          {{ contrato.actualizado_en.strftime("%d-%m-%Y %H:%M") }}
-        {% else %}
-          -
-        {% endif %}
+        {% if contrato.actualizado_en %}{{ contrato.actualizado_en.strftime("%d-%m-%Y %H:%M") }}{% else %}-{% endif %}
       </div>
     </div>
   </div>

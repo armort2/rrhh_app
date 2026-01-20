@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 from datetime import date, timedelta
+from urllib.parse import urlparse
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask_login import login_required, current_user
 from sqlalchemy import exists, and_, or_, func, String
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, load_only
@@ -28,8 +30,6 @@ from ...models import (
     Inasistencia,
 )
 from ...utils import parse_date, parse_int, parse_decimal
-
-from urllib.parse import urlparse
 
 bp = Blueprint("trabajadores", __name__, url_prefix="/trabajadores")
 
@@ -78,6 +78,27 @@ def _safe_next_url(next_url: str | None) -> str | None:
     return next_url
 
 
+def _allowed_obra_ids_for_user() -> list[int]:
+    """
+    Devuelve IDs de obras visibles para el usuario actual.
+    - ADMIN: [] (significa "todas" / sin scoping)
+    - Otros: lista de obras asignadas
+    """
+    if current_user.has_role("ADMIN"):
+        return []
+    return [o.id for o in (current_user.obras or [])]
+
+
+def _enforce_access_to_obra(obra_id: int | None) -> None:
+    """
+    Bloquea acceso si el usuario no puede ver esa obra (403).
+    """
+    if current_user.has_role("ADMIN"):
+        return
+    if obra_id is None or not current_user.can_access_obra(int(obra_id)):
+        abort(403)
+
+
 def format_rut(rut_digits: str, dv: str) -> str:
     if not rut_digits or not dv:
         return ""
@@ -115,12 +136,23 @@ def normalizar_y_guardar_rut_en_trabajador(t: Trabajador, rut_input: str) -> Non
 # ===========================
 
 @bp.get("/")
+@login_required
 def listado_trabajadores():
+    allowed_obra_ids = _allowed_obra_ids_for_user()
+
+    # Si no es ADMIN y no tiene obras asignadas, bloqueamos.
+    if (not current_user.has_role("ADMIN")) and (not allowed_obra_ids):
+        abort(403)
+
     # Inputs filtros (multiselect)
     filtro_empleador_ids = request.args.getlist("empleador_id", type=int)
     filtro_obra_ids = request.args.getlist("obra_id", type=int)
     filtro_cargo_ids = request.args.getlist("cargo_id", type=int)
     filtro_estado = (request.args.get("estado") or "").strip().upper()  # "" | "VIGENTE" | "NO_VIGENTE"
+
+    # Blindaje: si usuario no-admin intenta filtrar por obra no asignada -> se ignora
+    if allowed_obra_ids:
+        filtro_obra_ids = [oid for oid in filtro_obra_ids if oid in allowed_obra_ids]
 
     # ✅ Buscador (nombre/apellidos/RUT)
     q_busqueda = (request.args.get("q") or "").strip()
@@ -130,6 +162,10 @@ def listado_trabajadores():
     per_page = 15
 
     q = Trabajador.query
+
+    # Scoping por obra (no-admin)
+    if allowed_obra_ids:
+        q = q.filter(Trabajador.obra_id.in_(allowed_obra_ids))
 
     # Definición "contrato vigente"
     hoy = date.today()
@@ -185,7 +221,6 @@ def listado_trabajadores():
             tok_digits = re.sub(r"\D", "", tok)
             rut_like_tok = f"%{tok_digits}%" if tok_digits else None
 
-            # ✅ COALESCE para evitar NULL y permitir ap_materno opcional
             ors = [
                 func.coalesce(Trabajador.nombres, "").ilike(like_tok),
                 func.coalesce(Trabajador.ap_paterno, "").ilike(like_tok),
@@ -242,7 +277,17 @@ def listado_trabajadores():
     estado_trabajador_map = {tid: ("VIGENTE" if tid in vigentes_ids else "NO_VIGENTE") for tid in ids}
 
     empleadores = Empleador.query.order_by(Empleador.razon_social.asc()).all()
-    obras = Obra.query.order_by(Obra.nombre.asc()).all()
+
+    if allowed_obra_ids:
+        obras = (
+            Obra.query
+            .filter(Obra.id.in_(allowed_obra_ids))
+            .order_by(Obra.nombre.asc())
+            .all()
+        )
+    else:
+        obras = Obra.query.order_by(Obra.nombre.asc()).all()
+
     cargos = Cargo.query.order_by(Cargo.nombre.asc()).all()
 
     return render_template(
@@ -268,8 +313,10 @@ def listado_trabajadores():
 # ===========================
 
 @bp.route("/<int:trabajador_id>", methods=["GET"])
+@login_required
 def detalle_trabajador(trabajador_id: int):
     trabajador = Trabajador.query.get_or_404(trabajador_id)
+    _enforce_access_to_obra(trabajador.obra_id)
 
     contratos = (
         Contrato.query
@@ -307,16 +354,20 @@ def detalle_trabajador(trabajador_id: int):
         anexos_contrato_vigente = (
             AnexoExtensionContrato.query
             .filter_by(contrato_id=contrato_contexto.id)
-            .order_by(AnexoExtensionContrato.fecha_anexo.desc(),
-                      AnexoExtensionContrato.id.desc())
+            .order_by(
+                AnexoExtensionContrato.fecha_anexo.desc(),
+                AnexoExtensionContrato.id.desc(),
+            )
             .all()
         )
 
         anexos_indefinidos_contrato_vigente = (
             AnexoIndefinidoContrato.query
             .filter_by(contrato_id=contrato_contexto.id)
-            .order_by(AnexoIndefinidoContrato.fecha_anexo.desc(),
-                      AnexoIndefinidoContrato.id.desc())
+            .order_by(
+                AnexoIndefinidoContrato.fecha_anexo.desc(),
+                AnexoIndefinidoContrato.id.desc(),
+            )
             .all()
         )
 
@@ -535,18 +586,21 @@ def detalle_trabajador(trabajador_id: int):
 # ===========================
 
 @bp.route("/<int:trabajador_id>/editar", methods=["GET", "POST"])
+@login_required
 def editar_trabajador(trabajador_id):
     trabajador = Trabajador.query.get_or_404(trabajador_id)
+    _enforce_access_to_obra(trabajador.obra_id)
 
     if request.method == "POST":
         rut_input = request.form.get("rut")
         nombres = request.form.get("nombres")
         ap_paterno = request.form.get("ap_paterno")
 
-        # ✅ opcional
         ap_materno = (request.form.get("ap_materno") or "").strip() or None
 
         obra_id = parse_int(request.form.get("obra_id"))
+        _enforce_access_to_obra(obra_id)
+
         cargo_id = parse_int(request.form.get("cargo_id"))
 
         if not obra_id:
@@ -578,7 +632,6 @@ def editar_trabajador(trabajador_id):
         telefono_emergencia = request.form.get("telefono_emergencia") or None
         correo = request.form.get("correo") or None
 
-        # Datos bancarios (blindado)
         banking_fields_present = (
             ("banco_id" in request.form)
             or ("tipo_cuenta" in request.form)
@@ -602,7 +655,6 @@ def editar_trabajador(trabajador_id):
             trabajador.cuenta_rut = cuenta_rut
             trabajador.cuenta_numero = cuenta_numero
 
-        # Pago a tercero (blindado)
         pago_fields_present = (
             ("pago_tercero_activo" in request.form)
             or ("pago_tercero_rut" in request.form)
@@ -640,7 +692,6 @@ def editar_trabajador(trabajador_id):
 
         uf_plan_salud = parse_decimal(request.form.get("uf_plan_salud"))
 
-        # APV
         apv_activo = is_checked("apv_activo")
         apv_modalidad = request.form.get("apv_modalidad") or None
         apv_valor = parse_decimal(request.form.get("apv_valor"))
@@ -650,7 +701,6 @@ def editar_trabajador(trabajador_id):
             apv_valor = None
             apv_institucion = None
 
-        # CAV
         cav_activo = is_checked("cav_activo")
         cav_modalidad = request.form.get("cav_modalidad") or None
         cav_valor = parse_decimal(request.form.get("cav_valor"))
@@ -678,7 +728,6 @@ def editar_trabajador(trabajador_id):
         fecha_ingreso_empresa = parse_date(request.form.get("fecha_ingreso_empresa"))
         fecha_egreso_empresa = parse_date(request.form.get("fecha_egreso_empresa"))
 
-        # Persistencia
         trabajador.nombres = nombres
         trabajador.ap_paterno = ap_paterno
         trabajador.ap_materno = ap_materno
@@ -741,6 +790,7 @@ def editar_trabajador(trabajador_id):
             return redirect(url_for("trabajadores.editar_trabajador", trabajador_id=trabajador.id))
 
         flash("Datos del trabajador actualizados correctamente.", "success")
+
         next_url = request.args.get("next")
         if next_url:
             safe = _safe_next_url(next_url)
@@ -749,7 +799,14 @@ def editar_trabajador(trabajador_id):
 
         return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador.id))
 
-    obras = Obra.query.filter_by(estado="ACTIVA").order_by(Obra.nombre).all()
+    allowed_obra_ids = _allowed_obra_ids_for_user()
+    q_obras = Obra.query.filter_by(estado="ACTIVA")
+
+    if allowed_obra_ids:
+        q_obras = q_obras.filter(Obra.id.in_(allowed_obra_ids))
+
+    obras = q_obras.order_by(Obra.nombre).all()
+
     bancos = Banco.query.order_by(Banco.nombre).all()
     afps = AFP.query.order_by(AFP.nombre).all()
     salud_list = Salud.query.order_by(Salud.nombre).all()
@@ -776,22 +833,22 @@ def editar_trabajador(trabajador_id):
 # ===========================
 
 @bp.route("/nuevo", methods=["GET", "POST"])
+@login_required
 def nuevo_trabajador():
     if request.method == "POST":
         accion = request.form.get("accion") or "guardar"
 
-        # Siempre capturamos next lo antes posible (y lo propagamos en errores)
         next_url = (request.form.get("next") or request.args.get("next") or "").strip() or None
         next_url = _safe_next_url(next_url)
 
         rut_input = request.form.get("rut")
         nombres = request.form.get("nombres")
         ap_paterno = request.form.get("ap_paterno")
-
-        # ✅ opcional
         ap_materno = (request.form.get("ap_materno") or "").strip() or None
 
         obra_id = parse_int(request.form.get("obra_id"))
+        _enforce_access_to_obra(obra_id)
+
         cargo_id = parse_int(request.form.get("cargo_id"))
 
         if not obra_id:
@@ -982,7 +1039,14 @@ def nuevo_trabajador():
             return redirect(next_url)
         return redirect(url_for("trabajadores.listado_trabajadores"))
 
-    obras = Obra.query.filter_by(estado="ACTIVA").order_by(Obra.nombre).all()
+    allowed_obra_ids = _allowed_obra_ids_for_user()
+    q_obras = Obra.query.filter_by(estado="ACTIVA")
+
+    if allowed_obra_ids:
+        q_obras = q_obras.filter(Obra.id.in_(allowed_obra_ids))
+
+    obras = q_obras.order_by(Obra.nombre).all()
+
     if not obras:
         flash("Primero debes crear al menos una obra antes de registrar trabajadores.")
         return redirect(url_for("obras.lista_obras"))

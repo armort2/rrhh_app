@@ -4,491 +4,559 @@
 {% block title %}Editar trabajador · {{ trabajador.nombres }} {{ trabajador.ap_paterno }}{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="card">
-    <div class="card-header">
-      <div class="section-header mb-0">
-        <h1 class="section-title">Editar trabajador</h1>
-        <div class="section-subtitle">
-          {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno or '-' }}
-          · RUT: {{ rut_formateado or trabajador.rut }}
+<div class="container py-3">
+
+  <div class="card shadow-sm">
+
+    <div class="card-body border-bottom">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+        <div class="section-header mb-0">
+          <h1 class="section-title">Editar trabajador</h1>
+          <div class="section-subtitle">
+            {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno or '-' }}
+            · RUT: {{ rut_formateado or trabajador.rut }}
+          </div>
+          <div class="section-divider"></div>
+
+          {% if current_user and (not current_user.has_role("ADMIN")) %}
+            <div class="text-muted small mt-1">
+              Alcance: podrás asignar solo obras permitidas para tu usuario.
+            </div>
+          {% endif %}
         </div>
-        <div class="section-divider"></div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ request.args.get('next') or url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}"
+             class="btn btn-outline-secondary">
+            ⬅ Volver
+          </a>
+        </div>
       </div>
     </div>
 
+    {# ==========================================================
+       CONTROL DE ACCESO (UI)
+       - ADMIN y OPERADOR: pueden editar
+       - REVISOR: solo lectura
+       ========================================================== #}
+    {% set puede_editar = (current_user and (current_user.has_role("ADMIN") or current_user.has_role("OPERADOR"))) %}
 
-    <div class="card-body">
-      <form
-        method="post"
-        action="{{ url_for('trabajadores.editar_trabajador',
-                            trabajador_id=trabajador.id,
-                            next=request.args.get('next')) }}">
-
-        <!-- ==========================
-             DATOS BÁSICOS
-        =========================== -->
-        <h2 class="section-title">Datos básicos</h2>
-
-        <div class="row g-3">
-          <div class="col-12 col-lg-3">
-            <label for="rut" class="form-label">RUT</label>
-            <input type="text" class="form-control" name="rut" id="rut"
-                   value="{{ rut_formateado or trabajador.rut }}" required>
+    {% if not puede_editar %}
+      <div class="card-body">
+        <div class="alert alert-light border mb-0">
+          <div class="fw-semibold">Modo lectura</div>
+          <div class="text-muted">
+            Tu perfil es <strong>REVISOR</strong>. Puedes visualizar la información, pero no modificarla.
+            Si necesitas un cambio, solicita apoyo a un usuario <strong>OPERADOR</strong> o <strong>ADMIN</strong>.
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="nombres" class="form-label">Nombres</label>
-            <input type="text" class="form-control" name="nombres" id="nombres"
-                   value="{{ trabajador.nombres }}" required>
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="ap_paterno" class="form-label">Apellido paterno</label>
-            <input type="text" class="form-control" name="ap_paterno" id="ap_paterno"
-                   value="{{ trabajador.ap_paterno }}" required>
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="ap_materno" class="form-label">Apellido materno (opcional)</label>
-            <input type="text" class="form-control" name="ap_materno" id="ap_materno"
-                   value="{{ trabajador.ap_materno or '' }}">
-            <div class="form-text">Si no tiene apellido materno, deja este campo vacío.</div>
-          </div>
-
-          <div class="col-12 col-lg-6">
-            <label for="obra_id" class="form-label">Obra actual</label>
-            <select name="obra_id" id="obra_id" class="form-select" required>
-              <option value="">Selecciona una obra</option>
-              {% for obra in obras %}
-                <option value="{{ obra.id }}" {% if trabajador.obra_id == obra.id %}selected{% endif %}>
-                  {{ obra.nombre }}{% if obra.centro_costo %} ({{ obra.centro_costo }}){% endif %}
-                </option>
-              {% endfor %}
-            </select>
+          <div class="d-flex flex-column flex-md-row gap-2 mt-3">
+            <a href="{{ request.args.get('next') or url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}"
+               class="btn btn-outline-secondary">
+              ⬅ Volver atrás
+            </a>
+            <a href="{{ url_for('home.index') if 'home.index' in current_app.view_functions else url_for('core.index') }}"
+               class="btn btn-primary">
+              ⌂ Volver al inicio
+            </a>
           </div>
         </div>
+      </div>
+    {% else %}
 
-        <!-- ==========================
-             DATOS PERSONALES
-        =========================== -->
-        <h2 class="section-title mt-4">Datos personales</h2>
+      <div class="card-body">
+        <form method="post"
+              action="{{ url_for('trabajadores.editar_trabajador', trabajador_id=trabajador.id, next=request.args.get('next')) }}">
 
-        <div class="row g-3">
-          <div class="col-12 col-lg-3">
-            <label for="fecha_nacimiento" class="form-label">Fecha de nacimiento</label>
-            <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento"
-                   value="{{ trabajador.fecha_nacimiento.strftime('%Y-%m-%d') if trabajador.fecha_nacimiento }}">
-          </div>
+          <!-- ==========================
+               DATOS BÁSICOS
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Datos básicos</h2>
 
-          <div class="col-12 col-lg-3">
-            <label for="nacionalidad" class="form-label">Nacionalidad</label>
-            <input type="text" class="form-control" name="nacionalidad" id="nacionalidad"
-                   placeholder="Ej: Chilena"
-                   value="{{ trabajador.nacionalidad or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="sexo" class="form-label">Sexo</label>
-            <select name="sexo" id="sexo" class="form-select">
-              <option value="" {% if not trabajador.sexo %}selected{% endif %}>No especificar</option>
-              <option value="M" {% if trabajador.sexo == 'M' %}selected{% endif %}>Masculino</option>
-              <option value="F" {% if trabajador.sexo == 'F' %}selected{% endif %}>Femenino</option>
-              <option value="X" {% if trabajador.sexo == 'X' %}selected{% endif %}>Otro / Prefiere no decir</option>
-            </select>
-          </div>
-
-          {# Estado civil: GET -> trabajador.estado_civil | POST -> request.form #}
-          {% set ec_sel = request.form.get("estado_civil") if request.method == "POST"
-                         else (trabajador.estado_civil or "") %}
-
-          <div class="col-12 col-lg-3">
-            <label for="estado_civil" class="form-label">Estado civil</label>
-            <select id="estado_civil" name="estado_civil" class="form-select">
-              <option value="" {% if not ec_sel %}selected{% endif %}>No especificar</option>
-              <option value="SOLTERO" {% if ec_sel == 'SOLTERO' %}selected{% endif %}>Soltero(a)</option>
-              <option value="CASADO" {% if ec_sel == 'CASADO' %}selected{% endif %}>Casado(a)</option>
-              <option value="DIVORCIADO" {% if ec_sel == 'DIVORCIADO' %}selected{% endif %}>Divorciado(a)</option>
-              <option value="VIUDO" {% if ec_sel == 'VIUDO' %}selected{% endif %}>Viudo(a)</option>
-              <option value="CONVIVIENTE" {% if ec_sel == 'CONVIVIENTE' %}selected{% endif %}>Conviviente civil</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="num_cargas_familiares" class="form-label">N° cargas familiares</label>
-            <input type="number" class="form-control" min="0"
-                   name="num_cargas_familiares" id="num_cargas_familiares"
-                   placeholder="0"
-                   value="{{ trabajador.num_cargas_familiares if trabajador.num_cargas_familiares is not none else '' }}">
-          </div>
-        </div>
-
-        <!-- ==========================
-             CONTACTO
-        =========================== -->
-        <h2 class="section-title mt-4">Contacto</h2>
-
-        <div class="row g-3">
-          <div class="col-12 col-lg-6">
-            <label for="direccion" class="form-label">Dirección</label>
-            <input type="text" class="form-control" name="direccion" id="direccion"
-                   placeholder="Calle, número, depto"
-                   value="{{ trabajador.direccion or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="comuna" class="form-label">Comuna</label>
-            <input type="text" class="form-control" name="comuna" id="comuna"
-                   placeholder="Comuna de residencia"
-                   value="{{ trabajador.comuna or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="telefono" class="form-label">Teléfono</label>
-            <input type="text" class="form-control" name="telefono" id="telefono"
-                   placeholder="+56 9 .... ...."
-                   value="{{ trabajador.telefono or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-3">
-            <label for="telefono_emergencia" class="form-label">Teléfono de emergencia</label>
-            <input type="text" class="form-control" name="telefono_emergencia" id="telefono_emergencia"
-                   placeholder="Contacto de emergencia"
-                   value="{{ trabajador.telefono_emergencia or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-6">
-            <label for="correo" class="form-label">Correo electrónico</label>
-            <input type="email" class="form-control" name="correo" id="correo"
-                   placeholder="correo@ejemplo.cl"
-                   value="{{ trabajador.correo or '' }}">
-          </div>
-        </div>
-
-        <!-- ==========================
-             DATOS BANCARIOS
-        =========================== -->
-        <h2 class="section-title mt-4">Datos bancarios</h2>
-
-        <div class="row g-3">
-          <div class="col-12 col-lg-4">
-            <label for="banco_id" class="form-label">Banco</label>
-            <select id="banco_id" name="banco_id" class="form-select">
-              <option value="">Sin banco / Pago en efectivo</option>
-              {% for b in bancos %}
-                <option value="{{ b.id }}" {% if trabajador.banco_id == b.id %}selected{% endif %}>
-                  {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <label for="tipo_cuenta" class="form-label">Tipo de cuenta</label>
-            <select id="tipo_cuenta" name="tipo_cuenta" class="form-select">
-              <option value="" {% if not trabajador.tipo_cuenta %}selected{% endif %}>No especificar</option>
-              <option value="CORRIENTE" {% if trabajador.tipo_cuenta == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
-              <option value="VISTA" {% if trabajador.tipo_cuenta == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
-              <option value="AHORRO" {% if trabajador.tipo_cuenta == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
-              <option value="CTA_RUT" {% if trabajador.tipo_cuenta == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
-            </select>
-            <div class="form-text">Si eliges Cuenta RUT, el número se completará automáticamente desde el RUT.</div>
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <label for="cuenta_numero" class="form-label">Número de cuenta</label>
-            <input type="text" class="form-control" id="cuenta_numero" name="cuenta_numero"
-                   placeholder="Ej: 123456789"
-                   value="{{ trabajador.cuenta_numero or '' }}">
-          </div>
-        </div>
-
-        <h3 class="section-subtitle mt-4">Pago a cuenta de tercero (opcional)</h3>
-
-        <div class="row g-3">
-          <div class="col-12">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox"
-                     id="pago_tercero_activo" name="pago_tercero_activo" value="1"
-                     {% if trabajador.pago_tercero_activo %}checked{% endif %}>
-              <label class="form-check-label" for="pago_tercero_activo">
-                Autorización a cuenta de tercero
-              </label>
-            </div>
-            <div class="form-text">Usar solo cuando exista poder simple o notarial del trabajador.</div>
-          </div>
-        </div>
-
-        <div id="bloque_pago_tercero" class="row g-3 mt-1" style="display:none;">
-          <div class="col-12 col-lg-3">
-            <label for="pago_tercero_rut" class="form-label">RUT del tercero</label>
-            <input type="text" class="form-control" id="pago_tercero_rut" name="pago_tercero_rut"
-                   placeholder="Ej: 12.345.678-9"
-                   value="{{ trabajador.pago_tercero_rut or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-5">
-            <label for="pago_tercero_nombre" class="form-label">Nombre completo del tercero</label>
-            <input type="text" class="form-control" id="pago_tercero_nombre" name="pago_tercero_nombre"
-                   placeholder="Nombre completo del titular de la cuenta"
-                   value="{{ trabajador.pago_tercero_nombre or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <label for="pago_tercero_banco_id" class="form-label">Banco del tercero</label>
-            <select id="pago_tercero_banco_id" name="pago_tercero_banco_id" class="form-select">
-              <option value="">Selecciona banco</option>
-              {% for b in bancos %}
-                <option value="{{ b.id }}" {% if trabajador.pago_tercero_banco_id == b.id %}selected{% endif %}>
-                  {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <label for="pago_tercero_tipo_cuenta" class="form-label">Tipo de cuenta del tercero</label>
-            <select id="pago_tercero_tipo_cuenta" name="pago_tercero_tipo_cuenta" class="form-select">
-              <option value="" {% if not trabajador.pago_tercero_tipo_cuenta %}selected{% endif %}>No especificar</option>
-              <option value="CORRIENTE" {% if trabajador.pago_tercero_tipo_cuenta == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
-              <option value="VISTA" {% if trabajador.pago_tercero_tipo_cuenta == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
-              <option value="AHORRO" {% if trabajador.pago_tercero_tipo_cuenta == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
-              <option value="CTA_RUT" {% if trabajador.pago_tercero_tipo_cuenta == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <label for="pago_tercero_cuenta_numero" class="form-label">Número de cuenta del tercero</label>
-            <input type="text" class="form-control" id="pago_tercero_cuenta_numero" name="pago_tercero_cuenta_numero"
-                   placeholder="Ej: 123456789"
-                   value="{{ trabajador.pago_tercero_cuenta_numero or '' }}">
-          </div>
-        </div>
-
-        <!-- ==========================
-             PREVISIONAL
-        =========================== -->
-        <h2 class="section-title mt-4">Previsional</h2>
-
-        <div class="row g-3">
-          <div class="col-12 col-lg-3">
-            <label for="afp_id" class="form-label">AFP</label>
-            <select name="afp_id" id="afp_id" class="form-select">
-              <option value="">Selecciona AFP</option>
-              {% for afp in afps %}
-                <option value="{{ afp.id }}" {% if trabajador.afp_id == afp.id %}selected{% endif %}>
-                  {{ afp.nombre }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12 col-lg-5">
-            <label for="salud_id" class="form-label">Salud</label>
-            <select name="salud_id" id="salud_id" class="form-select">
-              <option value="">-- Selecciona sistema de salud --</option>
-              {% for s in salud_list %}
-                <option value="{{ s.id }}" {% if trabajador.salud_id == s.id %}selected{% endif %}>
-                  {{ s.nombre }} ({{ s.tipo }})
-                </option>
-              {% endfor %}
-            </select>
-            <div class="form-text">FONASA o ISAPRE según corresponda.</div>
-          </div>
-
-          <div class="col-12 col-lg-2">
-            <label for="uf_plan_salud" class="form-label">Plan (UF)</label>
-            <input type="text" class="form-control" id="uf_plan_salud" name="uf_plan_salud"
-                   placeholder="Ej: 3.20"
-                   value="{{ trabajador.uf_plan_salud or '' }}">
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <label for="caja_compensacion_id" class="form-label">Caja de compensación</label>
-            <select name="caja_compensacion_id" id="caja_compensacion_id" class="form-select">
-              <option value="">Sin caja / No registra</option>
-              {% for c in cajas %}
-                <option value="{{ c.id }}" {% if trabajador.caja_compensacion_id == c.id %}selected{% endif %}>
-                  {{ c.nombre }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12">
-            <label class="form-label">Condiciones especiales</label>
-            <div class="d-flex flex-wrap gap-3">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="es_extranjero" name="es_extranjero" value="1"
-                       {% if trabajador.es_extranjero %}checked{% endif %}>
-                <label class="form-check-label" for="es_extranjero">Extranjero</label>
+            <div class="row g-3">
+              <div class="col-12 col-lg-3">
+                <label for="rut" class="form-label">RUT</label>
+                <input type="text" class="form-control" name="rut" id="rut"
+                       value="{{ rut_formateado or trabajador.rut }}" required>
               </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="es_discapacitado" name="es_discapacitado" value="1"
-                       {% if trabajador.es_discapacitado %}checked{% endif %}>
-                <label class="form-check-label" for="es_discapacitado">Discapacidad</label>
+
+              <div class="col-12 col-lg-3">
+                <label for="nombres" class="form-label">Nombres</label>
+                <input type="text" class="form-control" name="nombres" id="nombres"
+                       value="{{ trabajador.nombres }}" required>
               </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="es_pensionado" name="es_pensionado" value="1"
-                       {% if trabajador.es_pensionado %}checked{% endif %}>
-                <label class="form-check-label" for="es_pensionado">Pensionado</label>
+
+              <div class="col-12 col-lg-3">
+                <label for="ap_paterno" class="form-label">Apellido paterno</label>
+                <input type="text" class="form-control" name="ap_paterno" id="ap_paterno"
+                       value="{{ trabajador.ap_paterno }}" required>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="ap_materno" class="form-label">Apellido materno (opcional)</label>
+                <input type="text" class="form-control" name="ap_materno" id="ap_materno"
+                       value="{{ trabajador.ap_materno or '' }}">
+                <div class="form-text">Si no tiene apellido materno, deja este campo vacío.</div>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label for="obra_id" class="form-label">Obra actual</label>
+                <select name="obra_id" id="obra_id" class="form-select" required>
+                  <option value="">Selecciona una obra</option>
+                  {% for obra in obras %}
+                    <option value="{{ obra.id }}" {% if trabajador.obra_id == obra.id %}selected{% endif %}>
+                      {{ obra.nombre }}{% if obra.centro_costo %} ({{ obra.centro_costo }}){% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+                {% if current_user and (not current_user.has_role("ADMIN")) %}
+                  <div class="form-text">Solo se muestran tus obras asignadas.</div>
+                {% endif %}
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- ==========================
-             APV
-        =========================== -->
-        <h2 class="section-title mt-4">Ahorro Previsional Voluntario (APV)</h2>
+          <!-- ==========================
+               DATOS PERSONALES
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Datos personales</h2>
 
-        <div class="row g-3">
-          <div class="col-12 col-lg-3">
-            <div class="form-check mt-2">
-              <input class="form-check-input" type="checkbox" id="apv_activo" name="apv_activo" value="1"
-                     {% if trabajador.apv_activo %}checked{% endif %}>
-              <label class="form-check-label" for="apv_activo">El trabajador tiene APV</label>
+            <div class="row g-3">
+              <div class="col-12 col-lg-3">
+                <label for="fecha_nacimiento" class="form-label">Fecha de nacimiento</label>
+                <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento"
+                       value="{{ trabajador.fecha_nacimiento.strftime('%Y-%m-%d') if trabajador.fecha_nacimiento }}">
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="nacionalidad" class="form-label">Nacionalidad</label>
+                <input type="text" class="form-control" name="nacionalidad" id="nacionalidad"
+                       placeholder="Ej: Chilena"
+                       value="{{ trabajador.nacionalidad or '' }}">
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="sexo" class="form-label">Sexo</label>
+                <select name="sexo" id="sexo" class="form-select">
+                  <option value="" {% if not trabajador.sexo %}selected{% endif %}>No especificar</option>
+                  <option value="M" {% if trabajador.sexo == 'M' %}selected{% endif %}>Masculino</option>
+                  <option value="F" {% if trabajador.sexo == 'F' %}selected{% endif %}>Femenino</option>
+                  <option value="X" {% if trabajador.sexo == 'X' %}selected{% endif %}>Otro / Prefiere no decir</option>
+                </select>
+              </div>
+
+              {# Estado civil: GET -> trabajador.estado_civil | POST -> request.form #}
+              {% set ec_sel = request.form.get("estado_civil") if request.method == "POST"
+                             else (trabajador.estado_civil or "") %}
+
+              <div class="col-12 col-lg-3">
+                <label for="estado_civil" class="form-label">Estado civil</label>
+                <select id="estado_civil" name="estado_civil" class="form-select">
+                  <option value="" {% if not ec_sel %}selected{% endif %}>No especificar</option>
+                  <option value="SOLTERO" {% if ec_sel == 'SOLTERO' %}selected{% endif %}>Soltero(a)</option>
+                  <option value="CASADO" {% if ec_sel == 'CASADO' %}selected{% endif %}>Casado(a)</option>
+                  <option value="DIVORCIADO" {% if ec_sel == 'DIVORCIADO' %}selected{% endif %}>Divorciado(a)</option>
+                  <option value="VIUDO" {% if ec_sel == 'VIUDO' %}selected{% endif %}>Viudo(a)</option>
+                  <option value="CONVIVIENTE" {% if ec_sel == 'CONVIVIENTE' %}selected{% endif %}>Conviviente civil</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="num_cargas_familiares" class="form-label">N° cargas familiares</label>
+                <input type="number" class="form-control" min="0"
+                       name="num_cargas_familiares" id="num_cargas_familiares"
+                       placeholder="0"
+                       value="{{ trabajador.num_cargas_familiares if trabajador.num_cargas_familiares is not none else '' }}">
+              </div>
             </div>
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="apv_modalidad" class="form-label">Modalidad APV</label>
-            <select id="apv_modalidad" name="apv_modalidad" class="form-select">
-              <option value="" {% if not trabajador.apv_modalidad %}selected{% endif %}>Sin APV / No aplica</option>
-              <option value="PORCENTAJE" {% if trabajador.apv_modalidad == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
-              <option value="MONTO" {% if trabajador.apv_modalidad == 'MONTO' %}selected{% endif %}>Monto fijo</option>
-            </select>
-          </div>
+          <!-- ==========================
+               CONTACTO
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Contacto</h2>
 
-          <div class="col-12 col-lg-3">
-            <label for="apv_valor" class="form-label">Valor APV</label>
-            <input type="text" class="form-control" id="apv_valor" name="apv_valor"
-                   placeholder="Ej: 3.00 (si es %) o 50000 (si es monto)"
-                   value="{{ trabajador.apv_valor or '' }}">
-          </div>
+            <div class="row g-3">
+              <div class="col-12 col-lg-6">
+                <label for="direccion" class="form-label">Dirección</label>
+                <input type="text" class="form-control" name="direccion" id="direccion"
+                       placeholder="Calle, número, depto"
+                       value="{{ trabajador.direccion or '' }}">
+              </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="apv_institucion" class="form-label">Institución APV</label>
-            <input type="text" class="form-control" id="apv_institucion" name="apv_institucion"
-                   placeholder="Institución o administrador del APV"
-                   value="{{ trabajador.apv_institucion or '' }}">
-          </div>
-        </div>
+              <div class="col-12 col-lg-3">
+                <label for="comuna" class="form-label">Comuna</label>
+                <input type="text" class="form-control" name="comuna" id="comuna"
+                       placeholder="Comuna de residencia"
+                       value="{{ trabajador.comuna or '' }}">
+              </div>
 
-        <!-- ==========================
-             CAV
-        =========================== -->
-        <h2 class="section-title mt-4">Cuenta de Ahorro Voluntario (CAV)</h2>
+              <div class="col-12 col-lg-3">
+                <label for="telefono" class="form-label">Teléfono</label>
+                <input type="text" class="form-control" name="telefono" id="telefono"
+                       placeholder="+56 9 .... ...."
+                       value="{{ trabajador.telefono or '' }}">
+              </div>
 
-        <div class="row g-3">
-          <div class="col-12 col-lg-3">
-            <div class="form-check mt-2">
-              <input class="form-check-input" type="checkbox" id="cav_activo" name="cav_activo" value="1"
-                     {% if trabajador.cav_activo %}checked{% endif %}>
-              <label class="form-check-label" for="cav_activo">El trabajador tiene CAV</label>
+              <div class="col-12 col-lg-3">
+                <label for="telefono_emergencia" class="form-label">Teléfono de emergencia</label>
+                <input type="text" class="form-control" name="telefono_emergencia" id="telefono_emergencia"
+                       placeholder="Contacto de emergencia"
+                       value="{{ trabajador.telefono_emergencia or '' }}">
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label for="correo" class="form-label">Correo electrónico</label>
+                <input type="email" class="form-control" name="correo" id="correo"
+                       placeholder="correo@ejemplo.cl"
+                       value="{{ trabajador.correo or '' }}">
+              </div>
             </div>
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="cav_modalidad" class="form-label">Modalidad CAV</label>
-            <select id="cav_modalidad" name="cav_modalidad" class="form-select">
-              <option value="" {% if not trabajador.cav_modalidad %}selected{% endif %}>Sin CAV / No aplica</option>
-              <option value="PORCENTAJE" {% if trabajador.cav_modalidad == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
-              <option value="MONTO" {% if trabajador.cav_modalidad == 'MONTO' %}selected{% endif %}>Monto fijo</option>
-            </select>
+          <!-- ==========================
+               DATOS BANCARIOS
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Datos bancarios</h2>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-4">
+                <label for="banco_id" class="form-label">Banco</label>
+                <select id="banco_id" name="banco_id" class="form-select">
+                  <option value="">Sin banco / Pago en efectivo</option>
+                  {% for b in bancos %}
+                    <option value="{{ b.id }}" {% if trabajador.banco_id == b.id %}selected{% endif %}>
+                      {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label for="tipo_cuenta" class="form-label">Tipo de cuenta</label>
+                <select id="tipo_cuenta" name="tipo_cuenta" class="form-select">
+                  <option value="" {% if not trabajador.tipo_cuenta %}selected{% endif %}>No especificar</option>
+                  <option value="CORRIENTE" {% if trabajador.tipo_cuenta == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
+                  <option value="VISTA" {% if trabajador.tipo_cuenta == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
+                  <option value="AHORRO" {% if trabajador.tipo_cuenta == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
+                  <option value="CTA_RUT" {% if trabajador.tipo_cuenta == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
+                </select>
+                <div class="form-text">Si eliges Cuenta RUT, el número se completará automáticamente desde el RUT.</div>
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label for="cuenta_numero" class="form-label">Número de cuenta</label>
+                <input type="text" class="form-control" id="cuenta_numero" name="cuenta_numero"
+                       placeholder="Ej: 123456789"
+                       value="{{ trabajador.cuenta_numero or '' }}">
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h3 class="h6 mb-2" style="color: var(--cs-brown);">Pago a cuenta de tercero (opcional)</h3>
+
+            <div class="row g-3">
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox"
+                         id="pago_tercero_activo" name="pago_tercero_activo" value="1"
+                         {% if trabajador.pago_tercero_activo %}checked{% endif %}>
+                  <label class="form-check-label" for="pago_tercero_activo">
+                    Autorización a cuenta de tercero
+                  </label>
+                </div>
+                <div class="form-text">Usar solo cuando exista poder simple o notarial del trabajador.</div>
+              </div>
+            </div>
+
+            <div id="bloque_pago_tercero" class="row g-3 mt-1" style="display:none;">
+              <div class="col-12 col-lg-3">
+                <label for="pago_tercero_rut" class="form-label">RUT del tercero</label>
+                <input type="text" class="form-control" id="pago_tercero_rut" name="pago_tercero_rut"
+                       placeholder="Ej: 12.345.678-9"
+                       value="{{ trabajador.pago_tercero_rut or '' }}">
+              </div>
+
+              <div class="col-12 col-lg-5">
+                <label for="pago_tercero_nombre" class="form-label">Nombre completo del tercero</label>
+                <input type="text" class="form-control" id="pago_tercero_nombre" name="pago_tercero_nombre"
+                       placeholder="Nombre completo del titular de la cuenta"
+                       value="{{ trabajador.pago_tercero_nombre or '' }}">
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label for="pago_tercero_banco_id" class="form-label">Banco del tercero</label>
+                <select id="pago_tercero_banco_id" name="pago_tercero_banco_id" class="form-select">
+                  <option value="">Selecciona banco</option>
+                  {% for b in bancos %}
+                    <option value="{{ b.id }}" {% if trabajador.pago_tercero_banco_id == b.id %}selected{% endif %}>
+                      {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label for="pago_tercero_tipo_cuenta" class="form-label">Tipo de cuenta del tercero</label>
+                <select id="pago_tercero_tipo_cuenta" name="pago_tercero_tipo_cuenta" class="form-select">
+                  <option value="" {% if not trabajador.pago_tercero_tipo_cuenta %}selected{% endif %}>No especificar</option>
+                  <option value="CORRIENTE" {% if trabajador.pago_tercero_tipo_cuenta == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
+                  <option value="VISTA" {% if trabajador.pago_tercero_tipo_cuenta == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
+                  <option value="AHORRO" {% if trabajador.pago_tercero_tipo_cuenta == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
+                  <option value="CTA_RUT" {% if trabajador.pago_tercero_tipo_cuenta == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label for="pago_tercero_cuenta_numero" class="form-label">Número de cuenta del tercero</label>
+                <input type="text" class="form-control" id="pago_tercero_cuenta_numero" name="pago_tercero_cuenta_numero"
+                       placeholder="Ej: 123456789"
+                       value="{{ trabajador.pago_tercero_cuenta_numero or '' }}">
+              </div>
+            </div>
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="cav_valor" class="form-label">Valor CAV</label>
-            <input type="text" class="form-control" id="cav_valor" name="cav_valor"
-                   placeholder="Ej: 2.50 (si es %) o 30000 (si es monto)"
-                   value="{{ trabajador.cav_valor or '' }}">
+          <!-- ==========================
+               PREVISIONAL
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Previsional</h2>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-3">
+                <label for="afp_id" class="form-label">AFP</label>
+                <select name="afp_id" id="afp_id" class="form-select">
+                  <option value="">Selecciona AFP</option>
+                  {% for afp in afps %}
+                    <option value="{{ afp.id }}" {% if trabajador.afp_id == afp.id %}selected{% endif %}>
+                      {{ afp.nombre }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-5">
+                <label for="salud_id" class="form-label">Salud</label>
+                <select name="salud_id" id="salud_id" class="form-select">
+                  <option value="">-- Selecciona sistema de salud --</option>
+                  {% for s in salud_list %}
+                    <option value="{{ s.id }}" {% if trabajador.salud_id == s.id %}selected{% endif %}>
+                      {{ s.nombre }} ({{ s.tipo }})
+                    </option>
+                  {% endfor %}
+                </select>
+                <div class="form-text">FONASA o ISAPRE según corresponda.</div>
+              </div>
+
+              <div class="col-12 col-lg-2">
+                <label for="uf_plan_salud" class="form-label">Plan (UF)</label>
+                <input type="text" class="form-control" id="uf_plan_salud" name="uf_plan_salud"
+                       placeholder="Ej: 3.20"
+                       value="{{ trabajador.uf_plan_salud or '' }}">
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label for="caja_compensacion_id" class="form-label">Caja de compensación</label>
+                <select name="caja_compensacion_id" id="caja_compensacion_id" class="form-select">
+                  <option value="">Sin caja / No registra</option>
+                  {% for c in cajas %}
+                    <option value="{{ c.id }}" {% if trabajador.caja_compensacion_id == c.id %}selected{% endif %}>
+                      {{ c.nombre }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Condiciones especiales</label>
+                <div class="d-flex flex-wrap gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="es_extranjero" name="es_extranjero" value="1"
+                           {% if trabajador.es_extranjero %}checked{% endif %}>
+                    <label class="form-check-label" for="es_extranjero">Extranjero</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="es_discapacitado" name="es_discapacitado" value="1"
+                           {% if trabajador.es_discapacitado %}checked{% endif %}>
+                    <label class="form-check-label" for="es_discapacitado">Discapacidad</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="es_pensionado" name="es_pensionado" value="1"
+                           {% if trabajador.es_pensionado %}checked{% endif %}>
+                    <label class="form-check-label" for="es_pensionado">Pensionado</label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="cav_institucion" class="form-label">Institución CAV</label>
-            <input type="text" class="form-control" id="cav_institucion" name="cav_institucion"
-                   placeholder="Institución o administrador de la CAV"
-                   value="{{ trabajador.cav_institucion or '' }}">
-          </div>
-        </div>
+          <!-- ==========================
+               APV
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Ahorro Previsional Voluntario (APV)</h2>
 
-        <!-- ==========================
-             CARGO
-        =========================== -->
-        <h2 class="section-title mt-4">Cargo</h2>
-        <div class="row g-3">
-          <div class="col-12 col-lg-6">
-            <label for="cargo_id" class="form-label">Cargo del trabajador</label>
-            <select name="cargo_id" id="cargo_id" class="form-select" required>
-              <option value="">Selecciona cargo</option>
-              {% for cargo in cargos %}
-                <option value="{{ cargo.id }}" {% if trabajador.cargo_id == cargo.id %}selected{% endif %}>
-                  {{ cargo.nombre }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
+            <div class="row g-3">
+              <div class="col-12 col-lg-3">
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" id="apv_activo" name="apv_activo" value="1"
+                         {% if trabajador.apv_activo %}checked{% endif %}>
+                  <label class="form-check-label" for="apv_activo">El trabajador tiene APV</label>
+                </div>
+              </div>
 
-        <!-- ==========================
-             ESTADO LABORAL
-        =========================== -->
-        <h2 class="section-title mt-4">Estado laboral</h2>
+              <div class="col-12 col-lg-3">
+                <label for="apv_modalidad" class="form-label">Modalidad APV</label>
+                <select id="apv_modalidad" name="apv_modalidad" class="form-select">
+                  <option value="" {% if not trabajador.apv_modalidad %}selected{% endif %}>Sin APV / No aplica</option>
+                  <option value="PORCENTAJE" {% if trabajador.apv_modalidad == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
+                  <option value="MONTO" {% if trabajador.apv_modalidad == 'MONTO' %}selected{% endif %}>Monto fijo</option>
+                </select>
+              </div>
 
-        <div class="row g-3">
-          <div class="col-12 col-lg-3">
-            <label for="estado_trabajador" class="form-label">Estado del trabajador</label>
-            <select name="estado_trabajador" id="estado_trabajador" class="form-select">
-              <option value="VIGENTE" {% if trabajador.estado_trabajador == 'VIGENTE' %}selected{% endif %}>Vigente</option>
-              <option value="DESVINCULADO" {% if trabajador.estado_trabajador == 'DESVINCULADO' %}selected{% endif %}>Desvinculado</option>
-              <option value="SUSPENDIDO" {% if trabajador.estado_trabajador == 'SUSPENDIDO' %}selected{% endif %}>Suspendido</option>
-            </select>
-          </div>
+              <div class="col-12 col-lg-3">
+                <label for="apv_valor" class="form-label">Valor APV</label>
+                <input type="text" class="form-control" id="apv_valor" name="apv_valor"
+                       placeholder="Ej: 3.00 (si es %) o 50000 (si es monto)"
+                       value="{{ trabajador.apv_valor or '' }}">
+              </div>
 
-          {% set tt_sel = request.form.get("tipo_trabajador") if request.method == "POST"
-                         else (trabajador.tipo_trabajador or "") %}
-
-          <div class="col-12 col-lg-3">
-            <label for="tipo_trabajador" class="form-label">Tipo de trabajador</label>
-            <select id="tipo_trabajador" name="tipo_trabajador" class="form-select">
-              <option value="" {% if not tt_sel %}selected{% endif %}>No especificar</option>
-              <option value="DIRECTO" {% if tt_sel == 'DIRECTO' %}selected{% endif %}>Directo</option>
-              <option value="JEFATURA U OTROS" {% if tt_sel == 'JEFATURA U OTROS' %}selected{% endif %}>Jefatura u otros</option>
-              <option value="PRACTICANTE" {% if tt_sel == 'PRACTICANTE' %}selected{% endif %}>Practicante</option>
-              <option value="SUBCONTRATO" {% if tt_sel == 'SUBCONTRATO' %}selected{% endif %}>Subcontrato</option>
-            </select>
+              <div class="col-12 col-lg-3">
+                <label for="apv_institucion" class="form-label">Institución APV</label>
+                <input type="text" class="form-control" id="apv_institucion" name="apv_institucion"
+                       placeholder="Institución o administrador del APV"
+                       value="{{ trabajador.apv_institucion or '' }}">
+              </div>
+            </div>
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="fecha_ingreso_empresa" class="form-label">Fecha de ingreso a la empresa</label>
-            <input type="date" class="form-control" name="fecha_ingreso_empresa" id="fecha_ingreso_empresa"
-                   value="{{ trabajador.fecha_ingreso_empresa.strftime('%Y-%m-%d') if trabajador.fecha_ingreso_empresa }}">
+          <!-- ==========================
+               CAV
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Cuenta de Ahorro Voluntario (CAV)</h2>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-3">
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" id="cav_activo" name="cav_activo" value="1"
+                         {% if trabajador.cav_activo %}checked{% endif %}>
+                  <label class="form-check-label" for="cav_activo">El trabajador tiene CAV</label>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="cav_modalidad" class="form-label">Modalidad CAV</label>
+                <select id="cav_modalidad" name="cav_modalidad" class="form-select">
+                  <option value="" {% if not trabajador.cav_modalidad %}selected{% endif %}>Sin CAV / No aplica</option>
+                  <option value="PORCENTAJE" {% if trabajador.cav_modalidad == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
+                  <option value="MONTO" {% if trabajador.cav_modalidad == 'MONTO' %}selected{% endif %}>Monto fijo</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="cav_valor" class="form-label">Valor CAV</label>
+                <input type="text" class="form-control" id="cav_valor" name="cav_valor"
+                       placeholder="Ej: 2.50 (si es %) o 30000 (si es monto)"
+                       value="{{ trabajador.cav_valor or '' }}">
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="cav_institucion" class="form-label">Institución CAV</label>
+                <input type="text" class="form-control" id="cav_institucion" name="cav_institucion"
+                       placeholder="Institución o administrador de la CAV"
+                       value="{{ trabajador.cav_institucion or '' }}">
+              </div>
+            </div>
           </div>
 
-          <div class="col-12 col-lg-3">
-            <label for="fecha_egreso_empresa" class="form-label">Fecha de egreso de la empresa</label>
-            <input type="date" class="form-control" name="fecha_egreso_empresa" id="fecha_egreso_empresa"
-                   value="{{ trabajador.fecha_egreso_empresa.strftime('%Y-%m-%d') if trabajador.fecha_egreso_empresa }}">
+          <!-- ==========================
+               CARGO
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Cargo</h2>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-6">
+                <label for="cargo_id" class="form-label">Cargo del trabajador</label>
+                <select name="cargo_id" id="cargo_id" class="form-select" required>
+                  <option value="">Selecciona cargo</option>
+                  {% for cargo in cargos %}
+                    <option value="{{ cargo.id }}" {% if trabajador.cargo_id == cargo.id %}selected{% endif %}>
+                      {{ cargo.nombre }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- ==========================
-             ACCIONES
-        =========================== -->
-        <div class="d-flex flex-wrap gap-2 mt-4">
-          <a href="{{ request.args.get('next') or url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}"
-             class="btn btn-outline-secondary">
-            ⬅ Cancelar y volver
-          </a>
+          <!-- ==========================
+               ESTADO LABORAL
+          =========================== -->
+          <div class="mb-4">
+            <h2 class="cs-section-kicker mb-3">Estado laboral</h2>
 
-          <button type="submit" class="btn btn-primary">
-            💾 Guardar cambios
-          </button>
-        </div>
+            <div class="row g-3">
+              <div class="col-12 col-lg-3">
+                <label for="estado_trabajador" class="form-label">Estado del trabajador</label>
+                <select name="estado_trabajador" id="estado_trabajador" class="form-select">
+                  <option value="VIGENTE" {% if trabajador.estado_trabajador == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+                  <option value="DESVINCULADO" {% if trabajador.estado_trabajador == 'DESVINCULADO' %}selected{% endif %}>Desvinculado</option>
+                  <option value="SUSPENDIDO" {% if trabajador.estado_trabajador == 'SUSPENDIDO' %}selected{% endif %}>Suspendido</option>
+                </select>
+              </div>
 
-      </form>
-    </div>
+              {% set tt_sel = request.form.get("tipo_trabajador") if request.method == "POST"
+                             else (trabajador.tipo_trabajador or "") %}
+
+              <div class="col-12 col-lg-3">
+                <label for="tipo_trabajador" class="form-label">Tipo de trabajador</label>
+                <select id="tipo_trabajador" name="tipo_trabajador" class="form-select">
+                  <option value="" {% if not tt_sel %}selected{% endif %}>No especificar</option>
+                  <option value="DIRECTO" {% if tt_sel == 'DIRECTO' %}selected{% endif %}>Directo</option>
+                  <option value="JEFATURA U OTROS" {% if tt_sel == 'JEFATURA U OTROS' %}selected{% endif %}>Jefatura u otros</option>
+                  <option value="PRACTICANTE" {% if tt_sel == 'PRACTICANTE' %}selected{% endif %}>Practicante</option>
+                  <option value="SUBCONTRATO" {% if tt_sel == 'SUBCONTRATO' %}selected{% endif %}>Subcontrato</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="fecha_ingreso_empresa" class="form-label">Fecha de ingreso a la empresa</label>
+                <input type="date" class="form-control" name="fecha_ingreso_empresa" id="fecha_ingreso_empresa"
+                       value="{{ trabajador.fecha_ingreso_empresa.strftime('%Y-%m-%d') if trabajador.fecha_ingreso_empresa }}">
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label for="fecha_egreso_empresa" class="form-label">Fecha de egreso de la empresa</label>
+                <input type="date" class="form-control" name="fecha_egreso_empresa" id="fecha_egreso_empresa"
+                       value="{{ trabajador.fecha_egreso_empresa.strftime('%Y-%m-%d') if trabajador.fecha_egreso_empresa }}">
+              </div>
+            </div>
+          </div>
+
+          <!-- ==========================
+               ACCIONES
+          =========================== -->
+          <div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-top pt-3">
+            <a href="{{ request.args.get('next') or url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}"
+               class="btn btn-outline-secondary">
+              ⬅ Cancelar y volver
+            </a>
+
+            <button type="submit" class="btn btn-primary">
+              💾 Guardar cambios
+            </button>
+          </div>
+
+        </form>
+      </div>
+    {% endif %}
   </div>
 </div>
 
@@ -545,4 +613,5 @@ document.addEventListener("DOMContentLoaded", function () {
     actualizarBloqueTercero();
 });
 </script>
+
 {% endblock %}

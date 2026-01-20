@@ -6,18 +6,33 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from flask import current_app, flash, redirect, render_template, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+
+from ...auth.decorators import role_required
 from ...config import generar_nombre_documento
 from ...extensions import db
-from ...models import Cargo, Contrato, Empleador, Horario, Obra, Trabajador
+from ...models import (
+    Cargo,
+    Contrato,
+    DocumentoLaboral,
+    Empleador,
+    EventoLaboral,
+    Horario,
+    Inasistencia,
+    Obra,
+    Trabajador,
+    Desvinculacion,
+)
 from ...services.docx_engine import build_contract_docx
 from ...services.paths_nextcloud import get_nc_paths
 from ...services.pdf_convert import convert_docx_to_pdf
 from ...services.storage_nextcloud_fs import ensure_dir
-from ...utils import parse_date, parse_decimal, parse_int
+from ...utils import fecha_larga_es, parse_date, parse_decimal, parse_int
 from . import bp
-from ...utils import fecha_larga_es
 
 
 # ==========================
@@ -54,7 +69,7 @@ def format_rut(rut_digits: str, dv: str) -> str:
         return ""
     dv = str(dv).strip().upper()
     rev = digits[::-1]
-    chunks = [rev[i:i + 3] for i in range(0, len(rev), 3)]
+    chunks = [rev[i : i + 3] for i in range(0, len(rev), 3)]
     with_dots = ".".join(c[::-1] for c in chunks[::-1])
     return f"{with_dots}-{dv}"
 
@@ -68,18 +83,119 @@ def format_rut_raw(raw: str) -> str:
 
 
 # ==========================
+# Helpers: Control acceso por obra (querys)
+# ==========================
+
+def obras_visibles_query():
+    """
+    Obras visibles para el usuario actual:
+    - ADMIN: todas las activas
+    - Otros: solo las activas asignadas al usuario (User.obras)
+    """
+    q = Obra.query.filter(Obra.estado == "ACTIVA")
+    if current_user.has_role("ADMIN"):
+        return q
+
+    # Fail-closed: si no tiene obras asignadas, no ve nada
+    obra_ids = [o.id for o in (current_user.obras or [])]
+    if not obra_ids:
+        return q.filter(db.text("1=0"))
+
+    return q.filter(Obra.id.in_(obra_ids))
+
+
+def aplicar_filtro_obras_autorizadas_a_contratos(query):
+    """
+    Aplica filtro de obras autorizadas sobre un query de Contrato.
+    ADMIN: sin filtro.
+    """
+    if current_user.has_role("ADMIN"):
+        return query
+
+    obra_ids = [o.id for o in (current_user.obras or [])]
+    if not obra_ids:
+        # fail-closed: no retorna contratos
+        return query.filter(db.text("1=0"))
+
+    return query.filter(Contrato.obra_id.in_(obra_ids))
+
+
+def assert_contrato_accessible_or_403(contrato: Contrato) -> None:
+    """
+    Garantiza que el usuario actual pueda acceder al contrato (por obra).
+    ADMIN: ok.
+    Otros: solo si can_access_obra(contrato.obra_id) es True.
+    """
+    if current_user.has_role("ADMIN"):
+        return
+    if not current_user.can_access_obra(getattr(contrato, "obra_id", None)):
+        abort(403)
+
+
+# ==========================
+# Dependencias del Contrato
+# ==========================
+
+def contrato_dependencias(contrato_id: int) -> dict[str, int]:
+    """
+    Retorna un dict con conteos de registros relacionados a un contrato.
+    Si alguno es > 0, NO debería permitir eliminar.
+    """
+    c = Contrato.query.get_or_404(contrato_id)
+
+    anexos_ext = c.anexos_extension.count() if hasattr(c, "anexos_extension") else 0
+    anexos_ind = c.anexos_indefinido.count() if hasattr(c, "anexos_indefinido") else 0
+
+    desvinc = (
+        db.session.query(func.count(Desvinculacion.id))
+        .filter(Desvinculacion.contrato_id == c.id)
+        .scalar()
+        or 0
+    )
+
+    eventos = (
+        db.session.query(func.count(EventoLaboral.id))
+        .filter(EventoLaboral.contrato_id == c.id)
+        .scalar()
+        or 0
+    )
+
+    docs = (
+        db.session.query(func.count(DocumentoLaboral.id))
+        .filter(DocumentoLaboral.contrato_id == c.id)
+        .scalar()
+        or 0
+    )
+
+    inasistencias = (
+        db.session.query(func.count(Inasistencia.id))
+        .filter(Inasistencia.contrato_id == c.id)
+        .scalar()
+        or 0
+    )
+
+    return {
+        "anexos_extension": int(anexos_ext),
+        "anexos_indefinido": int(anexos_ind),
+        "desvinculaciones": int(desvinc),
+        "eventos": int(eventos),
+        "documentos": int(docs),
+        "inasistencias": int(inasistencias),
+    }
+
+
+# ==========================
 # LISTA
 # ==========================
+
 @bp.route("/")
+@role_required("ADMIN", "OPERADOR", "REVISOR")
 def lista_contratos():
-    # Multi-select: el template envía name="empleador_id" (repetido) y name="obra_id" (repetido)
     empleador_ids = request.args.getlist("empleador_id", type=int)
     obra_ids = request.args.getlist("obra_id", type=int)
 
-    # Estado (single)
     estado = (request.args.get("estado", type=str) or "").strip() or None
 
-    # Fechas (input type="date" => YYYY-MM-DD)
     inicio_desde_raw = (request.args.get("inicio_desde") or "").strip()
     inicio_hasta_raw = (request.args.get("inicio_hasta") or "").strip()
     inicio_desde = parse_date(inicio_desde_raw) if inicio_desde_raw else None
@@ -92,12 +208,16 @@ def lista_contratos():
         .outerjoin(Empleador)
     )
 
-    # Empleadores: si hay selección, aplicar IN
+    # ✅ Filtro por obras autorizadas (OPERADOR/REVISOR)
+    query = aplicar_filtro_obras_autorizadas_a_contratos(query)
+
     if empleador_ids:
         query = query.filter(Contrato.empleador_id.in_(empleador_ids))
 
-    # Obras: si hay selección, aplicar IN
+    # Si el usuario no es ADMIN, además debemos evitar que filtre por obra fuera de su alcance.
     if obra_ids:
+        if not current_user.has_role("ADMIN"):
+            obra_ids = [oid for oid in obra_ids if current_user.can_access_obra(oid)]
         query = query.filter(Contrato.obra_id.in_(obra_ids))
 
     if estado:
@@ -111,8 +231,7 @@ def lista_contratos():
         query = query.filter(Contrato.fecha_inicio <= inicio_hasta)
 
     contratos = (
-        query
-        .order_by(
+        query.order_by(
             Obra.nombre,
             Trabajador.ap_paterno,
             Trabajador.ap_materno,
@@ -122,19 +241,17 @@ def lista_contratos():
     )
 
     empleadores = Empleador.query.order_by(Empleador.razon_social).all()
-    obras = Obra.query.order_by(Obra.nombre).all()
+
+    # ✅ Obras para el filtro: ADMIN todas, otros solo asignadas
+    obras = obras_visibles_query().order_by(Obra.nombre).all()
 
     return render_template(
         "contratos/contratos.html",
         contratos=contratos,
         empleadores=empleadores,
         obras=obras,
-
-        # Para que el template recuerde selección multi
         filtro_empleador_ids=empleador_ids,
         filtro_obra_ids=obra_ids,
-
-        # Estado y fechas
         filtro_estado=estado,
         filtro_inicio_desde=inicio_desde_raw,
         filtro_inicio_hasta=inicio_hasta_raw,
@@ -144,13 +261,15 @@ def lista_contratos():
 # ==========================
 # NUEVO
 # ==========================
+
 @bp.route("/nuevo", methods=["GET", "POST"])
+@role_required("ADMIN", "OPERADOR")
 def nuevo_contrato():
     next_url = request.args.get("next") or request.form.get("next")
 
     trabajador_id_param = request.args.get("trabajador_id") or request.form.get("trabajador_id")
-
     trabajador = None
+
     if trabajador_id_param:
         try:
             trabajador_id_int = int(trabajador_id_param)
@@ -166,7 +285,6 @@ def nuevo_contrato():
     if request.method == "POST":
         if not trabajador:
             flash("Debes seleccionar un trabajador válido para asociar el contrato.", "error")
-            # Mantener next si venía
             if next_url:
                 return redirect(url_for("contratos.nuevo_contrato", next=next_url))
             return redirect(url_for("contratos.nuevo_contrato"))
@@ -179,16 +297,12 @@ def nuevo_contrato():
         fecha_inicio = parse_date(request.form.get("fecha_inicio"))
         fecha_termino = parse_date(request.form.get("fecha_termino"))
 
-        # Horario / Jornada
         horario_id = parse_int(request.form.get("horario_id"))
         jornada = (request.form.get("jornada") or "").strip() or None
 
         horas_semanales = parse_int(request.form.get("horas_semanales"))
-
-        # Default horas semanales si viene vacío
         if not horas_semanales and tipo_contrato:
             horas_semanales = 18 if tipo_contrato == "PART_TIME" else 44
-
 
         sueldo_base = parse_decimal(request.form.get("sueldo_base"))
         asignacion_movilizacion = parse_decimal(request.form.get("asignacion_movilizacion"))
@@ -197,13 +311,16 @@ def nuevo_contrato():
 
         estado_contrato = request.form.get("estado_contrato") or "VIGENTE"
 
-        # Helper para redirects de validación manteniendo contexto
         def _redir_nuevo():
             if next_url:
                 return redirect(url_for("contratos.nuevo_contrato", trabajador_id=trabajador.id, next=next_url))
             return redirect(url_for("contratos.nuevo_contrato", trabajador_id=trabajador.id))
 
-        # Validaciones mínimas
+        # ✅ Seguridad: OPERADOR solo puede crear contratos en obras asignadas
+        if not current_user.has_role("ADMIN"):
+            if not obra_id or not current_user.can_access_obra(int(obra_id)):
+                abort(403)
+
         if not empleador_id:
             flash("Debes seleccionar un empleador para el contrato.", "error")
             return _redir_nuevo()
@@ -224,7 +341,6 @@ def nuevo_contrato():
             flash("Debes indicar la fecha de inicio del contrato.", "error")
             return _redir_nuevo()
 
-        # Validación horario_id (si viene): solo aceptar si existe y está activo
         if horario_id:
             horario_obj = Horario.query.get(horario_id)
             if not horario_obj:
@@ -234,16 +350,13 @@ def nuevo_contrato():
                 flash("El horario seleccionado no está activo.", "error")
                 return _redir_nuevo()
 
-        # Regla: un contrato VIGENTE por trabajador+empleador
         if estado_contrato == "VIGENTE":
             contrato_vigente = (
-                Contrato.query
-                .filter(
+                Contrato.query.filter(
                     Contrato.trabajador_id == trabajador.id,
                     Contrato.empleador_id == empleador_id,
                     Contrato.estado_contrato == "VIGENTE",
-                )
-                .first()
+                ).first()
             )
             if contrato_vigente:
                 flash(
@@ -263,11 +376,9 @@ def nuevo_contrato():
             tipo_contrato=tipo_contrato,
             fecha_inicio=fecha_inicio,
             fecha_termino=fecha_termino,
-
             horario_id=horario_id or None,
             jornada=jornada,
             horas_semanales=horas_semanales,
-
             sueldo_base=sueldo_base,
             asignacion_movilizacion=asignacion_movilizacion,
             asignacion_colacion=asignacion_colacion,
@@ -277,7 +388,6 @@ def nuevo_contrato():
 
         db.session.add(contrato)
 
-        # Sincronizar ficha si el contrato queda vigente
         if estado_contrato == "VIGENTE":
             if trabajador.obra_id != obra_id:
                 trabajador.obra_id = obra_id
@@ -285,17 +395,18 @@ def nuevo_contrato():
                 trabajador.cargo_id = cargo_id
 
         db.session.commit()
-
         flash("Contrato guardado correctamente.", "success")
 
-        # Volver a ficha del trabajador manteniendo contexto
         if next_url:
             return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador.id, next=next_url))
         return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador.id))
 
     # GET
     empleadores = Empleador.query.order_by(Empleador.razon_social).all()
-    obras = Obra.query.filter_by(estado="ACTIVA").order_by(Obra.nombre).all()
+
+    # ✅ Obras visibles según usuario
+    obras = obras_visibles_query().order_by(Obra.nombre).all()
+
     cargos = Cargo.query.order_by(Cargo.nombre).all()
     horarios = Horario.query.filter_by(activo=True).order_by(Horario.nombre).all()
 
@@ -304,7 +415,8 @@ def nuevo_contrato():
     cargo_default_id = None
 
     if trabajador:
-        if trabajador.obra:
+        # Ojo: si el trabajador tiene obra asignada pero el usuario no tiene acceso, no la preseleccionamos.
+        if trabajador.obra and current_user.can_access_obra(trabajador.obra.id):
             obra_default_id = trabajador.obra.id
             if trabajador.obra.empleador_id:
                 empleador_default_id = trabajador.obra.empleador_id
@@ -321,7 +433,6 @@ def nuevo_contrato():
         empleador_default_id=empleador_default_id,
         obra_default_id=obra_default_id,
         cargo_default_id=cargo_default_id,
-        # útil para templates si quieren re-usarlo
         next_url=next_url,
     )
 
@@ -329,11 +440,14 @@ def nuevo_contrato():
 # ==========================
 # EDITAR
 # ==========================
+
 @bp.route("/<int:contrato_id>/editar", methods=["GET", "POST"])
+@role_required("ADMIN", "OPERADOR")
 def editar_contrato(contrato_id):
     contrato = Contrato.query.get_or_404(contrato_id)
-    trabajador = contrato.trabajador
+    assert_contrato_accessible_or_403(contrato)
 
+    trabajador = contrato.trabajador
     next_url = request.args.get("next") or request.form.get("next")
 
     if request.method == "POST":
@@ -349,7 +463,6 @@ def editar_contrato(contrato_id):
         jornada = (request.form.get("jornada") or "").strip() or None
 
         horas_semanales = parse_int(request.form.get("horas_semanales"))
-
         if not horas_semanales and tipo_contrato:
             horas_semanales = 18 if tipo_contrato == "PART_TIME" else 44
 
@@ -364,6 +477,11 @@ def editar_contrato(contrato_id):
             if next_url:
                 return redirect(url_for("contratos.editar_contrato", contrato_id=contrato.id, next=next_url))
             return redirect(url_for("contratos.editar_contrato", contrato_id=contrato.id))
+
+        # ✅ Seguridad: OPERADOR solo puede setear obra asignada
+        if not current_user.has_role("ADMIN"):
+            if not obra_id or not current_user.can_access_obra(int(obra_id)):
+                abort(403)
 
         if not empleador_id:
             flash("Debes seleccionar un empleador para el contrato.", "error")
@@ -385,7 +503,6 @@ def editar_contrato(contrato_id):
             flash("Debes indicar la fecha de inicio del contrato.", "error")
             return _redir_editar()
 
-        # Validación horario:
         if horario_id:
             horario_obj = Horario.query.get(horario_id)
             if not horario_obj:
@@ -396,17 +513,14 @@ def editar_contrato(contrato_id):
                 flash("El horario seleccionado no está activo.", "error")
                 return _redir_editar()
 
-        # Regla: si queda VIGENTE, validar que no exista otro vigente con mismo empleador
         if estado_contrato == "VIGENTE":
             otro_vigente = (
-                Contrato.query
-                .filter(
+                Contrato.query.filter(
                     Contrato.trabajador_id == trabajador.id,
                     Contrato.empleador_id == empleador_id,
                     Contrato.estado_contrato == "VIGENTE",
                     Contrato.id != contrato.id,
-                )
-                .first()
+                ).first()
             )
             if otro_vigente:
                 flash(
@@ -435,7 +549,6 @@ def editar_contrato(contrato_id):
 
         contrato.estado_contrato = estado_contrato
 
-        # Sincronizar ficha del trabajador si el contrato queda vigente
         if estado_contrato == "VIGENTE":
             if trabajador.obra_id != obra_id:
                 trabajador.obra_id = obra_id
@@ -443,25 +556,27 @@ def editar_contrato(contrato_id):
                 trabajador.cargo_id = cargo_id
 
         db.session.commit()
-
         flash("Contrato actualizado correctamente.", "success")
 
-        # Volver a ficha del trabajador manteniendo contexto
         if next_url:
             return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador.id, next=next_url))
         return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador.id))
 
     empleadores = Empleador.query.order_by(Empleador.razon_social).all()
-    obras = Obra.query.filter_by(estado="ACTIVA").order_by(Obra.nombre).all()
+    obras = obras_visibles_query().order_by(Obra.nombre).all()
     cargos = Cargo.query.order_by(Cargo.nombre).all()
 
     horarios_activos = Horario.query.filter_by(activo=True).order_by(Horario.nombre).all()
     horarios = horarios_activos
-
     if contrato.horario_id:
         h_actual = Horario.query.get(contrato.horario_id)
         if h_actual and (not h_actual.activo):
             horarios = [h_actual] + horarios_activos
+
+    rut_trabajador_formateado = format_rut(getattr(trabajador, "rut", "") or "", getattr(trabajador, "dv", "") or "")
+
+    deps = contrato_dependencias(contrato.id)
+    puede_eliminar = all(v == 0 for v in deps.values())
 
     return render_template(
         "contratos/contrato_editar.html",
@@ -472,29 +587,135 @@ def editar_contrato(contrato_id):
         cargos=cargos,
         horarios=horarios,
         next_url=next_url,
+        rut_trabajador_formateado=rut_trabajador_formateado,
+        deps=deps,
+        puede_eliminar=puede_eliminar,
     )
 
 
 # ==========================
 # DETALLE
 # ==========================
+
 @bp.route("/<int:contrato_id>")
+@role_required("ADMIN", "OPERADOR", "REVISOR")
 def contrato_detalle(contrato_id):
     contrato = Contrato.query.get_or_404(contrato_id)
-    return render_template("contratos/contrato_detalle.html", contrato=contrato)
+    assert_contrato_accessible_or_403(contrato)
+
+    trabajador = contrato.trabajador
+    rut_trabajador_formateado = format_rut(trabajador.rut or "", trabajador.dv or "")
+    return render_template(
+        "contratos/contrato_detalle.html",
+        contrato=contrato,
+        rut_trabajador_formateado=rut_trabajador_formateado,
+    )
+
+
+# ===========================
+# ELIMINAR
+# ===========================
+
+@bp.route("/<int:contrato_id>/eliminar", methods=["POST"])
+@role_required("ADMIN", "OPERADOR")
+def eliminar_contrato(contrato_id):
+    contrato = Contrato.query.get_or_404(contrato_id)
+    assert_contrato_accessible_or_403(contrato)
+
+    trabajador = contrato.trabajador
+    next_url = request.args.get("next") or request.form.get("next")
+
+    deps = contrato_dependencias(contrato.id)
+    total_deps = sum(deps.values())
+
+    if total_deps > 0:
+        flash(
+            "No se puede eliminar el contrato porque tiene registros asociados. "
+            "Primero elimina/anula esos registros relacionados, o marca el contrato como TERMINADO.",
+            "error",
+        )
+        return redirect(
+            url_for("contratos.editar_contrato", contrato_id=contrato.id, next=next_url)
+            if next_url
+            else url_for("contratos.editar_contrato", contrato_id=contrato.id)
+        )
+
+    contrato_fue_vigente = (contrato.estado_contrato == "VIGENTE")
+    trabajador_id = getattr(trabajador, "id", None)
+
+    try:
+        db.session.delete(contrato)
+        db.session.flush()
+
+        if contrato_fue_vigente and trabajador_id:
+            otro_vigente = (
+                Contrato.query.filter(
+                    Contrato.trabajador_id == trabajador_id,
+                    Contrato.estado_contrato == "VIGENTE",
+                )
+                .order_by(Contrato.fecha_inicio.desc())
+                .first()
+            )
+
+            if otro_vigente:
+                if trabajador.obra_id != otro_vigente.obra_id:
+                    trabajador.obra_id = otro_vigente.obra_id
+                if trabajador.cargo_id != otro_vigente.cargo_id:
+                    trabajador.cargo_id = otro_vigente.cargo_id
+            else:
+                flash(
+                    "Contrato eliminado. Atención: era un contrato VIGENTE y no existe otro vigente para re-sincronizar "
+                    "automáticamente la ficha del trabajador. Revisa Obra/Cargo en la ficha.",
+                    "warning",
+                )
+
+        db.session.commit()
+        flash("Contrato eliminado correctamente.", "success")
+
+    except IntegrityError:
+        db.session.rollback()
+        flash(
+            "No se pudo eliminar el contrato por restricción de integridad (FK). "
+            "Esto normalmente indica registros relacionados. Revisa anexos/eventos/documentos/asistencias.",
+            "error",
+        )
+        return redirect(
+            url_for("contratos.editar_contrato", contrato_id=contrato.id, next=next_url)
+            if next_url
+            else url_for("contratos.editar_contrato", contrato_id=contrato.id)
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"No se pudo eliminar el contrato: {e}", "error")
+        return redirect(
+            url_for("contratos.editar_contrato", contrato_id=contrato.id, next=next_url)
+            if next_url
+            else url_for("contratos.editar_contrato", contrato_id=contrato.id)
+        )
+
+    if trabajador_id:
+        if next_url:
+            return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador_id, next=next_url))
+        return redirect(url_for("trabajadores.detalle_trabajador", trabajador_id=trabajador_id))
+
+    return redirect(url_for("contratos.lista_contratos"))
 
 
 # ==========================
 # GENERAR (DOCX/PDF) + Nextcloud
 # ==========================
+
 @bp.route("/<int:contrato_id>/generar", methods=["GET", "POST"])
+@role_required("ADMIN", "OPERADOR")
 def generar_contrato(contrato_id):
     contrato = Contrato.query.get_or_404(contrato_id)
+    assert_contrato_accessible_or_403(contrato)
 
     if request.method == "GET":
         return render_template("contratos/contrato_generar.html", contrato=contrato)
 
-    formato = (request.form.get("formato") or "DOCX").upper()  # DOCX / PDF / AMBOS
+    formato = (request.form.get("formato") or "DOCX").upper()
     if formato not in ("DOCX", "PDF", "AMBOS"):
         formato = "DOCX"
 
@@ -519,6 +740,8 @@ def generar_contrato(contrato_id):
         flash(f"La obra '{getattr(contrato.obra, 'nombre', 'SIN_NOMBRE')}' no tiene centro de costo definido.", "error")
         return redirect(url_for("contratos.contrato_detalle", contrato_id=contrato.id))
 
+    next_url = request.args.get("next") or request.form.get("next")
+
     templates_root = Path(current_app.root_path) / "document_templates" / "contratos"
     base_tpl = templates_root / "contrato_base.docx"
     cargos_tpl = templates_root / "cargos.docx"
@@ -535,28 +758,17 @@ def generar_contrato(contrato_id):
     obra = contrato.obra
     empleador = contrato.empleador
 
-    # Jornada efectiva: prioriza texto libre; si no, usa descripción de plantilla
     jornada_texto = (contrato.jornada or "").strip() or None
     if not jornada_texto and contrato.horario and contrato.horario.descripcion:
         jornada_texto = contrato.horario.descripcion.strip() or None
 
-    # RUT trabajador (DB normalizada: rut digits + dv)
-    rut_trabajador_formateado = format_rut(
-        getattr(trabajador, "rut", "") or "",
-        getattr(trabajador, "dv", "") or "",
-    )
-
-    # RUT empleador (puede venir con/sin formato)
+    rut_trabajador_formateado = format_rut(getattr(trabajador, "rut", "") or "", getattr(trabajador, "dv", "") or "")
     rut_empleador_formateado = format_rut_raw(getattr(empleador, "rut", "") or "")
 
-    # RUT representante legal (puede venir con/sin formato)
     rep_legal_rut_raw = getattr(empleador, "rut_rep_legal", "") or ""
     rep_legal_rut_formateado = format_rut_raw(rep_legal_rut_raw)
 
     variables = {
-        # ==========================
-        # Trabajador
-        # ==========================
         "{{TRABAJADOR_NOMBRES}}": trabajador.nombres or "",
         "{{TRABAJADOR_AP_PATERNO}}": trabajador.ap_paterno or "",
         "{{TRABAJADOR_AP_MATERNO}}": trabajador.ap_materno or "",
@@ -568,52 +780,46 @@ def generar_contrato(contrato_id):
         "{{TRABAJADOR_CORREO}}": trabajador.correo or "",
         "{{TRABAJADOR_FECHA_NACIMIENTO}}": fecha_larga_es(trabajador.fecha_nacimiento),
         "{{TRABAJADOR_ESTADO_CIVIL}}": ((trabajador.estado_civil or "").strip().lower()),
-
-        # ==========================
-        # Empleador
-        # ==========================
         "{{EMPLEADOR_RAZON_SOCIAL}}": empleador.razon_social or "",
         "{{EMPLEADOR_RUT}}": rut_empleador_formateado or (empleador.rut or ""),
         "{{EMPLEADOR_DIRECCION}}": empleador.direccion or "",
         "{{EMPLEADOR_COMUNA}}": empleador.comuna or "",
         "{{REP_LEGAL_RUT}}": rep_legal_rut_formateado or rep_legal_rut_raw,
         "{{REP_LEGAL_NOMBRE}}": (getattr(empleador, "nombre_rep_legal", "") or ""),
-
-        # ==========================
-        # Contrato / Obra
-        # ==========================
         "{{OBRA_NOMBRE}}": obra.nombre if obra else "",
         "{{OBRA_COMUNA}}": obra.comuna if obra else "",
         "{{OBRA_DIRECCION}}": getattr(obra, "direccion", "") if obra else "",
-
         "{{CONTRATO_FECHA_INGRESO}}": fecha_larga_es(contrato.fecha_inicio),
         "{{CONTRATO_FECHA_TERMINO}}": fecha_larga_es(contrato.fecha_termino),
-
         "{{CONTRATO_JORNADA}}": jornada_texto or "",
         "{{CONTRATO_HORAS_SEMANALES}}": (str(contrato.horas_semanales) if contrato.horas_semanales else ""),
         "{{HRS_SEMANALES}}": (str(contrato.horas_semanales) if contrato.horas_semanales else ""),
-
         "{{CARGO_NOMBRE}}": contrato.cargo.nombre if contrato.cargo else "",
-        "{{HORARIO_DESCRIPCION}}": (contrato.horario.descripcion if contrato.horario and contrato.horario.descripcion else ""),
-
-        # ==========================
-        # Remuneraciones (vacíos -> 0)
-        # ==========================
-        "{{CONTRATO_SUELDO_BASE}}": (f"{int(contrato.sueldo_base):,}".replace(",", ".") if contrato.sueldo_base else "0"),
-        "{{ASIG_MOVILIZACION}}": (f"{int(contrato.asignacion_movilizacion):,}".replace(",", ".") if contrato.asignacion_movilizacion else "0"),
-        "{{ASIG_COLACION}}": (f"{int(contrato.asignacion_colacion):,}".replace(",", ".") if contrato.asignacion_colacion else "0"),
-        "{{ASIG_HERRAMIENTAS}}": (f"{int(contrato.asignacion_herramientas):,}".replace(",", ".") if contrato.asignacion_herramientas else "0"),
-
-        # ==========================
-        # Previsión / Pago
-        # ==========================
+        "{{HORARIO_DESCRIPCION}}": (
+            contrato.horario.descripcion if contrato.horario and contrato.horario.descripcion else ""
+        ),
+        "{{CONTRATO_SUELDO_BASE}}": (
+            f"{int(contrato.sueldo_base):,}".replace(",", ".") if contrato.sueldo_base else "0"
+        ),
+        "{{ASIG_MOVILIZACION}}": (
+            f"{int(contrato.asignacion_movilizacion):,}".replace(",", ".")
+            if contrato.asignacion_movilizacion
+            else "0"
+        ),
+        "{{ASIG_COLACION}}": (
+            f"{int(contrato.asignacion_colacion):,}".replace(",", ".") if contrato.asignacion_colacion else "0"
+        ),
+        "{{ASIG_HERRAMIENTAS}}": (
+            f"{int(contrato.asignacion_herramientas):,}".replace(",", ".")
+            if contrato.asignacion_herramientas
+            else "0"
+        ),
         "{{AFP_NOMBRE}}": trabajador.afp.nombre if trabajador.afp else "",
         "{{SALUD_NOMBRE}}": trabajador.salud.nombre if trabajador.salud else "",
         "{{BANCO_NOMBRE}}": trabajador.banco.nombre if trabajador.banco else "",
         "{{BANCO_NUMERO_CUENTA}}": trabajador.cuenta_numero or "",
     }
 
-    # ✅ Destino Nextcloud con ruta legacy por Centro de Costo
     nc = get_nc_paths()
     dest_dir = nc.dir_trabajador(
         centro_costo=centro_costo,
@@ -674,4 +880,8 @@ def generar_contrato(contrato_id):
     except Exception as e:
         flash(f"No se pudo generar/guardar el contrato: {e}", "error")
 
-    return redirect(url_for("contratos.contrato_detalle", contrato_id=contrato.id))
+    return redirect(
+        url_for("contratos.contrato_detalle", contrato_id=contrato.id, next=next_url)
+        if next_url
+        else url_for("contratos.contrato_detalle", contrato_id=contrato.id)
+    )

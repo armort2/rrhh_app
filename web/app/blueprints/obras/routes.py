@@ -5,9 +5,11 @@ from __future__ import annotations
 from datetime import datetime, date
 
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 
 from ...extensions import db
 from ...models import Obra
+from ...auth.decorators import role_required
 from . import bp
 
 
@@ -30,8 +32,8 @@ def _parse_date(value: str | None):
 # Routes
 # ---------------------------
 @bp.route("/")
+@login_required
 def lista_obras():
-    # ACTIVA primero, luego por nombre
     obras = (
         Obra.query
         .order_by((Obra.estado == "ACTIVA").desc(), Obra.nombre.asc())
@@ -41,6 +43,8 @@ def lista_obras():
 
 
 @bp.route("/nueva", methods=["GET", "POST"])
+@login_required
+@role_required("ADMIN")
 def nueva_obra():
     if request.method == "POST":
         nombre = (request.form.get("nombre") or "").strip()
@@ -58,10 +62,9 @@ def nueva_obra():
         fecha_inicio = _parse_date(request.form.get("fecha_inicio"))
         fecha_cierre = _parse_date(request.form.get("fecha_cierre"))
 
-        # Reglas de consistencia
         if estado == "CERRADA":
             fecha_cierre = fecha_cierre or date.today()
-        else:  # ACTIVA
+        else:
             fecha_cierre = None
 
         if not (nombre and codigo):
@@ -94,6 +97,8 @@ def nueva_obra():
 
 
 @bp.route("/<int:obra_id>/editar", methods=["GET", "POST"])
+@login_required
+@role_required("ADMIN")
 def editar_obra(obra_id: int):
     obra = Obra.query.get_or_404(obra_id)
 
@@ -105,7 +110,6 @@ def editar_obra(obra_id: int):
             flash("Nombre y código son obligatorios.", "warning")
             return redirect(url_for("obras.editar_obra", obra_id=obra.id))
 
-        # 1) Leer estado y fechas primero
         estado = (request.form.get("estado") or obra.estado or "ACTIVA").strip() or "ACTIVA"
         if estado not in ("ACTIVA", "CERRADA"):
             flash("Estado inválido.", "danger")
@@ -114,13 +118,11 @@ def editar_obra(obra_id: int):
         fecha_inicio = _parse_date(request.form.get("fecha_inicio"))
         fecha_cierre = _parse_date(request.form.get("fecha_cierre"))
 
-        # 2) Reglas de consistencia
         if estado == "CERRADA":
             fecha_cierre = fecha_cierre or date.today()
-        else:  # ACTIVA
+        else:
             fecha_cierre = None
 
-        # 3) Asignar al modelo
         obra.codigo = codigo
         obra.nombre = nombre
 
@@ -146,6 +148,8 @@ def editar_obra(obra_id: int):
 
 
 @bp.post("/<int:obra_id>/toggle-estado")
+@login_required
+@role_required("ADMIN")
 def toggle_estado(obra_id: int):
     obra = Obra.query.get_or_404(obra_id)
 

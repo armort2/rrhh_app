@@ -6,6 +6,31 @@
 {% block content %}
 <div class="container-fluid py-3">
 
+  {# =========================================================
+     Helpers de formato local (evitamos tocar routes.py)
+     ========================================================= #}
+  {% macro format_rut_local(raw) -%}
+    {# raw puede venir ya con puntos/guion o solo dígitos; intentamos normalizar #}
+    {% set s = (raw|string)|upper %}
+    {% set s = s|replace(".", "")|replace("-", "")|replace(" ", "") %}
+    {% if s|length < 2 %}
+      {{ raw }}
+    {% else %}
+      {% set dv = s[-1] %}
+      {% set digits = s[:-1] %}
+      {# agrupar de a 3 desde el final #}
+      {% set rev = digits|reverse %}
+      {% set out = [] %}
+      {% for i in range(0, digits|length, 3) %}
+        {% set chunk = rev[i:i+3]|reverse %}
+        {% set _ = out.insert(0, chunk|join) %}
+      {% endfor %}
+      {{ out|join(".") ~ "-" ~ dv }}
+    {% endif %}
+  {%- endmacro %}
+
+  {% set next_url = request.full_path %}
+
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Contratos</h1>
@@ -13,6 +38,15 @@
         Vista global por empleador, obra, estado e inicio dentro de un rango de fechas.
       </div>
       <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      {# Botón opcional: crear contrato. Si no tienes current_user en templates, puedes eliminar este bloque #}
+      {% if current_user.is_authenticated and (current_user.has_role("ADMIN") or current_user.has_role("OPERADOR")) %}
+        <a class="btn btn-primary" href="{{ url_for('contratos.nuevo_contrato', next=next_url) }}">
+          + Nuevo contrato
+        </a>
+      {% endif %}
     </div>
   </div>
 
@@ -123,6 +157,37 @@
 
   <div class="card shadow-sm">
     <div class="card-body">
+
+      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
+        <div class="text-muted small">
+          {% if contratos %}
+            Mostrando <strong>{{ contratos|length }}</strong> contrato(s) según filtros aplicados.
+          {% else %}
+            No hay resultados con los filtros actuales.
+          {% endif %}
+        </div>
+
+        {% if filtro_estado or filtro_inicio_desde or filtro_inicio_hasta or (filtro_empleador_ids and filtro_empleador_ids|length) or (filtro_obra_ids and filtro_obra_ids|length) %}
+          <div class="d-flex gap-2 flex-wrap">
+            {% if filtro_estado %}
+              <span class="badge text-bg-light border">Estado: {{ filtro_estado }}</span>
+            {% endif %}
+            {% if filtro_inicio_desde %}
+              <span class="badge text-bg-light border">Desde: {{ filtro_inicio_desde }}</span>
+            {% endif %}
+            {% if filtro_inicio_hasta %}
+              <span class="badge text-bg-light border">Hasta: {{ filtro_inicio_hasta }}</span>
+            {% endif %}
+            {% if filtro_empleador_ids and filtro_empleador_ids|length %}
+              <span class="badge text-bg-light border">Empleadores: {{ filtro_empleador_ids|length }}</span>
+            {% endif %}
+            {% if filtro_obra_ids and filtro_obra_ids|length %}
+              <span class="badge text-bg-light border">Obras: {{ filtro_obra_ids|length }}</span>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+
       {% if contratos %}
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle mb-0">
@@ -143,8 +208,18 @@
             <tbody>
               {% for c in contratos %}
                 <tr>
-                  <td>{{ c.trabajador.nombres }} {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno }}</td>
-                  <td>{{ c.trabajador.rut }}</td>
+                  <td>
+                    <div class="fw-semibold">
+                      {{ c.trabajador.nombres }} {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno }}
+                    </div>
+                    <div class="text-muted small">
+                      Contrato #{{ c.id }}
+                    </div>
+                  </td>
+
+                  <td class="font-monospace">
+                    {{ format_rut_local(c.trabajador.rut) }}
+                  </td>
 
                   <td>
                     {% if c.empleador %}
@@ -184,18 +259,18 @@
                     {% elif c.estado_contrato == "TERMINADO" %}
                       <span class="badge text-bg-secondary">Terminado</span>
                     {% else %}
-                      <span class="badge text-bg-secondary">{{ c.estado_contrato }}</span>
+                      <span class="badge text-bg-secondary">{{ c.estado_contrato or "-" }}</span>
                     {% endif %}
                   </td>
 
                   <td class="text-end">
                     <div class="btn-group btn-group-sm" role="group" aria-label="Acciones">
                       <a class="btn btn-outline-secondary"
-                         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id) }}">
+                         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id, next=next_url) }}">
                         Trabajador
                       </a>
                       <a class="btn btn-outline-primary"
-                         href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">
+                         href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id, next=next_url) }}">
                         Contrato
                       </a>
                     </div>
@@ -221,9 +296,7 @@
   const hasta = document.getElementById("inicio_hasta");
 
   function pad2(n) { return String(n).padStart(2, "0"); }
-  function toISODate(d) {
-    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
-  }
+  function toISODate(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
   function firstDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
   function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
 
@@ -249,29 +322,23 @@
       const action = btn.getAttribute("data-range");
 
       if (action === "this-month") {
-        const d1 = firstDayOfMonth(now);
-        const d2 = lastDayOfMonth(now);
-        desde.value = toISODate(d1);
-        hasta.value = toISODate(d2);
+        desde.value = toISODate(firstDayOfMonth(now));
+        hasta.value = toISODate(lastDayOfMonth(now));
         form.submit();
         return;
       }
 
       if (action === "prev-month") {
         const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const d1 = firstDayOfMonth(prev);
-        const d2 = lastDayOfMonth(prev);
-        desde.value = toISODate(d1);
-        hasta.value = toISODate(d2);
+        desde.value = toISODate(firstDayOfMonth(prev));
+        hasta.value = toISODate(lastDayOfMonth(prev));
         form.submit();
         return;
       }
 
       if (action === "ytd") {
-        const d1 = new Date(now.getFullYear(), 0, 1);
-        const d2 = new Date(now.getFullYear(), 11, 31);
-        desde.value = toISODate(d1);
-        hasta.value = toISODate(d2);
+        desde.value = toISODate(new Date(now.getFullYear(), 0, 1));
+        hasta.value = toISODate(new Date(now.getFullYear(), 11, 31));
         form.submit();
         return;
       }

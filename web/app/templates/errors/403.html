@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Acceso restringido{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+
+      <h1 class="mb-3">Acceso restringido</h1>
+
+      <p class="text-muted mb-3">
+        Esta sección está reservada para usuarios con permisos específicos.
+      </p>
+
+      <p class="text-muted">
+        No pasa nada, suele ocurrir cuando uno anda explorando más de la cuenta 😉
+      </p>
+
+      {% if user %}
+        <div class="alert alert-secondary mt-4 text-start">
+          <strong>Usuario:</strong> {{ user.nombre or user.username }}<br>
+          <strong>Rol:</strong>
+          {{ user.roles | map(attribute='name') | join(', ') }}
+        </div>
+      {% endif %}
+
+      <div class="alert alert-info mt-3">
+        <strong>Nota:</strong> Esta acción está disponible solo para usuarios con rol
+        <strong>Administrador</strong>.
+      </div>
+
+      <div class="d-flex justify-content-center gap-3 mt-4">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+          ← Volver atrás
+        </a>
+
+        <a href="{{ url_for('core.index') }}" class="btn btn-primary">
+          Volver al inicio
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

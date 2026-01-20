@@ -22,6 +22,14 @@
     </div>
 
     <div class="d-flex gap-2 flex-wrap">
+
+      {% if nomina.estado == "VISADA" %}
+        <a class="btn btn-outline-success"
+          href="{{ url_for('anticipos.nominas_banco', periodo='%04d-%02d'|format(nomina.anio, nomina.mes)) }}">
+          🏦 Nómina bancaria
+        </a>
+      {% endif %}
+
       <a class="btn btn-outline-secondary"
          href="{{ url_for('anticipos.imprimir_pdf', nomina_id=nomina.id, v=nomina.id ~ '-' ~ (nomina.estado or '') ) }}"
          target="_blank" rel="noopener noreferrer">
@@ -51,7 +59,7 @@
           <button class="btn btn-success" type="submit">✅ Visar</button>
         </form>
       {% endif %}
-
+      
       <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">⬅ Volver</a>
     </div>
   </div>

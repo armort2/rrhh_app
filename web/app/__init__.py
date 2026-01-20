@@ -1,7 +1,8 @@
 # web/app/__init__.py
 from __future__ import annotations
 
-from flask import Flask, redirect, request, url_for
+from flask import Flask, redirect, request, url_for, render_template
+from flask_login import current_user
 
 from .config import DevConfig
 from .extensions import db, login_manager
@@ -117,5 +118,48 @@ def create_app(config_class=DevConfig):
     # ---------------------------
     from .cli import register_cli
     register_cli(app)
+
+    # ---------------------------
+    # Handlers de errores
+    # ---------------------------
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return (
+            render_template(
+                "errors/403.html",
+                user=current_user if current_user.is_authenticated else None,
+            ),
+            403,
+        )
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return (
+            render_template(
+                "errors/404.html",
+                user=current_user if current_user.is_authenticated else None,
+            ),
+            404,
+        )
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        # IMPORTANTE: rollback defensivo
+        try:
+            from .extensions import db
+            db.session.rollback()
+        except Exception:
+            pass
+
+        return (
+            render_template(
+                "errors/500.html",
+                user=current_user if current_user.is_authenticated else None,
+            ),
+            500,
+        )
+    
+
 
     return app

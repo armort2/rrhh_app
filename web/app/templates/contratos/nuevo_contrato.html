@@ -18,7 +18,12 @@
       <div class="section-subtitle">
         Trabajador:
         <strong>{{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}</strong>
-        · RUT: {{ trabajador.rut }}
+        · RUT:
+        <strong>
+          {{ rut_trabajador_formateado
+             if rut_trabajador_formateado is defined and rut_trabajador_formateado
+             else (trabajador.rut ~ "-" ~ trabajador.dv) }}
+        </strong>
       </div>
       {% else %}
       <div class="section-subtitle">
@@ -30,9 +35,17 @@
     </div>
   </div>
 
-
   <div class="card shadow-sm">
     <div class="card-body">
+
+      <div class="alert alert-light border mb-3">
+        <div class="fw-semibold mb-1">Notas operativas</div>
+        <div class="text-muted small">
+          - Regla de negocio: un trabajador no puede tener más de <strong>1 contrato VIGENTE</strong> por empleador.<br>
+          - Si guardas como <strong>VIGENTE</strong>, el sistema sincroniza <strong>Obra</strong> y <strong>Cargo</strong> en la ficha del trabajador.
+        </div>
+      </div>
+
       <form method="post"
             class="needs-validation"
             novalidate
@@ -43,7 +56,7 @@
                     {% endif %}">
 
         {% if trabajador %}
-        <input type="hidden" name="trabajador_id" value="{{ trabajador.id }}">
+          <input type="hidden" name="trabajador_id" value="{{ trabajador.id }}">
         {% endif %}
 
         <input type="hidden" name="next" value="{{ next_val }}">
@@ -208,16 +221,18 @@
         <hr class="my-4">
 
         <div class="d-flex justify-content-between gap-2 flex-wrap">
-          <div>
-            {% if trabajador %}
-            <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id, next=next_val) }}"
-               class="btn btn-outline-secondary">
-              Volver a ficha
-            </a>
+          <div class="d-flex gap-2 flex-wrap">
+            {% if next_val %}
+              <a href="{{ next_val }}" class="btn btn-outline-secondary">Cancelar</a>
+            {% elif trabajador %}
+              <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}"
+                 class="btn btn-outline-secondary">
+                Volver a ficha
+              </a>
             {% else %}
-            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
-              Volver al inicio
-            </a>
+              <a href="{{ url_for('core.index') }}" class="btn btn-outline-secondary">
+                Volver al inicio
+              </a>
             {% endif %}
           </div>
 
@@ -257,7 +272,6 @@ document.addEventListener("DOMContentLoaded", function () {
         refreshHorarioPreview();
     }
 
-    // Autocompletar horas por tipo de contrato (sin pisar si el usuario ya escribió algo)
     function defaultHorasPorTipo(tipo) {
         const map = {
             "PART_TIME": 18,
@@ -274,7 +288,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const tipo = (selTipo.value || "").trim();
         const current = (inpHoras.value || "").trim();
 
-        // Solo setear default si está vacío (regla ERP: no pisar input del operador)
         if (!current) {
             const def = defaultHorasPorTipo(tipo);
             if (def) inpHoras.value = String(def);
@@ -283,12 +296,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (selTipo && inpHoras) {
         selTipo.addEventListener("change", refreshHoras);
-        // primer load: si viene vacío, setea default
         refreshHoras();
     }
 });
 </script>
-
 
 <script>
 (function () {

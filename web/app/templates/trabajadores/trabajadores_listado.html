@@ -13,12 +13,20 @@
             Listado de trabajadores registrados. Filtra por empleador, obra, cargo y estado.
           </div>
           <div class="section-divider"></div>
+
+          {% if current_user and (not current_user.has_role("ADMIN")) %}
+            <div class="text-muted small mt-1">
+              Alcance: visualizando únicamente trabajadores de tus obras asignadas.
+            </div>
+          {% endif %}
         </div>
 
-
-        <a href="{{ url_for('trabajadores.nuevo_trabajador', next=request.full_path) }}" class="btn btn-primary">
-          ➕ Agregar trabajador
-        </a>
+        {# Restringimos creación a roles autorizados #}
+        {% if current_user and current_user.has_role("ADMIN") %}
+          <a href="{{ url_for('trabajadores.nuevo_trabajador', next=request.full_path) }}" class="btn btn-primary">
+            ➕ Agregar trabajador
+          </a>
+        {% endif %}
       </div>
     </div>
 
@@ -51,6 +59,8 @@
           <!-- Obras -->
           <div class="col-12 col-lg-6">
             <label for="obra_ids" class="form-label">Obras</label>
+
+            {# Si NO es admin, ya viene filtrado desde backend: mostramos pero sin botones masivos (para no inducir a error) #}
             <select id="obra_ids" name="obra_id" class="form-select" multiple size="7">
               {% for o in obras %}
                 <option value="{{ o.id }}" {% if filtro_obra_ids is defined and o.id in filtro_obra_ids %}selected{% endif %}>
@@ -60,9 +70,13 @@
             </select>
 
             <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="#obra_ids">Seleccionar todas</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" data-clear-all="#obra_ids">Limpiar selección</button>
-              <span class="text-muted small">Consejo: por obra queda “listado listo para comité”.</span>
+              {% if current_user and current_user.has_role("ADMIN") %}
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="#obra_ids">Seleccionar todas</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-clear-all="#obra_ids">Limpiar selección</button>
+                <span class="text-muted small">Consejo: por obra queda “listado listo para comité”.</span>
+              {% else %}
+                <span class="text-muted small">Obras disponibles según tu asignación.</span>
+              {% endif %}
             </div>
           </div>
 
@@ -140,7 +154,9 @@
               {% for t in trabajadores %}
               <tr>
                 <td>{{ trabajador_rut_formateado(t) }}</td>
-                <td>{{ t.nombres }} {{ t.ap_paterno }} {{ t.ap_materno }}</td>
+                <td>
+                  {{ t.nombres }} {{ t.ap_paterno }}{% if t.ap_materno %} {{ t.ap_materno }}{% endif %}
+                </td>
                 <td>{{ t.cargo.nombre if t.cargo else "-" }}</td>
                 <td>{{ t.obra.nombre if t.obra else "-" }}</td>
                 <td>

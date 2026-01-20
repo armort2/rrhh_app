@@ -1,45 +1,85 @@
+{# web/app/templates/auth/login.html #}
 {% extends "base.html" %}
-{% block content %}
 
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-card-header">
-      <div class="auth-logo">
-        <img src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}" alt="Grupo CS">
-        <div>
-          <h1 class="auth-title">Ingreso al Sistema RRHH</h1>
-          <p class="auth-subtitle">
-            {{ config.SYSTEM_NAME or "Sistema Grupo CS" }} ·
-            {{ config.SYSTEM_TAGLINE or "Gestión de Recursos Humanos" }}
-          </p>
+{% block title %}Ingreso · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Ingreso al Sistema</h1>
+      <div class="section-subtitle">
+        Acceso seguro a {{ config.SYSTEM_NAME or "Sistema Grupo CS" }} · {{ config.SYSTEM_TAGLINE or "Gestión de Recursos Humanos" }}.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+
+          <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <img
+                src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}"
+                alt="Grupo CS"
+                style="height: 44px; width: auto;"
+              >
+              <div class="lh-sm">
+                <div class="fw-semibold">Grupo CS</div>
+                <div class="text-muted small">RRHH · Acceso</div>
+              </div>
+            </div>
+            <span class="badge badge-muted">Usuario y contraseña</span>
+          </div>
+
+          <form method="POST" action="{{ url_for('auth.login_post', next=request.args.get('next')) }}">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Usuario</label>
+                <input
+                  class="form-control"
+                  name="username"
+                  autocomplete="username"
+                  required
+                  autofocus
+                >
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Contraseña</label>
+                <input
+                  class="form-control"
+                  type="password"
+                  name="password"
+                  autocomplete="current-password"
+                  required
+                >
+              </div>
+
+              <div class="col-12 d-flex justify-content-end">
+                <button class="btn btn-primary" type="submit">Ingresar</button>
+              </div>
+
+              <div class="col-12">
+                <div class="text-muted small">
+                  Si olvidó su contraseña, contacte a un ADMIN.
+                </div>
+              </div>
+            </div>
+          </form>
+
         </div>
       </div>
 
-      <span class="auth-badge">Acceso con usuario y contraseña</span>
-    </div>
-
-    <div class="auth-card-body">
-      <form method="POST" action="{{ url_for('auth.login_post', next=request.args.get('next')) }}">
-        <div class="auth-field">
-          <label class="auth-label">Usuario</label>
-          <input class="auth-input" name="username" autocomplete="username" required autofocus>
-        </div>
-
-        <div class="auth-field">
-          <label class="auth-label">Contraseña</label>
-          <input class="auth-input" type="password" name="password" autocomplete="current-password" required>
-        </div>
-
-        <div class="auth-actions">
-          <button class="auth-btn" type="submit">Ingresar</button>
-        </div>
-
-        <div class="auth-hint">
-          Si olvidó su contraseña, contacte a un ADMIN.
-        </div>
-      </form>
+      <div class="text-muted small mt-3">
+        Consejo operativo: revise mayúsculas/minúsculas. El sistema es más estricto que un inspector en día lunes.
+      </div>
     </div>
   </div>
-</div>
 
+</div>
 {% endblock %}

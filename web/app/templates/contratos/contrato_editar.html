@@ -6,23 +6,55 @@
 {% block content %}
 <div class="container-fluid py-3">
 
+  {# Asegurar next_url: si viene desde backend, lo usamos; si no, usamos la URL actual #}
+  {% set next_url = next_url if next_url is defined and next_url else request.full_path %}
+
+  {# Helpers de deps (si no vienen, modo conservador) #}
+  {% set deps_data = deps if deps is defined and deps else {
+      'anexos_extension': 0,
+      'anexos_indefinido': 0,
+      'desvinculaciones': 0,
+      'eventos': 0,
+      'documentos': 0,
+      'inasistencias': 0
+  } %}
+  {% set deps_total =
+      (deps_data.anexos_extension
+      + deps_data.anexos_indefinido
+      + deps_data.desvinculaciones
+      + deps_data.eventos
+      + deps_data.documentos
+      + deps_data.inasistencias)
+  %}
+  {% set puede_borrar = (puede_eliminar is defined and puede_eliminar) %}
+
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
-        <h1 class="section-title">Editar contrato</h1>
-        <div class="section-subtitle">
+      <h1 class="section-title">Editar contrato</h1>
+      <div class="section-subtitle">
         Trabajador:
         <strong>{{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}</strong>
-        · RUT: {{ trabajador.rut }}
+        · RUT: {{ rut_trabajador_formateado or (trabajador.rut ~ "-" ~ trabajador.dv) }}
         · Contrato ID: {{ contrato.id }}
-        </div>
-        <div class="section-divider"></div>
+
+        {# Pill visual: eliminable / bloqueado #}
+        {% if puede_borrar %}
+          <span class="badge text-bg-success ms-2">Eliminable</span>
+        {% else %}
+          <span class="badge text-bg-danger ms-2">Bloqueado</span>
+          <span class="text-muted ms-1">
+            ({{ deps_total }} relacionado{{ "s" if deps_total != 1 else "" }})
+          </span>
+        {% endif %}
+      </div>
+      <div class="section-divider"></div>
     </div>
 
     <div class="d-flex gap-2 flex-wrap">
-      <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}" class="btn btn-outline-secondary">
+      <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id, next=next_url) }}" class="btn btn-outline-secondary">
         Volver al detalle
       </a>
-      <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-outline-secondary">
+      <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id, next=next_url) }}" class="btn btn-outline-secondary">
         Ficha trabajador
       </a>
     </div>
@@ -76,7 +108,9 @@
                 </option>
               {% endfor %}
             </select>
-            <div class="form-text">Si el contrato queda VIGENTE, se sincroniza la ficha del trabajador con este cargo/obra.</div>
+            <div class="form-text">
+              Si el contrato queda VIGENTE, se sincroniza la ficha del trabajador con este cargo/obra.
+            </div>
             <div class="invalid-feedback">Selecciona un cargo.</div>
           </div>
 
@@ -119,10 +153,10 @@
             <div class="form-text">Si el contrato tiene horario, se recomienda mantenerlo por consistencia documental.</div>
           </div>
 
-          <div class="col-12 col-md-6" id="horario_preview_wrap" style="display:none;">
+          <div class="col-12 col-md-6 d-none" id="horario_preview_wrap">
             <label class="form-label">Descripción del horario (plantilla)</label>
             <div class="card">
-              <div class="card-body" id="horario_preview" style="white-space: pre-wrap;"></div>
+              <div class="card-body" id="horario_preview" class="text-muted" style="white-space: pre-wrap;"></div>
             </div>
           </div>
 
@@ -176,8 +210,27 @@
 
         <hr class="my-4">
 
-        <div class="d-flex justify-content-end gap-2 flex-wrap">
-          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <div class="d-flex justify-content-between gap-2 flex-wrap">
+          <div class="d-flex gap-2 flex-wrap align-items-center">
+            {# Zona peligrosa: Eliminar #}
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEliminarContrato"
+                    {% if not puede_borrar %}disabled{% endif %}>
+              Eliminar contrato
+            </button>
+
+            {% if not puede_borrar %}
+              <div class="text-danger small mb-0">
+                Eliminación bloqueada por dependencias ({{ deps_total }}).
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
         </div>
 
       </form>
@@ -185,61 +238,120 @@
   </div>
 </div>
 
+{# Modal confirmación eliminar #}
+<div class="modal fade" id="modalEliminarContrato" tabindex="-1" aria-labelledby="modalEliminarContratoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEliminarContratoLabel">Confirmar eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        {% if puede_borrar %}
+          <p class="mb-2">
+            Estás a punto de <strong>eliminar permanentemente</strong> el contrato ID <strong>#{{ contrato.id }}</strong>.
+          </p>
+          <div class="alert alert-warning mb-3">
+            Esta acción no se puede deshacer. Si esto llega a auditoría, será una conversación larga.
+          </div>
+        {% else %}
+          <p class="mb-2">
+            No se puede eliminar el contrato ID <strong>#{{ contrato.id }}</strong> porque existen registros asociados.
+          </p>
+          <div class="alert alert-danger mb-3">
+            Para mantener trazabilidad y consistencia laboral, primero gestiona los registros relacionados,
+            o alternativamente marca el contrato como <strong>TERMINADO</strong>.
+          </div>
+        {% endif %}
+
+        <div class="card">
+          <div class="card-body">
+            <h6 class="mb-2">Dependencias detectadas</h6>
+            <ul class="mb-0">
+              <li>Anexos de extensión: <strong>{{ deps_data.anexos_extension }}</strong></li>
+              <li>Anexos indefinidos: <strong>{{ deps_data.anexos_indefinido }}</strong></li>
+              <li>Desvinculaciones: <strong>{{ deps_data.desvinculaciones }}</strong></li>
+              <li>Eventos del expediente: <strong>{{ deps_data.eventos }}</strong></li>
+              <li>Documentos laborales: <strong>{{ deps_data.documentos }}</strong></li>
+              <li>Inasistencias asociadas: <strong>{{ deps_data.inasistencias }}</strong></li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+
+        {% if puede_borrar %}
+          <form method="post" action="{{ url_for('contratos.eliminar_contrato', contrato_id=contrato.id, next=next_url) }}">
+            {% if next_url %}
+              <input type="hidden" name="next" value="{{ next_url }}">
+            {% endif %}
+            <button type="submit" class="btn btn-danger">
+              Sí, eliminar
+            </button>
+          </form>
+        {% else %}
+          <button type="button" class="btn btn-danger" disabled>No disponible</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const selHorario = document.getElementById("horario_id");
-    const wrap = document.getElementById("horario_preview_wrap");
-    const box = document.getElementById("horario_preview");
+  const selHorario = document.getElementById("horario_id");
+  const wrap = document.getElementById("horario_preview_wrap");
+  const box = document.getElementById("horario_preview");
 
-    const selTipo = document.getElementById("tipo_contrato");
-    const inpHoras = document.getElementById("horas_semanales");
+  const selTipo = document.getElementById("tipo_contrato");
+  const inpHoras = document.getElementById("horas_semanales");
 
-    if (selHorario && wrap && box) {
-        function refreshHorarioPreview() {
-            const opt = selHorario.options[selHorario.selectedIndex];
-            const desc = (opt && opt.dataset) ? (opt.dataset.desc || "") : "";
-            if (desc.trim()) {
-                box.textContent = desc;
-                wrap.style.display = "block";
-            } else {
-                box.textContent = "";
-                wrap.style.display = "none";
-            }
-        }
-        selHorario.addEventListener("change", refreshHorarioPreview);
-        refreshHorarioPreview();
+  if (selHorario && wrap && box) {
+    function refreshHorarioPreview() {
+      const opt = selHorario.options[selHorario.selectedIndex];
+      const desc = (opt && opt.dataset) ? (opt.dataset.desc || "") : "";
+      if (desc.trim()) {
+        box.textContent = desc;
+        wrap.classList.remove("d-none");
+      } else {
+        box.textContent = "";
+        wrap.classList.add("d-none");
+      }
     }
+    selHorario.addEventListener("change", refreshHorarioPreview);
+    refreshHorarioPreview();
+  }
 
-    function defaultHorasPorTipo(tipo) {
-        const map = {
-            "PART_TIME": 18,
-            "INDEFINIDO": 44,
-            "PLAZO_FIJO": 44,
-            "FAENA": 44
-        };
-        return map[tipo] || "";
+  function defaultHorasPorTipo(tipo) {
+    const map = {
+      "PART_TIME": 18,
+      "INDEFINIDO": 44,
+      "PLAZO_FIJO": 44,
+      "FAENA": 44
+    };
+    return map[tipo] || "";
+  }
+
+  function refreshHoras() {
+    if (!selTipo || !inpHoras) return;
+
+    const tipo = (selTipo.value || "").trim();
+    const current = (inpHoras.value || "").trim();
+
+    if (!current) {
+      const def = defaultHorasPorTipo(tipo);
+      if (def) inpHoras.value = String(def);
     }
+  }
 
-    function refreshHoras() {
-        if (!selTipo || !inpHoras) return;
-
-        const tipo = (selTipo.value || "").trim();
-        const current = (inpHoras.value || "").trim();
-
-        // En editar: mismo criterio, no pisar si ya hay valor
-        if (!current) {
-            const def = defaultHorasPorTipo(tipo);
-            if (def) inpHoras.value = String(def);
-        }
-    }
-
-    if (selTipo && inpHoras) {
-        selTipo.addEventListener("change", refreshHoras);
-        refreshHoras();
-    }
+  if (selTipo && inpHoras) {
+    selTipo.addEventListener("change", refreshHoras);
+    refreshHoras();
+  }
 });
 </script>
-
 
 <script>
 (function () {

@@ -6,6 +6,8 @@
 {% block content %}
 <div class="container-fluid py-3">
 
+  {% set next_url = next_url if next_url is defined and next_url else request.args.get("next") or request.full_path %}
+
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Generar contrato</h1>
@@ -18,8 +20,14 @@
     </div>
 
     <div class="d-flex gap-2 flex-wrap">
-      <a class="btn btn-outline-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id, next=next_url) }}">
         ← Volver
+      </a>
+
+      <a class="btn btn-outline-primary"
+         href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id, next=next_url) }}">
+        Ver detalle
       </a>
     </div>
   </div>
@@ -27,6 +35,11 @@
   <div class="card shadow-sm">
     <div class="card-body">
       <form method="post" class="needs-validation" novalidate>
+
+        {% if next_url %}
+          <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
+
         <h2 class="h6 mb-3">Formato de salida</h2>
 
         <div class="row g-3">
@@ -40,13 +53,30 @@
             <div class="form-text">Recomendación operativa: generar ambos para archivo y envío.</div>
             <div class="invalid-feedback">Selecciona un formato.</div>
           </div>
+
+          <div class="col-12 col-md-6">
+            <div class="alert alert-light border mb-0">
+              <div class="fw-semibold mb-1">Destino del archivo</div>
+              <div class="text-muted small">
+                El contrato se guardará en la carpeta documental del trabajador dentro de Nextcloud, en <strong>CONTRATOS</strong>.
+                <br>
+                Consejo de control interno: valida <strong>centro de costo</strong> y <strong>cargo</strong> antes de generar.
+              </div>
+            </div>
+          </div>
         </div>
 
         <hr class="my-4">
 
-        <div class="d-flex justify-content-end">
+        <div class="d-flex justify-content-between gap-2 flex-wrap">
+          <a class="btn btn-outline-secondary"
+             href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id, next=next_url) }}">
+            Cancelar
+          </a>
+
           <button type="submit" class="btn btn-primary">Generar ahora</button>
         </div>
+
       </form>
     </div>
   </div>

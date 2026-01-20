@@ -15,6 +15,11 @@
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-primary" href="{{ url_for('anticipos.nueva') }}">➕ Nueva nómina</a>
       <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.importar') }}">📥 Importar nómina</a>
+
+      {# ✅ Botón mágico: Nómina Bancaria #}
+      <a class="btn btn-success" href="{{ url_for('anticipos.nominas_banco') }}">
+        🏦 Nómina Bancaria
+      </a>
     </div>
   </div>
 

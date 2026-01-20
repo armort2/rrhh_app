@@ -14,495 +14,538 @@
           Ingresa la información maestra del trabajador. Estos datos alimentarán contratos, anexos y reportería.
         </div>
         <div class="section-divider"></div>
+
+        {% if current_user and (not current_user.has_role("ADMIN")) %}
+          <div class="text-muted small mt-1">
+            Alcance: puedes seleccionar únicamente obras que tengas asignadas.
+          </div>
+        {% endif %}
       </div>
     </div>
 
-    <form id="form-nuevo-trabajador"
-          method="post"
-          action="{{ url_for('trabajadores.nuevo_trabajador', next=request.args.get('next')) }}"
-          class="card-body">
+    {# ==========================================================
+       CONTROL DE ACCESO (UI)
+       - ADMIN y OPERADOR: pueden crear
+       - REVISOR: solo lectura
+       ========================================================== #}
+    {% set puede_crear = (current_user and (current_user.has_role("ADMIN") or current_user.has_role("OPERADOR"))) %}
 
-      <input type="hidden" name="accion" id="accion" value="{{ request.form.get('accion','guardar') }}">
-      <input type="hidden" name="next" value="{{ request.args.get('next') or request.form.get('next','') }}">
-
-      <!-- ==========================
-           DATOS BÁSICOS
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Datos básicos</h2>
-
-        <div class="row g-3">
-          <div class="col-12 col-md-3">
-            <label for="rut" class="form-label">RUT</label>
-            <input type="text" class="form-control" id="rut" name="rut" required
-                   placeholder="12.345.678-9" value="{{ request.form.get('rut','') }}">
+    {% if not puede_crear %}
+      <div class="card-body">
+        <div class="alert alert-light border mb-0">
+          <div class="fw-semibold">Acceso restringido</div>
+          <div class="text-muted">
+            Tu perfil es <strong>REVISOR</strong>. Puedes consultar fichas y listados, pero no registrar nuevos trabajadores.
           </div>
 
-          <div class="col-12 col-md-3">
-            <label for="nombres" class="form-label">Nombres</label>
-            <input type="text" class="form-control" id="nombres" name="nombres" required
-                   placeholder="Nombres del trabajador" value="{{ request.form.get('nombres','') }}">
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="ap_paterno" class="form-label">Apellido paterno</label>
-            <input type="text" class="form-control" id="ap_paterno" name="ap_paterno" required
-                   placeholder="Apellido paterno" value="{{ request.form.get('ap_paterno','') }}">
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="ap_materno" class="form-label">Apellido materno (opcional)</label>
-            <input type="text" class="form-control" id="ap_materno" name="ap_materno"
-                   placeholder="Apellido materno (si aplica)" value="{{ request.form.get('ap_materno','') }}">
-            <div class="form-text">Si no tiene apellido materno, deja este campo vacío.</div>
-          </div>
-
-          <div class="col-12">
-            <label for="obra_id" class="form-label">Obra actual</label>
-            {% set obra_sel = request.form.get("obra_id") %}
-            <select id="obra_id" name="obra_id" class="form-select" required>
-              <option value="">Selecciona una obra</option>
-              {% for o in obras %}
-                <option value="{{ o.id }}" {% if obra_sel and obra_sel|int == o.id %}selected{% endif %}>
-                  {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
-                </option>
-              {% endfor %}
-            </select>
+          <div class="d-flex flex-column flex-md-row gap-2 mt-3">
+            <a href="{{ request.args.get('next') or url_for('trabajadores.listado_trabajadores') }}"
+               class="btn btn-outline-secondary">
+              ⬅ Volver
+            </a>
+            <a href="{{ url_for('home.index') if 'home.index' in current_app.view_functions else url_for('trabajadores.listado_trabajadores') }}"
+               class="btn btn-primary">
+              ⌂ Volver al inicio
+            </a>
           </div>
         </div>
       </div>
+    {% else %}
 
-      <!-- ==========================
-           DATOS PERSONALES
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Datos personales</h2>
+      <form id="form-nuevo-trabajador"
+            method="post"
+            action="{{ url_for('trabajadores.nuevo_trabajador', next=request.args.get('next')) }}"
+            class="card-body">
 
-        <div class="row g-3">
-          <div class="col-12 col-md-3">
-            <label for="fecha_nacimiento" class="form-label">Fecha de nacimiento</label>
-            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento"
-                   value="{{ request.form.get('fecha_nacimiento','') }}">
-          </div>
+        <input type="hidden" name="accion" id="accion" value="{{ request.form.get('accion','guardar') }}">
+        <input type="hidden" name="next" value="{{ request.args.get('next') or request.form.get('next','') }}">
 
-          <div class="col-12 col-md-3">
-            <label for="nacionalidad" class="form-label">Nacionalidad</label>
-            <input type="text" class="form-control" id="nacionalidad" name="nacionalidad"
-                   placeholder="Ej: Chilena" value="{{ request.form.get('nacionalidad','') }}">
-          </div>
+        <!-- ==========================
+             DATOS BÁSICOS
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Datos básicos</h2>
 
-          <div class="col-12 col-md-3">
-            <label for="sexo" class="form-label">Sexo</label>
-            {% set sexo_sel = request.form.get("sexo","") %}
-            <select id="sexo" name="sexo" class="form-select">
-              <option value="" {% if not sexo_sel %}selected{% endif %}>No especificar</option>
-              <option value="M" {% if sexo_sel == 'M' %}selected{% endif %}>Masculino</option>
-              <option value="F" {% if sexo_sel == 'F' %}selected{% endif %}>Femenino</option>
-              <option value="X" {% if sexo_sel == 'X' %}selected{% endif %}>Otro / Prefiere no decir</option>
-            </select>
-          </div>
+          <div class="row g-3">
+            <div class="col-12 col-md-3">
+              <label for="rut" class="form-label">RUT</label>
+              <input type="text" class="form-control" id="rut" name="rut" required
+                     placeholder="12.345.678-9" value="{{ request.form.get('rut','') }}">
+            </div>
 
-          <div class="col-12 col-md-3">
-            <label for="estado_civil" class="form-label">Estado civil</label>
-            {% set ec_sel = request.form.get("estado_civil","") %}
-            <select id="estado_civil" name="estado_civil" class="form-select">
-              <option value="" {% if not ec_sel %}selected{% endif %}>No especificar</option>
-              <option value="SOLTERO" {% if ec_sel == 'SOLTERO' %}selected{% endif %}>Soltero(a)</option>
-              <option value="CASADO" {% if ec_sel == 'CASADO' %}selected{% endif %}>Casado(a)</option>
-              <option value="DIVORCIADO" {% if ec_sel == 'DIVORCIADO' %}selected{% endif %}>Divorciado(a)</option>
-              <option value="VIUDO" {% if ec_sel == 'VIUDO' %}selected{% endif %}>Viudo(a)</option>
-              <option value="CONVIVIENTE" {% if ec_sel == 'CONVIVIENTE' %}selected{% endif %}>Conviviente civil</option>
-            </select>
-          </div>
+            <div class="col-12 col-md-3">
+              <label for="nombres" class="form-label">Nombres</label>
+              <input type="text" class="form-control" id="nombres" name="nombres" required
+                     placeholder="Nombres del trabajador" value="{{ request.form.get('nombres','') }}">
+            </div>
 
-          <div class="col-12 col-md-3">
-            <label for="num_cargas_familiares" class="form-label">N° cargas familiares</label>
-            <input type="number" min="0" class="form-control" id="num_cargas_familiares"
-                   name="num_cargas_familiares" placeholder="0"
-                   value="{{ request.form.get('num_cargas_familiares','') }}">
-          </div>
-        </div>
-      </div>
+            <div class="col-12 col-md-3">
+              <label for="ap_paterno" class="form-label">Apellido paterno</label>
+              <input type="text" class="form-control" id="ap_paterno" name="ap_paterno" required
+                     placeholder="Apellido paterno" value="{{ request.form.get('ap_paterno','') }}">
+            </div>
 
-      <!-- ==========================
-           CONTACTO
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Contacto</h2>
+            <div class="col-12 col-md-3">
+              <label for="ap_materno" class="form-label">Apellido materno (opcional)</label>
+              <input type="text" class="form-control" id="ap_materno" name="ap_materno"
+                     placeholder="Apellido materno (si aplica)" value="{{ request.form.get('ap_materno','') }}">
+              <div class="form-text">Si no tiene apellido materno, deja este campo vacío.</div>
+            </div>
 
-        <div class="row g-3">
-          <div class="col-12 col-md-6">
-            <label for="direccion" class="form-label">Dirección</label>
-            <input type="text" class="form-control" id="direccion" name="direccion"
-                   placeholder="Calle, número, depto" value="{{ request.form.get('direccion','') }}">
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="comuna" class="form-label">Comuna</label>
-            <input type="text" class="form-control" id="comuna" name="comuna"
-                   placeholder="Comuna de residencia" value="{{ request.form.get('comuna','') }}">
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="telefono" class="form-label">Teléfono</label>
-            <input type="text" class="form-control" id="telefono" name="telefono"
-                   placeholder="+56 9 .... ...." value="{{ request.form.get('telefono','') }}">
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="telefono_emergencia" class="form-label">Teléfono de emergencia</label>
-            <input type="text" class="form-control" id="telefono_emergencia" name="telefono_emergencia"
-                   placeholder="Contacto de emergencia" value="{{ request.form.get('telefono_emergencia','') }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label for="correo" class="form-label">Correo electrónico</label>
-            <input type="email" class="form-control" id="correo" name="correo"
-                   placeholder="correo@ejemplo.cl" value="{{ request.form.get('correo','') }}">
-          </div>
-        </div>
-      </div>
-
-      <!-- ==========================
-           DATOS BANCARIOS
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Datos bancarios</h2>
-
-        <div class="row g-3">
-          <div class="col-12 col-md-5">
-            <label for="banco_id" class="form-label">Banco</label>
-            {% set banco_sel = request.form.get("banco_id","") %}
-            <select id="banco_id" name="banco_id" class="form-select">
-              <option value="">Sin banco / Pago en efectivo</option>
-              {% for b in bancos %}
-                <option value="{{ b.id }}" {% if banco_sel and banco_sel|int == b.id %}selected{% endif %}>
-                  {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="tipo_cuenta" class="form-label">Tipo de cuenta</label>
-            {% set tc_sel = request.form.get("tipo_cuenta","") %}
-            <select id="tipo_cuenta" name="tipo_cuenta" class="form-select">
-              <option value="" {% if not tc_sel %}selected{% endif %}>No especificar</option>
-              <option value="CORRIENTE" {% if tc_sel == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
-              <option value="VISTA" {% if tc_sel == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
-              <option value="AHORRO" {% if tc_sel == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
-              <option value="CTA_RUT" {% if tc_sel == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
-            </select>
-            <div class="form-text">Si eliges Cuenta RUT, el número se completará automáticamente desde el RUT.</div>
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="cuenta_numero" class="form-label">Número de cuenta</label>
-            <input type="text" class="form-control" id="cuenta_numero" name="cuenta_numero"
-                   placeholder="Ej: 123456789" value="{{ request.form.get('cuenta_numero','') }}">
+            <div class="col-12">
+              <label for="obra_id" class="form-label">Obra actual</label>
+              {% set obra_sel = request.form.get("obra_id") %}
+              <select id="obra_id" name="obra_id" class="form-select" required>
+                <option value="">Selecciona una obra</option>
+                {% for o in obras %}
+                  <option value="{{ o.id }}" {% if obra_sel and obra_sel|int == o.id %}selected{% endif %}>
+                    {{ o.nombre }}{% if o.centro_costo %} ({{ o.centro_costo }}){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              {% if current_user and (not current_user.has_role("ADMIN")) %}
+                <div class="form-text">Solo se muestran tus obras asignadas.</div>
+              {% endif %}
+            </div>
           </div>
         </div>
 
-        <hr class="my-4">
+        <!-- ==========================
+             DATOS PERSONALES
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Datos personales</h2>
 
-        <h3 class="h6 mb-2" style="color: var(--cs-brown);">Pago a cuenta de tercero (opcional)</h3>
-        {% set pt_checked = request.form.get("pago_tercero_activo") %}
+          <div class="row g-3">
+            <div class="col-12 col-md-3">
+              <label for="fecha_nacimiento" class="form-label">Fecha de nacimiento</label>
+              <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento"
+                     value="{{ request.form.get('fecha_nacimiento','') }}">
+            </div>
 
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="pago_tercero_activo" name="pago_tercero_activo" value="1"
-                 {% if pt_checked %}checked{% endif %}>
-          <label class="form-check-label" for="pago_tercero_activo">Autorización a cuenta de tercero</label>
-          <div class="form-text">Usar solo cuando exista poder simple o notarial del trabajador.</div>
-        </div>
+            <div class="col-12 col-md-3">
+              <label for="nacionalidad" class="form-label">Nacionalidad</label>
+              <input type="text" class="form-control" id="nacionalidad" name="nacionalidad"
+                     placeholder="Ej: Chilena" value="{{ request.form.get('nacionalidad','') }}">
+            </div>
 
-        <div id="bloque_pago_tercero" class="row g-3" style="display:none;">
-          <div class="col-12 col-md-4">
-            <label for="pago_tercero_rut" class="form-label">RUT del tercero</label>
-            <input type="text" class="form-control" id="pago_tercero_rut" name="pago_tercero_rut"
-                   placeholder="Ej: 12.345.678-9" value="{{ request.form.get('pago_tercero_rut','') }}">
-          </div>
+            <div class="col-12 col-md-3">
+              <label for="sexo" class="form-label">Sexo</label>
+              {% set sexo_sel = request.form.get("sexo","") %}
+              <select id="sexo" name="sexo" class="form-select">
+                <option value="" {% if not sexo_sel %}selected{% endif %}>No especificar</option>
+                <option value="M" {% if sexo_sel == 'M' %}selected{% endif %}>Masculino</option>
+                <option value="F" {% if sexo_sel == 'F' %}selected{% endif %}>Femenino</option>
+                <option value="X" {% if sexo_sel == 'X' %}selected{% endif %}>Otro / Prefiere no decir</option>
+              </select>
+            </div>
 
-          <div class="col-12 col-md-8">
-            <label for="pago_tercero_nombre" class="form-label">Nombre completo del tercero</label>
-            <input type="text" class="form-control" id="pago_tercero_nombre" name="pago_tercero_nombre"
-                   placeholder="Nombre completo del titular de la cuenta" value="{{ request.form.get('pago_tercero_nombre','') }}">
-          </div>
+            <div class="col-12 col-md-3">
+              <label for="estado_civil" class="form-label">Estado civil</label>
+              {% set ec_sel = request.form.get("estado_civil","") %}
+              <select id="estado_civil" name="estado_civil" class="form-select">
+                <option value="" {% if not ec_sel %}selected{% endif %}>No especificar</option>
+                <option value="SOLTERO" {% if ec_sel == 'SOLTERO' %}selected{% endif %}>Soltero(a)</option>
+                <option value="CASADO" {% if ec_sel == 'CASADO' %}selected{% endif %}>Casado(a)</option>
+                <option value="DIVORCIADO" {% if ec_sel == 'DIVORCIADO' %}selected{% endif %}>Divorciado(a)</option>
+                <option value="VIUDO" {% if ec_sel == 'VIUDO' %}selected{% endif %}>Viudo(a)</option>
+                <option value="CONVIVIENTE" {% if ec_sel == 'CONVIVIENTE' %}selected{% endif %}>Conviviente civil</option>
+              </select>
+            </div>
 
-          <div class="col-12 col-md-5">
-            <label for="pago_tercero_banco_id" class="form-label">Banco del tercero</label>
-            {% set pt_banco_sel = request.form.get("pago_tercero_banco_id","") %}
-            <select id="pago_tercero_banco_id" name="pago_tercero_banco_id" class="form-select">
-              <option value="">Selecciona banco</option>
-              {% for b in bancos %}
-                <option value="{{ b.id }}" {% if pt_banco_sel and pt_banco_sel|int == b.id %}selected{% endif %}>
-                  {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="pago_tercero_tipo_cuenta" class="form-label">Tipo de cuenta del tercero</label>
-            {% set pt_tc_sel = request.form.get("pago_tercero_tipo_cuenta","") %}
-            <select id="pago_tercero_tipo_cuenta" name="pago_tercero_tipo_cuenta" class="form-select">
-              <option value="" {% if not pt_tc_sel %}selected{% endif %}>No especificar</option>
-              <option value="CORRIENTE" {% if pt_tc_sel == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
-              <option value="VISTA" {% if pt_tc_sel == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
-              <option value="AHORRO" {% if pt_tc_sel == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
-              <option value="CTA_RUT" {% if pt_tc_sel == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label for="pago_tercero_cuenta_numero" class="form-label">Número de cuenta del tercero</label>
-            <input type="text" class="form-control" id="pago_tercero_cuenta_numero" name="pago_tercero_cuenta_numero"
-                   placeholder="Ej: 123456789" value="{{ request.form.get('pago_tercero_cuenta_numero','') }}">
+            <div class="col-12 col-md-3">
+              <label for="num_cargas_familiares" class="form-label">N° cargas familiares</label>
+              <input type="number" min="0" class="form-control" id="num_cargas_familiares"
+                     name="num_cargas_familiares" placeholder="0"
+                     value="{{ request.form.get('num_cargas_familiares','') }}">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- ==========================
-           PREVISIONAL
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Previsional</h2>
+        <!-- ==========================
+             CONTACTO
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Contacto</h2>
 
-        <div class="row g-3">
-          <div class="col-12 col-md-4">
-            <label for="afp_id" class="form-label">AFP</label>
-            {% set afp_sel = request.form.get("afp_id","") %}
-            <select id="afp_id" name="afp_id" class="form-select">
-              <option value="">Selecciona AFP</option>
-              {% for a in afps %}
-                <option value="{{ a.id }}" {% if afp_sel and afp_sel|int == a.id %}selected{% endif %}>{{ a.nombre }}</option>
-              {% endfor %}
-            </select>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="direccion" class="form-label">Dirección</label>
+              <input type="text" class="form-control" id="direccion" name="direccion"
+                     placeholder="Calle, número, depto" value="{{ request.form.get('direccion','') }}">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label for="comuna" class="form-label">Comuna</label>
+              <input type="text" class="form-control" id="comuna" name="comuna"
+                     placeholder="Comuna de residencia" value="{{ request.form.get('comuna','') }}">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label for="telefono" class="form-label">Teléfono</label>
+              <input type="text" class="form-control" id="telefono" name="telefono"
+                     placeholder="+56 9 .... ...." value="{{ request.form.get('telefono','') }}">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label for="telefono_emergencia" class="form-label">Teléfono de emergencia</label>
+              <input type="text" class="form-control" id="telefono_emergencia" name="telefono_emergencia"
+                     placeholder="Contacto de emergencia" value="{{ request.form.get('telefono_emergencia','') }}">
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label for="correo" class="form-label">Correo electrónico</label>
+              <input type="email" class="form-control" id="correo" name="correo"
+                     placeholder="correo@ejemplo.cl" value="{{ request.form.get('correo','') }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================
+             DATOS BANCARIOS
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Datos bancarios</h2>
+
+          <div class="row g-3">
+            <div class="col-12 col-md-5">
+              <label for="banco_id" class="form-label">Banco</label>
+              {% set banco_sel = request.form.get("banco_id","") %}
+              <select id="banco_id" name="banco_id" class="form-select">
+                <option value="">Sin banco / Pago en efectivo</option>
+                {% for b in bancos %}
+                  <option value="{{ b.id }}" {% if banco_sel and banco_sel|int == b.id %}selected{% endif %}>
+                    {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="tipo_cuenta" class="form-label">Tipo de cuenta</label>
+              {% set tc_sel = request.form.get("tipo_cuenta","") %}
+              <select id="tipo_cuenta" name="tipo_cuenta" class="form-select">
+                <option value="" {% if not tc_sel %}selected{% endif %}>No especificar</option>
+                <option value="CORRIENTE" {% if tc_sel == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
+                <option value="VISTA" {% if tc_sel == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
+                <option value="AHORRO" {% if tc_sel == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
+                <option value="CTA_RUT" {% if tc_sel == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
+              </select>
+              <div class="form-text">Si eliges Cuenta RUT, el número se completará automáticamente desde el RUT.</div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label for="cuenta_numero" class="form-label">Número de cuenta</label>
+              <input type="text" class="form-control" id="cuenta_numero" name="cuenta_numero"
+                     placeholder="Ej: 123456789" value="{{ request.form.get('cuenta_numero','') }}">
+            </div>
           </div>
 
-          <div class="col-12 col-md-4">
-            <label for="salud_id" class="form-label">Salud</label>
-            {% set salud_sel = request.form.get("salud_id","") %}
-            <select id="salud_id" name="salud_id" class="form-select">
-              <option value="">-- Selecciona sistema de salud --</option>
-              {% for s in salud_list %}
-                <option value="{{ s.id }}" {% if salud_sel and salud_sel|int == s.id %}selected{% endif %}>
-                  {{ s.nombre }} ({{ s.tipo }})
-                </option>
-              {% endfor %}
-            </select>
-            <div class="form-text">FONASA o ISAPRE según corresponda.</div>
+          <hr class="my-4">
+
+          <h3 class="h6 mb-2" style="color: var(--cs-brown);">Pago a cuenta de tercero (opcional)</h3>
+          {% set pt_checked = request.form.get("pago_tercero_activo") %}
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="pago_tercero_activo" name="pago_tercero_activo" value="1"
+                   {% if pt_checked %}checked{% endif %}>
+            <label class="form-check-label" for="pago_tercero_activo">Autorización a cuenta de tercero</label>
+            <div class="form-text">Usar solo cuando exista poder simple o notarial del trabajador.</div>
           </div>
 
-          <div class="col-12 col-md-4">
-            <label for="uf_plan_salud" class="form-label">Plan de salud (UF)</label>
-            <input type="text" class="form-control" id="uf_plan_salud" name="uf_plan_salud"
-                   placeholder="Ej: 3.20" value="{{ request.form.get('uf_plan_salud','') }}">
-            <div class="form-text">Solo aplica si el trabajador tiene ISAPRE.</div>
-          </div>
+          <div id="bloque_pago_tercero" class="row g-3" style="display:none;">
+            <div class="col-12 col-md-4">
+              <label for="pago_tercero_rut" class="form-label">RUT del tercero</label>
+              <input type="text" class="form-control" id="pago_tercero_rut" name="pago_tercero_rut"
+                     placeholder="Ej: 12.345.678-9" value="{{ request.form.get('pago_tercero_rut','') }}">
+            </div>
 
-          <div class="col-12 col-md-4">
-            <label for="caja_compensacion_id" class="form-label">Caja de compensación</label>
-            {% set caja_sel = request.form.get("caja_compensacion_id","") %}
-            <select id="caja_compensacion_id" name="caja_compensacion_id" class="form-select">
-              <option value="">Sin caja / No registra</option>
-              {% for c in cajas %}
-                <option value="{{ c.id }}" {% if caja_sel and caja_sel|int == c.id %}selected{% endif %}>{{ c.nombre }}</option>
-              {% endfor %}
-            </select>
-          </div>
+            <div class="col-12 col-md-8">
+              <label for="pago_tercero_nombre" class="form-label">Nombre completo del tercero</label>
+              <input type="text" class="form-control" id="pago_tercero_nombre" name="pago_tercero_nombre"
+                     placeholder="Nombre completo del titular de la cuenta" value="{{ request.form.get('pago_tercero_nombre','') }}">
+            </div>
 
-          <div class="col-12 col-md-8">
-            <label class="form-label">Condiciones especiales</label>
-            <div class="d-flex flex-wrap gap-3">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="es_extranjero" name="es_extranjero" value="1"
-                       {% if request.form.get('es_extranjero') %}checked{% endif %}>
-                <label class="form-check-label" for="es_extranjero">Extranjero</label>
+            <div class="col-12 col-md-5">
+              <label for="pago_tercero_banco_id" class="form-label">Banco del tercero</label>
+              {% set pt_banco_sel = request.form.get("pago_tercero_banco_id","") %}
+              <select id="pago_tercero_banco_id" name="pago_tercero_banco_id" class="form-select">
+                <option value="">Selecciona banco</option>
+                {% for b in bancos %}
+                  <option value="{{ b.id }}" {% if pt_banco_sel and pt_banco_sel|int == b.id %}selected{% endif %}>
+                    {% if b.codigo_sbif %}{{ b.codigo_sbif }} - {{ b.nombre }}{% else %}{{ b.nombre }}{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="pago_tercero_tipo_cuenta" class="form-label">Tipo de cuenta del tercero</label>
+              {% set pt_tc_sel = request.form.get("pago_tercero_tipo_cuenta","") %}
+              <select id="pago_tercero_tipo_cuenta" name="pago_tercero_tipo_cuenta" class="form-select">
+                <option value="" {% if not pt_tc_sel %}selected{% endif %}>No especificar</option>
+                <option value="CORRIENTE" {% if pt_tc_sel == 'CORRIENTE' %}selected{% endif %}>Cuenta corriente</option>
+                <option value="VISTA" {% if pt_tc_sel == 'VISTA' %}selected{% endif %}>Cuenta vista</option>
+                <option value="AHORRO" {% if pt_tc_sel == 'AHORRO' %}selected{% endif %}>Cuenta de ahorro</option>
+                <option value="CTA_RUT" {% if pt_tc_sel == 'CTA_RUT' %}selected{% endif %}>Cuenta RUT</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label for="pago_tercero_cuenta_numero" class="form-label">Número de cuenta del tercero</label>
+              <input type="text" class="form-control" id="pago_tercero_cuenta_numero" name="pago_tercero_cuenta_numero"
+                     placeholder="Ej: 123456789" value="{{ request.form.get('pago_tercero_cuenta_numero','') }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================
+             PREVISIONAL
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Previsional</h2>
+
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label for="afp_id" class="form-label">AFP</label>
+              {% set afp_sel = request.form.get("afp_id","") %}
+              <select id="afp_id" name="afp_id" class="form-select">
+                <option value="">Selecciona AFP</option>
+                {% for a in afps %}
+                  <option value="{{ a.id }}" {% if afp_sel and afp_sel|int == a.id %}selected{% endif %}>{{ a.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="salud_id" class="form-label">Salud</label>
+              {% set salud_sel = request.form.get("salud_id","") %}
+              <select id="salud_id" name="salud_id" class="form-select">
+                <option value="">-- Selecciona sistema de salud --</option>
+                {% for s in salud_list %}
+                  <option value="{{ s.id }}" {% if salud_sel and salud_sel|int == s.id %}selected{% endif %}>
+                    {{ s.nombre }} ({{ s.tipo }})
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">FONASA o ISAPRE según corresponda.</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="uf_plan_salud" class="form-label">Plan de salud (UF)</label>
+              <input type="text" class="form-control" id="uf_plan_salud" name="uf_plan_salud"
+                     placeholder="Ej: 3.20" value="{{ request.form.get('uf_plan_salud','') }}">
+              <div class="form-text">Solo aplica si el trabajador tiene ISAPRE.</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="caja_compensacion_id" class="form-label">Caja de compensación</label>
+              {% set caja_sel = request.form.get("caja_compensacion_id","") %}
+              <select id="caja_compensacion_id" name="caja_compensacion_id" class="form-select">
+                <option value="">Sin caja / No registra</option>
+                {% for c in cajas %}
+                  <option value="{{ c.id }}" {% if caja_sel and caja_sel|int == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-8">
+              <label class="form-label">Condiciones especiales</label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="es_extranjero" name="es_extranjero" value="1"
+                         {% if request.form.get('es_extranjero') %}checked{% endif %}>
+                  <label class="form-check-label" for="es_extranjero">Extranjero</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="es_discapacitado" name="es_discapacitado" value="1"
+                         {% if request.form.get('es_discapacitado') %}checked{% endif %}>
+                  <label class="form-check-label" for="es_discapacitado">Discapacidad</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="es_pensionado" name="es_pensionado" value="1"
+                         {% if request.form.get('es_pensionado') %}checked{% endif %}>
+                  <label class="form-check-label" for="es_pensionado">Pensionado</label>
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================
+             APV / CAV
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">APV</h2>
+
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
               <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="es_discapacitado" name="es_discapacitado" value="1"
-                       {% if request.form.get('es_discapacitado') %}checked{% endif %}>
-                <label class="form-check-label" for="es_discapacitado">Discapacidad</label>
+                <input class="form-check-input" type="checkbox" id="apv_activo" name="apv_activo" value="1"
+                       {% if request.form.get('apv_activo') %}checked{% endif %}>
+                <label class="form-check-label" for="apv_activo">El trabajador tiene APV</label>
               </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="apv_modalidad" class="form-label">Modalidad APV</label>
+              {% set apv_mod_sel = request.form.get("apv_modalidad","") %}
+              <select id="apv_modalidad" name="apv_modalidad" class="form-select">
+                <option value="" {% if not apv_mod_sel %}selected{% endif %}>Sin APV / No aplica</option>
+                <option value="PORCENTAJE" {% if apv_mod_sel == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
+                <option value="MONTO" {% if apv_mod_sel == 'MONTO' %}selected{% endif %}>Monto fijo</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="apv_valor" class="form-label">Valor APV</label>
+              <input type="text" class="form-control" id="apv_valor" name="apv_valor"
+                     placeholder="Ej: 3.00 (si es %) o 50000 (si es monto)"
+                     value="{{ request.form.get('apv_valor','') }}">
+            </div>
+
+            <div class="col-12">
+              <label for="apv_institucion" class="form-label">Institución APV</label>
+              <input type="text" class="form-control" id="apv_institucion" name="apv_institucion"
+                     placeholder="Institución o administrador del APV"
+                     value="{{ request.form.get('apv_institucion','') }}">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h2 class="cs-section-kicker mb-3">CAV</h2>
+
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
               <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="es_pensionado" name="es_pensionado" value="1"
-                       {% if request.form.get('es_pensionado') %}checked{% endif %}>
-                <label class="form-check-label" for="es_pensionado">Pensionado</label>
+                <input class="form-check-input" type="checkbox" id="cav_activo" name="cav_activo" value="1"
+                       {% if request.form.get('cav_activo') %}checked{% endif %}>
+                <label class="form-check-label" for="cav_activo">El trabajador tiene CAV</label>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="cav_modalidad" class="form-label">Modalidad CAV</label>
+              {% set cav_mod_sel = request.form.get("cav_modalidad","") %}
+              <select id="cav_modalidad" name="cav_modalidad" class="form-select">
+                <option value="" {% if not cav_mod_sel %}selected{% endif %}>Sin CAV / No aplica</option>
+                <option value="PORCENTAJE" {% if cav_mod_sel == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
+                <option value="MONTO" {% if cav_mod_sel == 'MONTO' %}selected{% endif %}>Monto fijo</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="cav_valor" class="form-label">Valor CAV</label>
+              <input type="text" class="form-control" id="cav_valor" name="cav_valor"
+                     placeholder="Ej: 2.50 (si es %) o 30000 (si es monto)"
+                     value="{{ request.form.get('cav_valor','') }}">
+            </div>
+
+            <div class="col-12">
+              <label for="cav_institucion" class="form-label">Institución CAV</label>
+              <input type="text" class="form-control" id="cav_institucion" name="cav_institucion"
+                     placeholder="Institución o administrador de la CAV"
+                     value="{{ request.form.get('cav_institucion','') }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================
+             CARGO
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Cargo</h2>
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="cargo_search" class="form-label">Cargo del trabajador</label>
+              <input type="text" class="form-control" id="cargo_search" name="cargo_search"
+                     list="lista_cargos" autocomplete="off"
+                     placeholder="Escribe para buscar, ej: albañil, maestro, gerente..."
+                     required value="{{ request.form.get('cargo_search','') }}">
+
+              <datalist id="lista_cargos">
+                {% for c in cargos %}
+                  <option value="{{ c.id }} - {{ c.nombre }}" data-id="{{ c.id }}"></option>
+                {% endfor %}
+              </datalist>
+
+              <input type="hidden" name="cargo_id" id="cargo_id" value="{{ request.form.get('cargo_id','') }}">
+
+              <div class="form-text">
+                Al hacer clic se despliega la lista completa; al escribir, se filtran los cargos. Debes escoger uno de la lista.
+              </div>
+
+              <div id="cargo_error" class="text-danger small mt-2" style="display:none;">
+                Debes seleccionar un cargo desde la lista (no solo escribirlo).
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ==========================
-           APV / CAV
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">APV</h2>
+        <!-- ==========================
+             ESTADO LABORAL
+        =========================== -->
+        <div class="mb-4">
+          <h2 class="cs-section-kicker mb-3">Estado laboral</h2>
 
-        <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="apv_activo" name="apv_activo" value="1"
-                     {% if request.form.get('apv_activo') %}checked{% endif %}>
-              <label class="form-check-label" for="apv_activo">El trabajador tiene APV</label>
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="apv_modalidad" class="form-label">Modalidad APV</label>
-            {% set apv_mod_sel = request.form.get("apv_modalidad","") %}
-            <select id="apv_modalidad" name="apv_modalidad" class="form-select">
-              <option value="" {% if not apv_mod_sel %}selected{% endif %}>Sin APV / No aplica</option>
-              <option value="PORCENTAJE" {% if apv_mod_sel == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
-              <option value="MONTO" {% if apv_mod_sel == 'MONTO' %}selected{% endif %}>Monto fijo</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="apv_valor" class="form-label">Valor APV</label>
-            <input type="text" class="form-control" id="apv_valor" name="apv_valor"
-                   placeholder="Ej: 3.00 (si es %) o 50000 (si es monto)"
-                   value="{{ request.form.get('apv_valor','') }}">
-          </div>
-
-          <div class="col-12">
-            <label for="apv_institucion" class="form-label">Institución APV</label>
-            <input type="text" class="form-control" id="apv_institucion" name="apv_institucion"
-                   placeholder="Institución o administrador del APV"
-                   value="{{ request.form.get('apv_institucion','') }}">
-          </div>
-        </div>
-
-        <hr class="my-4">
-
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">CAV</h2>
-
-        <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="cav_activo" name="cav_activo" value="1"
-                     {% if request.form.get('cav_activo') %}checked{% endif %}>
-              <label class="form-check-label" for="cav_activo">El trabajador tiene CAV</label>
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="cav_modalidad" class="form-label">Modalidad CAV</label>
-            {% set cav_mod_sel = request.form.get("cav_modalidad","") %}
-            <select id="cav_modalidad" name="cav_modalidad" class="form-select">
-              <option value="" {% if not cav_mod_sel %}selected{% endif %}>Sin CAV / No aplica</option>
-              <option value="PORCENTAJE" {% if cav_mod_sel == 'PORCENTAJE' %}selected{% endif %}>Porcentaje</option>
-              <option value="MONTO" {% if cav_mod_sel == 'MONTO' %}selected{% endif %}>Monto fijo</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="cav_valor" class="form-label">Valor CAV</label>
-            <input type="text" class="form-control" id="cav_valor" name="cav_valor"
-                   placeholder="Ej: 2.50 (si es %) o 30000 (si es monto)"
-                   value="{{ request.form.get('cav_valor','') }}">
-          </div>
-
-          <div class="col-12">
-            <label for="cav_institucion" class="form-label">Institución CAV</label>
-            <input type="text" class="form-control" id="cav_institucion" name="cav_institucion"
-                   placeholder="Institución o administrador de la CAV"
-                   value="{{ request.form.get('cav_institucion','') }}">
-          </div>
-        </div>
-      </div>
-
-      <!-- ==========================
-           CARGO
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Cargo</h2>
-
-        <div class="row g-3">
-          <div class="col-12">
-            <label for="cargo_search" class="form-label">Cargo del trabajador</label>
-            <input type="text" class="form-control" id="cargo_search" name="cargo_search"
-                   list="lista_cargos" autocomplete="off"
-                   placeholder="Escribe para buscar, ej: albañil, maestro, gerente..."
-                   required value="{{ request.form.get('cargo_search','') }}">
-
-            <datalist id="lista_cargos">
-              {% for c in cargos %}
-                <option value="{{ c.id }} - {{ c.nombre }}" data-id="{{ c.id }}"></option>
-              {% endfor %}
-            </datalist>
-
-            <input type="hidden" name="cargo_id" id="cargo_id" value="{{ request.form.get('cargo_id','') }}">
-
-            <div class="form-text">
-              Al hacer clic se despliega la lista completa; al escribir, se filtran los cargos. Debes escoger uno de la lista.
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label for="estado_trabajador" class="form-label">Estado del trabajador</label>
+              {% set est_sel = request.form.get("estado_trabajador","VIGENTE") %}
+              <select id="estado_trabajador" name="estado_trabajador" class="form-select">
+                <option value="VIGENTE" {% if est_sel == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+                <option value="DESVINCULADO" {% if est_sel == 'DESVINCULADO' %}selected{% endif %}>Desvinculado</option>
+                <option value="SUSPENDIDO" {% if est_sel == 'SUSPENDIDO' %}selected{% endif %}>Suspendido</option>
+              </select>
             </div>
 
-            <div id="cargo_error" class="text-danger small mt-2" style="display:none;">
-              Debes seleccionar un cargo desde la lista (no solo escribirlo).
+            <div class="col-12 col-md-4">
+              <label for="tipo_trabajador" class="form-label">Tipo de trabajador</label>
+              {% set tt_sel = request.form.get("tipo_trabajador","") %}
+              <select id="tipo_trabajador" name="tipo_trabajador" class="form-select">
+                <option value="" {% if not tt_sel %}selected{% endif %}>No especificar</option>
+                <option value="DIRECTO" {% if tt_sel == 'DIRECTO' %}selected{% endif %}>Directo</option>
+                <option value="JEFATURA U OTROS" {% if tt_sel == 'JEFATURA U OTROS' %}selected{% endif %}>Jefatura u otros</option>
+                <option value="PRACTICANTE" {% if tt_sel == 'PRACTICANTE' %}selected{% endif %}>Practicante</option>
+                <option value="SUBCONTRATO" {% if tt_sel == 'SUBCONTRATO' %}selected{% endif %}>Subcontrato</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label for="fecha_ingreso_empresa" class="form-label">Fecha de ingreso a la empresa</label>
+              <input type="date" class="form-control" id="fecha_ingreso_empresa" name="fecha_ingreso_empresa"
+                     value="{{ request.form.get('fecha_ingreso_empresa','') }}">
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ==========================
-           ESTADO LABORAL
-      =========================== -->
-      <div class="mb-4">
-        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">Estado laboral</h2>
+        <!-- ==========================
+             ACCIONES
+        =========================== -->
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-top pt-3">
+          <a href="{{ request.args.get('next') or request.form.get('next') or url_for('trabajadores.listado_trabajadores') }}"
+             class="btn btn-outline-secondary">
+            ⬅ Volver
+          </a>
 
-        <div class="row g-3">
-          <div class="col-12 col-md-4">
-            <label for="estado_trabajador" class="form-label">Estado del trabajador</label>
-            {% set est_sel = request.form.get("estado_trabajador","VIGENTE") %}
-            <select id="estado_trabajador" name="estado_trabajador" class="form-select">
-              <option value="VIGENTE" {% if est_sel == 'VIGENTE' %}selected{% endif %}>Vigente</option>
-              <option value="DESVINCULADO" {% if est_sel == 'DESVINCULADO' %}selected{% endif %}>Desvinculado</option>
-              <option value="SUSPENDIDO" {% if est_sel == 'SUSPENDIDO' %}selected{% endif %}>Suspendido</option>
-            </select>
-          </div>
+          <div class="d-flex flex-column flex-md-row gap-2">
+            <button type="submit" class="btn btn-primary" data-accion="guardar">
+              Guardar trabajador
+            </button>
 
-          <div class="col-12 col-md-4">
-            <label for="tipo_trabajador" class="form-label">Tipo de trabajador</label>
-            {% set tt_sel = request.form.get("tipo_trabajador","") %}
-            <select id="tipo_trabajador" name="tipo_trabajador" class="form-select">
-              <option value="" {% if not tt_sel %}selected{% endif %}>No especificar</option>
-              <option value="DIRECTO" {% if tt_sel == 'DIRECTO' %}selected{% endif %}>Directo</option>
-              <option value="JEFATURA U OTROS" {% if tt_sel == 'JEFATURA U OTROS' %}selected{% endif %}>Jefatura u otros</option>
-              <option value="PRACTICANTE" {% if tt_sel == 'PRACTICANTE' %}selected{% endif %}>Practicante</option>
-              <option value="SUBCONTRATO" {% if tt_sel == 'SUBCONTRATO' %}selected{% endif %}>Subcontrato</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label for="fecha_ingreso_empresa" class="form-label">Fecha de ingreso a la empresa</label>
-            <input type="date" class="form-control" id="fecha_ingreso_empresa" name="fecha_ingreso_empresa"
-                   value="{{ request.form.get('fecha_ingreso_empresa','') }}">
+            {# Conservador: crear contrato directo solo ADMIN #}
+            {% if current_user and current_user.has_role("ADMIN") %}
+              <button type="submit" class="btn btn-success" data-accion="guardar_crear_contrato">
+                Guardar y crear contrato
+              </button>
+            {% endif %}
           </div>
         </div>
-      </div>
 
-      <!-- ==========================
-           ACCIONES
-      =========================== -->
-      <div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-top pt-3">
-        <a href="{{ request.args.get('next') or request.form.get('next') or url_for('trabajadores.listado_trabajadores') }}"
-           class="btn btn-outline-secondary">
-          ⬅ Volver
-        </a>
-
-        <div class="d-flex flex-column flex-md-row gap-2">
-          <button type="submit" class="btn btn-primary" data-accion="guardar">
-            Guardar trabajador
-          </button>
-          <button type="submit" class="btn btn-success" data-accion="guardar_crear_contrato">
-            Guardar y crear contrato
-          </button>
-        </div>
-      </div>
-
-    </form>
+      </form>
+    {% endif %}
   </div>
 </div>
 

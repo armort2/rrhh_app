@@ -215,6 +215,78 @@ class CajaCompensacion(db.Model):
     def __repr__(self):
         return f"<CajaCompensacion {self.nombre}>"
 
+class Tercero(db.Model):
+    """
+    Tercero: proveedor (empresa) o persona que presta servicios.
+    Base para nóminas bancarias de pagos a terceros.
+    """
+    __tablename__ = "terceros"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Identificación principal
+    rut_num = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    dv = db.Column(db.String(2), nullable=False)
+
+    # Nombre / razón social (según origen Excel)
+    ap_paterno = db.Column(db.String(200), nullable=False)   # razón social o apellido paterno
+    ap_materno = db.Column(db.String(200), nullable=True)
+    nombres = db.Column(db.String(200), nullable=True)
+
+    correo = db.Column(db.String(150), nullable=True)
+
+    # Cuenta bancaria (receptor)
+    banco_id = db.Column(db.Integer, db.ForeignKey("bancos.id"), nullable=True)
+    banco = db.relationship("Banco", foreign_keys=[banco_id])
+
+    cuenta_numero = db.Column(db.String(80), nullable=True)
+
+    # Rut asociado a la cuenta (si aplica / viene en Excel)
+    rut_cta_num = db.Column(db.Integer, nullable=True)
+    rut_cta_dv = db.Column(db.String(2), nullable=True)
+
+    # Estado corporativo
+    estado = db.Column(db.String(20), nullable=False, default="VIGENTE", index=True)
+
+    creado_en = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    actualizado_en = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    @property
+    def rut_completo(self) -> str:
+        r = str(self.rut_num) if self.rut_num is not None else ""
+        d = (self.dv or "").strip().upper()
+        return f"{r}-{d}" if r and d else r
+
+    @property
+    def rut_cta_completo(self) -> str:
+        if self.rut_cta_num is None:
+            return ""
+        r = str(self.rut_cta_num)
+        d = (self.rut_cta_dv or "").strip().upper()
+        return f"{r}-{d}" if r and d else r
+
+    @property
+    def nombre_display(self) -> str:
+        """
+        - Si es persona: 'AP PATERNO AP MATERNO, NOMBRES'
+        - Si es empresa (sin nombres): 'RAZON SOCIAL'
+        """
+        ap_pat = (self.ap_paterno or "").strip()
+        ap_mat = (self.ap_materno or "").strip()
+        noms = (self.nombres or "").strip()
+
+        if noms:
+            apellidos = " ".join([x for x in [ap_pat, ap_mat] if x])
+            if apellidos:
+                return f"{apellidos}, {noms}".strip(", ").strip()
+            return noms
+
+        # empresa / razón social
+        full = " ".join([x for x in [ap_pat, ap_mat] if x]).strip()
+        return full or "-"
+
+    def __repr__(self):
+        return f"<Tercero {self.rut_completo} {self.nombre_display} estado={self.estado}>"
 
 class Cargo(db.Model):
     __tablename__ = "cargos"
@@ -391,7 +463,7 @@ class Trabajador(db.Model):
     dv = db.Column(db.String(2), nullable=True)
     nombres = db.Column(db.String(100), nullable=False)
     ap_paterno = db.Column(db.String(100), nullable=False)
-    ap_materno = db.Column(db.String(100), nullable=False)
+    ap_materno = db.Column(db.String(100), nullable=True)
 
     @property
     def rut_completo(self) -> str:
@@ -1026,3 +1098,236 @@ class HorasExtra(db.Model):
     __table_args__ = (
         CheckConstraint("minutos_totales >= 0", name="ck_horas_extras_minutos_no_neg"),
     )
+
+# ==========================
+# Solicitud de Fondos (MVP)
+# ==========================
+
+class SolicitudFondos(db.Model):
+    __tablename__ = "solicitudes_fondos"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # ✅ Ahora la solicitud es POR CENTRO DE COSTO (manda esto)
+    centro_costo = db.Column(db.String(100), nullable=False, index=True)
+
+    # ✅ Obra queda solo como referencia opcional (útil para contexto)
+    obra_id = db.Column(db.Integer, db.ForeignKey("obras.id"), nullable=True, index=True)
+    obra = db.relationship("Obra", lazy="joined")
+
+    numero = db.Column(db.Integer, nullable=False)  # correlativo por centro de costo
+    fecha_solicitud = db.Column(db.Date, nullable=False)
+
+    periodo_tipo = db.Column(db.String(20), nullable=False)  # QUINCENA / FIN_MES / OTRO
+    periodo_desde = db.Column(db.Date, nullable=True)
+    periodo_hasta = db.Column(db.Date, nullable=True)
+
+    estado = db.Column(db.String(20), nullable=False, default="BORRADOR", index=True)
+    # BORRADOR / ENVIADA / APROBADA / RECHAZADA / PAGADA
+
+    observaciones = db.Column(db.Text, nullable=True)
+
+    creado_por_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    creado_por = db.relationship("User", foreign_keys=[creado_por_user_id], lazy="joined")
+
+    creado_en = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    actualizado_en = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    items = db.relationship(
+        "SolicitudFondosItem",
+        back_populates="solicitud",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="SolicitudFondosItem.seccion, SolicitudFondosItem.orden, SolicitudFondosItem.id",
+    )
+
+    __table_args__ = (
+        # ✅ correlativo único POR CENTRO DE COSTO
+        db.UniqueConstraint("centro_costo", "numero", name="uq_solicitudes_fondos_cc_numero"),
+        db.CheckConstraint(
+            "periodo_tipo IN ('QUINCENA','FIN_MES','OTRO')",
+            name="ck_solicitud_fondos_periodo_tipo",
+        ),
+        db.CheckConstraint(
+            "estado IN ('BORRADOR','ENVIADA','APROBADA','RECHAZADA','PAGADA')",
+            name="ck_solicitud_fondos_estado",
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<SolicitudFondos id={self.id} cc={self.centro_costo} "
+            f"obra={self.obra_id} nro={self.numero} estado={self.estado}>"
+        )
+
+
+class SolicitudFondosItem(db.Model):
+    __tablename__ = "solicitudes_fondos_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    solicitud_id = db.Column(db.Integer, db.ForeignKey("solicitudes_fondos.id"), nullable=False, index=True)
+    solicitud = db.relationship("SolicitudFondos", back_populates="items")
+
+    seccion = db.Column(db.String(10), nullable=False, index=True)
+    # REMU / REND / TERC / VAR
+
+    # Beneficiario libre (si no está ligado a tercero/trabajador)
+    beneficiario_nombre = db.Column(db.String(200), nullable=True)
+    beneficiario_rut_num = db.Column(db.Integer, nullable=True)
+    beneficiario_dv = db.Column(db.String(2), nullable=True)
+
+    tercero_id = db.Column(db.Integer, db.ForeignKey("terceros.id"), nullable=True, index=True)
+    tercero = db.relationship("Tercero", lazy="joined")
+
+    trabajador_id = db.Column(db.Integer, db.ForeignKey("trabajadores.id"), nullable=True, index=True)
+    trabajador = db.relationship("Trabajador", lazy="joined")
+
+    monto = db.Column(db.Numeric(14, 2), nullable=False, default=0)
+
+    tipo_pago = db.Column(db.String(40), nullable=True)      # transferencia/cheque/etc
+    nro_documento = db.Column(db.String(40), nullable=True)  # ahora: "TIPO|NUM" (TERC/VAR) o legacy libre
+    concepto = db.Column(db.String(80), nullable=True)       # etiqueta corta
+    descripcion = db.Column(db.String(255), nullable=True)   # detalle
+    control_interno = db.Column(db.String(60), nullable=True)
+
+    orden = db.Column(db.Integer, nullable=False, default=1)
+
+    creado_en = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    actualizado_en = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "seccion IN ('REMU','REND','TERC','VAR')",
+            name="ck_solicitud_fondos_item_seccion",
+        ),
+        db.CheckConstraint("monto >= 0", name="ck_solicitud_fondos_item_monto_no_neg"),
+    )
+
+    # ============================================================
+    # Diccionarios “de negocio” (labels bonitos para UI)
+    # ============================================================
+    TIPO_PAGO_LABELS = {
+        "TRANSFERENCIA": "Transferencia",
+        "NOMINA_2": "Nómina 2",
+    }
+
+    TIPO_DOCUMENTO_LABELS = {
+        "FACTURA": "Factura",
+        "COMPROBANTE": "Comprobante",
+        "GUIA_DESPACHO": "Guía de despacho",
+        "BOLETA_HONORARIOS": "Boleta de Honorarios",
+        "SIN_DOCUMENTO": "Sin documento",
+    }
+
+    CONCEPTO_LABELS = {
+        "CONTRATISTA": "Contratista",
+        "SERVICIOS": "Servicios",
+        "TRATOS_INTERNOS": "Tratos internos",
+        "PROVEEDORES": "Proveedores",
+        "PROVISIONES": "Provisiones",
+        "FINIQUITOS": "Finiquitos",
+        "OTROS": "Otros",
+    }
+
+    @property
+    def beneficiario_display(self) -> str:
+        if self.trabajador is not None:
+            return f"{self.trabajador.ap_paterno} {self.trabajador.ap_materno or ''}, {self.trabajador.nombres}".strip()
+        if self.tercero is not None:
+            return self.tercero.nombre_display
+        return (self.beneficiario_nombre or "-").strip() or "-"
+
+    # ============================================================
+    # Documento: nro_documento = "TIPO|NUM" (nuevo) o legacy (texto)
+    # ============================================================
+    @property
+    def documento_tipo(self) -> str | None:
+        """
+        Retorna el código de tipo doc si viene en formato 'TIPO|NUM'.
+        Si es legacy o vacío, devuelve None.
+        """
+        v = (self.nro_documento or "").strip()
+        if not v or "|" not in v:
+            return None
+        tipo = v.split("|", 1)[0].strip().upper()
+        return tipo or None
+
+    @property
+    def documento_numero(self) -> str | None:
+        """
+        Retorna el número de documento (lado derecho) si viene en 'TIPO|NUM'.
+        Si viene vacío => None.
+        """
+        v = (self.nro_documento or "").strip()
+        if not v or "|" not in v:
+            return None
+        num = v.split("|", 1)[1].strip()
+        return num or None
+
+    @property
+    def documento_tipo_label(self) -> str:
+        """
+        Label humano del tipo de documento. Si es legacy, devuelve 'Documento'.
+        """
+        tipo = self.documento_tipo
+        if not tipo:
+            # legacy: el campo trae algo como "Factura 123" o "OC 999"
+            return "Documento"
+        return self.TIPO_DOCUMENTO_LABELS.get(tipo, tipo.title().replace("_", " "))
+
+    @property
+    def documento_numero_label(self) -> str:
+        """
+        Número humano del documento. Si no hay número => 'Sin Nro. Doc.'
+        Si es legacy, intenta mostrar el contenido tal cual.
+        """
+        v = (self.nro_documento or "").strip()
+        if not v:
+            return "Sin Nro. Doc."
+
+        if "|" in v:
+            num = self.documento_numero
+            return num if num else "Sin Nro. Doc."
+
+        # legacy: mostramos lo que haya, pero si viene vacío ya lo cubrimos arriba
+        return v
+
+    @property
+    def documento_display(self) -> str:
+        """
+        Presentación final para UI.
+        - Nuevo: 'Factura · 123' o 'Sin documento · Sin Nro. Doc.'
+        - Legacy: 'Documento · <texto>'
+        """
+        return f"{self.documento_tipo_label} · {self.documento_numero_label}"
+
+    # ============================================================
+    # Labels de tipo de pago / concepto
+    # ============================================================
+    @property
+    def tipo_pago_label(self) -> str:
+        v = (self.tipo_pago or "").strip().upper()
+        if not v:
+            return "-"
+        return self.TIPO_PAGO_LABELS.get(v, v.title().replace("_", " "))
+
+    @property
+    def concepto_label(self) -> str:
+        v = (self.concepto or "").strip().upper()
+        if not v:
+            return "-"
+        return self.CONCEPTO_LABELS.get(v, v.title().replace("_", " "))
+
+    def __repr__(self):
+        return f"<SolicitudFondosItem id={self.id} sol={self.solicitud_id} seccion={self.seccion} monto={self.monto}>"

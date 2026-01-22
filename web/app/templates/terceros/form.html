@@ -1,0 +1,106 @@
+{# web/app/templates/terceros/form.html #}
+{% extends "base.html" %}
+{% block title %}{{ "Editar Tercero" if tercero else "Nuevo Tercero" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">{{ "Editar Tercero" if tercero else "Nuevo Tercero" }}</h1>
+      <div class="section-subtitle">Registro de proveedores y colaboradores externos.</div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('terceros.listado') }}" class="btn btn-secondary">Volver</a>
+    </div>
+  </div>
+
+  <div class="card cs-card">
+    <div class="card-body">
+      <form method="post" class="row g-3">
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">RUT (sin DV)</label>
+          {% if tercero %}
+            <input type="text" class="form-control" value="{{ tercero.rut_num }}" disabled>
+          {% else %}
+            <input type="text" name="rut_num" class="form-control" placeholder="12345678">
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label">DV</label>
+          <input type="text" name="dv" class="form-control" value="{{ (tercero.dv if tercero else '')|upper }}" maxlength="2" placeholder="K">
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Ap. Paterno / Razón Social</label>
+          <input type="text" name="ap_paterno" class="form-control" value="{{ tercero.ap_paterno if tercero else '' }}">
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Nombres</label>
+          <input type="text" name="nombres" class="form-control" value="{{ tercero.nombres if tercero else '' }}">
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Ap. Materno</label>
+          <input type="text" name="ap_materno" class="form-control" value="{{ tercero.ap_materno if tercero else '' }}">
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Correo electrónico</label>
+          <input type="email" name="correo" class="form-control" value="{{ tercero.correo if tercero else '' }}" placeholder="correo@dominio.cl">
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            {% set est = (tercero.estado if tercero else "VIGENTE") %}
+            <option value="VIGENTE" {% if est == "VIGENTE" %}selected{% endif %}>Vigente</option>
+            <option value="INACTIVO" {% if est == "INACTIVO" %}selected{% endif %}>Inactivo</option>
+          </select>
+        </div>
+
+        <div class="col-12"><hr class="my-2"></div>
+
+        <div class="col-12 col-md-5">
+          <label class="form-label">Banco</label>
+          <select name="banco_id" class="form-select">
+            <option value="">— Seleccionar —</option>
+            {% for b in bancos %}
+              <option value="{{ b.id }}" {% if tercero and tercero.banco_id == b.id %}selected{% endif %}>
+                {{ b.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">N° Cuenta bancaria</label>
+          <input type="text" name="cuenta_numero" class="form-control" value="{{ tercero.cuenta_numero if tercero else '' }}">
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">RUT (cta) sin DV</label>
+          <input type="text" name="rut_cta_num" class="form-control" value="{{ tercero.rut_cta_num if (tercero and tercero.rut_cta_num) else '' }}">
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label">DV (cta)</label>
+          <input type="text" name="rut_cta_dv" class="form-control" maxlength="2" value="{{ (tercero.rut_cta_dv if (tercero and tercero.rut_cta_dv) else '')|upper }}">
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+          <a href="{{ url_for('terceros.listado') }}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

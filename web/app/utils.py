@@ -155,3 +155,32 @@ def read_only_for_roles(*role_names: str, redirect_endpoint: str, message: str =
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+def format_rut_with_dots(rut_digits, dv) -> str:
+    """
+    Formatea RUT chileno con puntos y guión.
+    Ej: 80565900 + '9' => '80.565.900-9'
+    """
+    if rut_digits is None:
+        rut_str = ""
+    else:
+        rut_str = str(rut_digits).strip()
+
+    dv_str = (str(dv).strip().upper() if dv is not None else "")
+
+    if not rut_str and not dv_str:
+        return ""
+    if not rut_str and dv_str:
+        return f"-{dv_str}"
+    if rut_str and not dv_str:
+        return rut_str
+
+    # puntos cada 3 desde la derecha
+    parts = []
+    while len(rut_str) > 3:
+        parts.insert(0, rut_str[-3:])
+        rut_str = rut_str[:-3]
+    if rut_str:
+        parts.insert(0, rut_str)
+
+    return f"{'.'.join(parts)}-{dv_str}"

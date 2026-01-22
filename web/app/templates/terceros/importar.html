@@ -1,0 +1,112 @@
+{# web/app/templates/terceros/importar.html #}
+{% extends "base.html" %}
+{% block title %}Importar Terceros{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Importar Terceros</h1>
+      <div class="section-subtitle">
+        Carga masiva desde Excel (proveedores y colaboradores).
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('terceros.listado') }}" class="btn btn-secondary">Volver</a>
+    </div>
+  </div>
+
+  <div class="card cs-card mb-3">
+    <div class="card-body">
+
+      <form method="post" enctype="multipart/form-data" class="row g-3">
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label">Subir archivo Excel</label>
+          <input type="file" name="archivo" class="form-control" accept=".xlsx">
+          <div class="form-text">Si subes un archivo, se guardará en la carpeta /data del proyecto.</div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label">O seleccionar archivo existente en /data</label>
+          <select name="archivo_existente" class="form-select">
+            <option value="">— Seleccionar —</option>
+            {% for f in excels %}
+              <option value="{{ f }}" {% if archivo_usado == f %}selected{% endif %}>{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Modo</label>
+          {% set m = modo or "UPSERT" %}
+          <select name="modo" class="form-select">
+            <option value="UPSERT" {% if m == "UPSERT" %}selected{% endif %}>Upsert (insertar y actualizar)</option>
+            <option value="SOLO_NUEVOS" {% if m == "SOLO_NUEVOS" %}selected{% endif %}>Solo nuevos (no actualizar existentes)</option>
+          </select>
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2">
+          <button type="submit" class="btn btn-primary">Ejecutar importación</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {% if resultado %}
+    <div class="card cs-card">
+      <div class="card-body">
+        <h5 class="mb-2">Resultado</h5>
+        <div class="text-muted mb-3">
+          Archivo: <span class="fw-semibold">{{ archivo_usado }}</span>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <div class="p-3 border rounded">
+              <div class="text-muted small">Insertados</div>
+              <div class="fs-4 fw-semibold">{{ resultado.inserted }}</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="p-3 border rounded">
+              <div class="text-muted small">Actualizados</div>
+              <div class="fs-4 fw-semibold">{{ resultado.updated }}</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="p-3 border rounded">
+              <div class="text-muted small">Errores</div>
+              <div class="fs-4 fw-semibold">{{ resultado.errors|length }}</div>
+            </div>
+          </div>
+        </div>
+
+        {% if resultado.errors %}
+          <hr class="my-3">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Detalle de errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in resultado.errors %}
+                  <tr><td class="text-danger">{{ e }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

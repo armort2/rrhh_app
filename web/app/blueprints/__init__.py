@@ -16,6 +16,8 @@ from .obras import bp as obras_bp
 from .admin import bp as admin_bp
 from .anexos import bp as anexos_bp
 from .anexos_indefinidos import bp as anexos_indefinidos_bp
+from .terceros import bp as terceros_bp
+from .solicitudes_fondos import bp as solicitudes_fondos_bp
 
 __all__ = [
     "core_bp",
@@ -25,4 +27,6 @@ __all__ = [
     "admin_bp",
     "anexos_bp",
     "anexos_indefinidos_bp",
+    "terceros_bp",
+    "solicitudes_fondos_bp",
 ]

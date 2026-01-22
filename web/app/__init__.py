@@ -41,6 +41,8 @@ def create_app(config_class=DevConfig):
         admin_bp,
         anexos_bp,
         anexos_indefinidos_bp,
+        terceros_bp,
+        solicitudes_fondos_bp,
     )
     from .blueprints.documentos import bp as documentos_bp
     from .blueprints.desvinculaciones.routes import bp as desvinculaciones_bp
@@ -48,6 +50,8 @@ def create_app(config_class=DevConfig):
     from .blueprints.inasistencias import bp as inasistencias_bp
     from .blueprints.anticipos.routes import bp as anticipos_bp
     from .blueprints.horas_extras.routes import bp as horas_extras_bp
+    from .blueprints.terceros import bp as terceros_bp
+    from .blueprints.solicitudes_fondos import bp as solicitudes_fondos_bp
 
     # Registro
     app.register_blueprint(horarios_bp)
@@ -63,6 +67,8 @@ def create_app(config_class=DevConfig):
     app.register_blueprint(inasistencias_bp)
     app.register_blueprint(anticipos_bp)
     app.register_blueprint(horas_extras_bp)
+    app.register_blueprint(terceros_bp)
+    app.register_blueprint(solicitudes_fondos_bp)
 
     # Auth blueprint
     from .auth import auth as auth_bp
@@ -101,7 +107,7 @@ def create_app(config_class=DevConfig):
         return None
 
     # ---------------------------
-    # Filtro Jinja: RUT trabajador
+    # Filtros Jinja: RUT
     # ---------------------------
     from .utils import format_rut_parts  # una sola fuente
 
@@ -111,6 +117,20 @@ def create_app(config_class=DevConfig):
             return ""
         rut_digits = getattr(t, "rut", None)
         dv = getattr(t, "dv", None)
+        return format_rut_parts(rut_digits, dv) or (str(rut_digits) if rut_digits else "")
+
+    @app.template_filter("rut_any")
+    def rut_any_filter(obj, rut_attr: str = "rut", dv_attr: str = "dv"):
+        """
+        Formatea RUT para cualquier objeto:
+        - Trabajador: rut + dv
+        - Tercero: rut_num + dv
+        - También permite especificar attrs custom.
+        """
+        if not obj:
+            return ""
+        rut_digits = getattr(obj, rut_attr, None)
+        dv = getattr(obj, dv_attr, None)
         return format_rut_parts(rut_digits, dv) or (str(rut_digits) if rut_digits else "")
 
     # ---------------------------
@@ -160,6 +180,14 @@ def create_app(config_class=DevConfig):
             500,
         )
     
+    from .utils import format_rut_with_dots
 
+    @app.template_filter("rut_tercero")
+    def rut_tercero_filter(t):
+        if not t:
+            return ""
+        rut_digits = getattr(t, "rut_num", None)
+        dv = getattr(t, "dv", None)
+        return format_rut_with_dots(rut_digits, dv)
 
     return app

@@ -1,0 +1,85 @@
+{# web/app/templates/solicitudes_fondos/nueva.html #}
+{% extends "base.html" %}
+{% block title %}Nueva Solicitud de Fondos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header mb-3">
+    <h1 class="section-title">Nueva Solicitud de Fondos</h1>
+    <div class="section-subtitle">Crea una solicitud en estado BORRADOR por Centro de Costo (y obra referencial opcional).</div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" class="row g-3">
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Centro de Costo</label>
+          <select name="centro_costo" class="form-select" required>
+            <option value="">Seleccione...</option>
+            {% for cc in centros_costos %}
+              <option value="{{ cc }}">{{ cc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Obra de referencia (opcional)</label>
+          <select name="obra_id" class="form-select">
+            <option value="">(Sin obra)</option>
+            {% for o in obras %}
+              <option value="{{ o.id }}">{{ o.centro_costo }} · {{ o.codigo }} · {{ o.nombre }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            La solicitud se controla por Centro de Costo; la obra aquí solo contextualiza.
+          </div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">N° (opcional)</label>
+          <input type="number" name="numero" class="form-control" placeholder="Auto">
+        </div>
+
+        <div class="col-6 col-md-4">
+          <label class="form-label">Fecha solicitud</label>
+          <input type="date" name="fecha_solicitud" class="form-control" value="{{ hoy }}" required>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Tipo período</label>
+          <select name="periodo_tipo" class="form-select" required>
+            {% for k, label in periodos %}
+              <option value="{{ k }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-6">
+          <label class="form-label">Período desde (opcional)</label>
+          <input type="date" name="periodo_desde" class="form-control">
+        </div>
+
+        <div class="col-6 col-md-6">
+          <label class="form-label">Período hasta (opcional)</label>
+          <input type="date" name="periodo_hasta" class="form-control">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea name="observaciones" class="form-control" rows="3" placeholder="Notas internas..."></textarea>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Crear</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Volver</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

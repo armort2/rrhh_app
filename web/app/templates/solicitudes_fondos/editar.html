@@ -1,0 +1,268 @@
+{# web/app/templates/solicitudes_fondos/editar.html #}
+{% extends "base.html" %}
+{% block title %}Solicitud Nº {{ "%02d"|format(s.numero) }}{% endblock %}
+
+{% block content %}
+{# ============================================================
+   Helpers de formato (CLP sin decimales, con puntos de miles)
+   ============================================================ #}
+{% macro fmt_clp(val) -%}
+  {%- if val is none -%}
+    0
+  {%- else -%}
+    {%- if val is number -%}
+      {{ ("{:,.0f}".format(val)).replace(",", ".") }}
+    {%- else -%}
+      {%- set s = (val|string)|trim -%}
+      {%- set s = s.replace(",", ".") -%}
+      {%- if "." in s -%}
+        {%- set s = s.split(".")[0] -%}
+      {%- endif -%}
+      {%- set s = s.replace(".", "").replace(" ", "") -%}
+      {%- set n = s|int -%}
+      {{ ("{:,.0f}".format(n)).replace(",", ".") }}
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Solicitud de fondos · Nº {{ "%02d"|format(s.numero) }}</h1>
+      <div class="section-subtitle">
+        {% if s.obra %}
+          {{ s.obra.codigo }} · {{ s.obra.nombre }}
+        {% else %}
+          Centro de Costo: <span class="fw-semibold">{{ s.centro_costo or "-" }}</span>
+        {% endif %}
+        · Estado:
+        <span class="badge {{ badge_estado(s.estado) if badge_estado is defined else 'badge-muted' }}">
+          {{ s.estado }}
+        </span>
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Volver</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('solicitudes_fondos.detalle', solicitud_id=s.id) }}">Ver detalle</a>
+
+      {% if current_user.has_role("ADMIN","OPERADOR") %}
+        <form method="post" action="{{ url_for('solicitudes_fondos.cambiar_estado', solicitud_id=s.id) }}" class="d-flex gap-2">
+          <select name="estado" class="form-select">
+            {% for st in ["BORRADOR","ENVIADA","APROBADA","RECHAZADA","PAGADA"] %}
+              <option value="{{ st }}" {% if s.estado == st %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-outline-primary" type="submit">Cambiar estado</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <div class="col-12 col-xl-8">
+      <div class="card">
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-12 col-md-4">
+              <div class="text-muted small">Fecha solicitud</div>
+              <div class="fw-semibold">{{ s.fecha_solicitud }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="text-muted small">Período</div>
+              <div class="fw-semibold">{{ s.periodo_tipo }}</div>
+              {% if s.periodo_desde or s.periodo_hasta %}
+                <div class="text-muted small">{{ s.periodo_desde or "—" }} → {{ s.periodo_hasta or "—" }}</div>
+              {% endif %}
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="text-muted small">Observaciones</div>
+              <div class="fw-semibold">{{ s.observaciones or "—" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Detalle por secciones</div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Sección</th>
+                  <th class="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Remuneraciones</td><td class="text-end">{{ fmt_clp(subtot["REMU"]) }}</td></tr>
+                <tr><td>Rendiciones de gastos</td><td class="text-end">{{ fmt_clp(subtot["REND"]) }}</td></tr>
+                <tr><td>Contratistas y Proveedores</td><td class="text-end">{{ fmt_clp(subtot["TERC"]) }}</td></tr>
+                <tr><td>Pagos varios</td><td class="text-end">{{ fmt_clp(subtot["VAR"]) }}</td></tr>
+                <tr class="table-active">
+                  <td class="fw-bold">TOTAL</td>
+                  <td class="text-end fw-bold">{{ fmt_clp(total) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      {# Nota: Este editar.html parece "legacy". Si hoy ya estás operando por detalle.html,
+         podemos dejar esto como solo visor. Por ahora lo mantengo funcional. #}
+
+      {% if current_user.has_role("ADMIN","OPERADOR") and s.estado == "BORRADOR" %}
+        <div class="card mt-3">
+          <div class="card-body">
+            <div class="fw-semibold mb-2">Agregar ítem</div>
+
+            <form method="post" action="{{ url_for('solicitudes_fondos.agregar_item', solicitud_id=s.id) }}" class="row g-2">
+
+              <div class="col-12 col-lg-3">
+                <label class="form-label">Sección</label>
+                <select name="seccion" class="form-select" required>
+                  <option value="REND">Rendiciones</option>
+                  <option value="TERC">Contratistas/Proveedores</option>
+                  <option value="VAR">Pagos varios</option>
+                </select>
+                <div class="form-text">Remuneraciones se alimenta automáticamente.</div>
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label class="form-label">Beneficiario (libre)</label>
+                <input name="beneficiario_nombre" class="form-control" placeholder="(Solo si no seleccionas tercero/trabajador)">
+              </div>
+
+              <div class="col-12 col-lg-2">
+                <label class="form-label">RUT (opcional)</label>
+                <input name="beneficiario_rut" class="form-control" placeholder="12345678-9">
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label class="form-label">Monto</label>
+                <input name="monto" class="form-control" placeholder="Ej: 1250000" required>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Tercero (opcional)</label>
+                <select name="tercero_id" class="form-select">
+                  <option value="">—</option>
+                  {% for t in terceros %}
+                    <option value="{{ t.id }}">{{ t.nombre_display }} · {{ t|rut_tercero }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Trabajador (opcional)</label>
+                <select name="trabajador_id" class="form-select">
+                  <option value="">—</option>
+                  {% for tr in trabajadores %}
+                    <option value="{{ tr.id }}">{{ tr.ap_paterno }} {{ tr.ap_materno or "" }}, {{ tr.nombres }} · {{ tr|rut_trabajador }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label class="form-label">Tipo pago</label>
+                <input name="tipo_pago" class="form-control" placeholder="Transferencia / Nómina 2">
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label class="form-label">Documento</label>
+                <input name="nro_documento" class="form-control" placeholder="TIPO|NÚM o texto">
+                <div class="form-text">Este editar.html es legacy; el detalle.html maneja tipo documento formal.</div>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <label class="form-label">Concepto</label>
+                <input name="concepto" class="form-control" placeholder="Servicios / Provisiones / etc.">
+              </div>
+
+              <div class="col-12 col-lg-9">
+                <label class="form-label">Descripción</label>
+                <input name="descripcion" class="form-control" placeholder="Detalle breve para la gerencia">
+              </div>
+
+              <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Agregar</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.detalle', solicitud_id=s.id) }}">Ir a detalle (recomendado)</a>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Ítems registrados</div>
+
+          {% if s.items %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Sección</th>
+                    <th>Beneficiario</th>
+                    <th class="text-end">Monto</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for it in s.items|sort(attribute="beneficiario_display") %}
+                    <tr>
+                      <td class="text-nowrap">{{ it.seccion }}</td>
+                      <td>
+                        <div class="fw-semibold">{{ it.beneficiario_display }}</div>
+                        <div class="text-muted small">
+                          {% if it.tipo_pago_label is defined %}{{ it.tipo_pago_label }}{% else %}{{ it.tipo_pago or "-" }}{% endif %}
+                          {% if it.documento_display is defined %}
+                            · {{ it.documento_display }}
+                          {% elif it.nro_documento %}
+                            · {{ it.nro_documento }}
+                          {% endif %}
+                          {% if it.concepto_label is defined %}
+                            · {{ it.concepto_label }}
+                          {% elif it.concepto %}
+                            · {{ it.concepto }}
+                          {% endif %}
+                        </div>
+                        {% if it.descripcion %}
+                          <div class="text-muted small">{{ it.descripcion }}</div>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">{{ fmt_clp(it.monto) }}</td>
+                      <td class="text-end">
+                        {% if current_user.has_role("ADMIN","OPERADOR") and s.estado == "BORRADOR" %}
+                          <form method="post" action="{{ url_for('solicitudes_fondos.eliminar_item', solicitud_id=s.id, item_id=it.id) }}"
+                                onsubmit="return confirm('¿Eliminar ítem?');">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Quitar</button>
+                          </form>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Aún no hay ítems.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

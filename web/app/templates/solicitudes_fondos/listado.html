@@ -1,0 +1,117 @@
+{# web/app/templates/solicitudes_fondos/listado.html #}
+{% extends "base.html" %}
+{% block title %}Solicitud de Fondos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Solicitud de Fondos</h1>
+      <div class="section-subtitle">Gestión quincenal y fin de mes por Centro de Costo (Obra).</div>
+      <div class="section-divider"></div>
+    </div>
+
+    {% if current_user.has_role("ADMIN", "OPERADOR") %}
+      <div class="d-flex gap-2">
+        <a class="btn btn-primary" href="{{ url_for('solicitudes_fondos.nueva') }}">Nueva solicitud</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-5">
+          <label class="form-label">Centro de Costo</label>
+          <select name="centro_costo" class="form-select">
+            <option value="">Todos</option>
+            {% for cc in centros_costos %}
+              <option value="{{ cc }}" {% if centro_costo == cc %}selected{% endif %}>{{ cc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="">Todos</option>
+            {% for e in estados %}
+              <option value="{{ e }}" {% if estado == e %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Desde</label>
+          <input type="date" class="form-control" name="desde" value="{{ desde or '' }}">
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Hasta</label>
+          <input type="date" class="form-control" name="hasta" value="{{ hasta or '' }}">
+        </div>
+
+        <div class="col-12 d-flex gap-2 mt-2">
+          <button class="btn btn-outline-primary" type="submit">Filtrar</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Limpiar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width:110px;">N°</th>
+              <th>Centro de Costo / Obra</th>
+              <th style="width:140px;">Fecha</th>
+              <th style="width:140px;">Período</th>
+              <th style="width:140px;">Estado</th>
+              <th style="width:120px;" class="text-end">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not solicitudes %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">Sin registros.</td>
+              </tr>
+            {% else %}
+              {% for s in solicitudes %}
+                <tr>
+                  <td>#{{ s.numero }}</td>
+                  <td>
+                    <div class="fw-semibold">{{ s.centro_costo }}</div>
+                    <div class="text-muted small">
+                      {% if s.obra %}
+                        Ref: {{ s.obra.codigo }} · {{ s.obra.nombre }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>{{ s.fecha_solicitud }}</td>
+                  <td>{{ s.periodo_tipo }}</td>
+                  <td>
+                    <span class="badge {{ badge_estado(s.estado) }}">{{ s.estado }}</span>
+                  </td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{{ url_for('solicitudes_fondos.detalle', solicitud_id=s.id) }}">
+                      Ver
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

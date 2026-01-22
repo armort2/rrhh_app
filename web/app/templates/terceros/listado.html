@@ -1,0 +1,136 @@
+{# web/app/templates/terceros/listado.html #}
+{% extends "base.html" %}
+{% block title %}Terceros{% endblock %}
+
+{% macro rut_con_puntos(rut_num, dv) -%}
+  {# Conversión segura: int -> string con concatenación #}
+  {% set r = (rut_num ~ "") | replace(".","") | replace("-","") | trim %}
+  {% set d = (dv or "") | upper | trim %}
+
+  {% if not r and d %}
+    -{{ d }}
+  {% elif r and not d %}
+    {{ r }}
+  {% elif not r and not d %}
+    -
+  {% else %}
+    {# Inserta puntos cada 3 dígitos desde la derecha #}
+    {% set out = "" %}
+    {% set cnt = 0 %}
+    {% for ch in r|reverse %}
+      {% if cnt != 0 and (cnt % 3 == 0) %}
+        {% set out = "." ~ out %}
+      {% endif %}
+      {% set out = ch ~ out %}
+      {% set cnt = cnt + 1 %}
+    {% endfor %}
+    {{ out }}-{{ d }}
+  {% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Terceros</h1>
+      <div class="section-subtitle">
+        Proveedores y colaboradores externos (datos básicos + información bancaria).
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center">
+      {% if current_user.has_role("ADMIN","OPERADOR") %}
+        <a href="{{ url_for('terceros.importar') }}" class="btn btn-outline-secondary">Importar</a>
+        <a href="{{ url_for('terceros.nuevo') }}" class="btn btn-primary">Nuevo tercero</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card cs-card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-12 col-md-6 col-lg-5">
+          <label class="form-label">Búsqueda</label>
+          <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Apellido, razón social o nombres">
+        </div>
+
+        <div class="col-12 col-md-3 col-lg-2">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="VIGENTE" {% if estado == "VIGENTE" %}selected{% endif %}>Vigente</option>
+            <option value="INACTIVO" {% if estado == "INACTIVO" %}selected{% endif %}>Inactivo</option>
+            <option value="TODOS" {% if estado == "TODOS" %}selected{% endif %}>Todos</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3 col-lg-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <a href="{{ url_for('terceros.listado') }}" class="btn btn-outline-secondary">Limpiar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+      <thead>
+        <tr>
+          <th>RUT</th>
+          <th>Nombre / Razón social</th>
+          <th>Correo</th>
+          <th>Banco</th>
+          <th>Cuenta</th>
+          <th>Estado</th>
+          {% if current_user.has_role("ADMIN","OPERADOR") %}
+            <th class="text-end">Acciones</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in terceros %}
+          <tr>
+            <td class="text-nowrap">{{ t|rut_tercero }}</td>
+
+            <td class="text-nowrap">
+              <div class="fw-semibold">
+                {{ (t.ap_paterno or "") }}
+                {% if t.ap_materno %} {{ t.ap_materno }}{% endif %}
+                {% if t.nombres %} {{ t.nombres }}{% endif %}
+              </div>
+            </td>
+
+            <td>{{ t.correo or "transferencias@grupo-cs.cl" }}</td>
+            <td>{{ t.banco.nombre if t.banco else "-" }}</td>
+            <td class="text-nowrap">{{ t.cuenta_numero or "-" }}</td>
+
+            <td>
+              {% if t.estado == "VIGENTE" %}
+                <span class="badge text-bg-success">Vigente</span>
+              {% else %}
+                <span class="badge text-bg-muted">{{ t.estado or "-" }}</span>
+              {% endif %}
+            </td>
+
+            {% if current_user.has_role("ADMIN","OPERADOR") %}
+              <td class="text-end">
+                <div class="d-flex gap-2 justify-content-end">
+                  <a href="{{ url_for('terceros.editar', tercero_id=t.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                </div>
+              </td>
+            {% endif %}
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="{% if current_user.has_role('ADMIN','OPERADOR') %}7{% else %}6{% endif %}" class="text-center text-muted py-4">
+              No hay terceros para mostrar con los filtros actuales.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

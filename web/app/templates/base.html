@@ -79,6 +79,11 @@
                     Desvinculaciones
                 </a>
 
+                {# ==========================
+                   MÓDULOS OPERATIVOS (por rol)
+                   ========================== #}
+
+                {# Inasistencias / Horas Extras / Anticipos: ADMIN/OPERADOR #}
                 {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR") %}
 
                     <a href="{{ url_for('inasistencias.listado') }}"
@@ -102,6 +107,23 @@
 
                 {% endif %}
 
+                {# Terceros: ADMIN/OPERADOR/REVISOR (lectura para revisor la controla el blueprint) #}
+                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                    <a href="{{ url_for('terceros.listado') }}"
+                       class="{% if request.path.startswith('/terceros') %}active{% endif %}"
+                       {% if request.path.startswith('/terceros') %}aria-current="page"{% endif %}>
+                        Terceros
+                    </a>
+                {% endif %}
+
+                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                    <a href="{{ url_for('solicitudes_fondos.listado') }}"
+                        class="{% if request.path.startswith('/solicitudes-fondos') %}active{% endif %}"
+                        {% if request.path.startswith('/solicitudes-fondos') %}aria-current="page"{% endif %}>
+                        Solicitud de fondos
+                    </a>
+                {% endif %}
+                
                 {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN") %}
                     <span class="nav-sep"> | </span>
 

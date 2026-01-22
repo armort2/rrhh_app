@@ -1,0 +1,115 @@
+{# web/app/templates/terceros/editar.html #}
+{% extends "base.html" %}
+{% block title %}Editar Tercero{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">
+        {% if current_user.has_role("ADMIN","OPERADOR") %}Editar tercero{% else %}Ver tercero{% endif %}
+      </h1>
+      <div class="section-subtitle">
+        {{ tercero|rut_any('rut_num','dv') }} · {{ tercero.nombre_display }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('terceros.listado') }}" class="btn btn-secondary">Volver</a>
+      {% if current_user.has_role("ADMIN","OPERADOR") %}
+        <button form="form-tercero" type="submit" class="btn btn-primary">Guardar</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <form id="form-tercero" method="post" class="card cs-card">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">RUT (sin DV)</label>
+          <input type="text" class="form-control" value="{{ tercero.rut_num }}" disabled>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label">DV</label>
+          <input type="text" name="dv" class="form-control"
+                 value="{{ form.get('dv', tercero.dv) }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-7">
+          <label class="form-label">Ap. Paterno / Razón Social</label>
+          <input type="text" name="ap_paterno" class="form-control"
+                 value="{{ form.get('ap_paterno', tercero.ap_paterno) }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Ap. Materno</label>
+          <input type="text" name="ap_materno" class="form-control"
+                 value="{{ form.get('ap_materno', tercero.ap_materno or '') }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Nombres</label>
+          <input type="text" name="nombres" class="form-control"
+                 value="{{ form.get('nombres', tercero.nombres or '') }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Correo</label>
+          <input type="email" name="correo" class="form-control"
+                 value="{{ form.get('correo', tercero.correo or '') }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Banco</label>
+          <select name="banco_id" class="form-select"
+                  {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+            <option value="">-- Seleccionar --</option>
+            {% for b in bancos %}
+              {% set selected_id = (form.get('banco_id') or (tercero.banco_id|string if tercero.banco_id else '')) %}
+              <option value="{{ b.id }}" {% if selected_id == (b.id|string) %}selected{% endif %}>
+                {{ b.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Cuenta</label>
+          <input type="text" name="cuenta_numero" class="form-control"
+                 value="{{ form.get('cuenta_numero', tercero.cuenta_numero or '') }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">RUT (Cta. bancaria)</label>
+          <input type="text" name="rut_cta" class="form-control"
+                 value="{{ form.get('rut_cta', tercero.rut_cta_completo) }}"
+                 {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select"
+                  {% if not current_user.has_role("ADMIN","OPERADOR") %}disabled{% endif %}>
+            {% set e = (form.get('estado') or tercero.estado or 'VIGENTE')|upper %}
+            <option value="VIGENTE" {% if e == "VIGENTE" %}selected{% endif %}>VIGENTE</option>
+            <option value="INACTIVO" {% if e == "INACTIVO" %}selected{% endif %}>INACTIVO</option>
+            <option value="BLOQUEADO" {% if e == "BLOQUEADO" %}selected{% endif %}>BLOQUEADO</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

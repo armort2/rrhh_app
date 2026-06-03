@@ -1,0 +1,200 @@
+{% extends "print_base_pdf.html" %}
+
+{% block title %}Sueldos PDF · {{ periodo }} · {{ centro_costo }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .brand-title { font-size: 16px; font-weight: 900; color: #7a1f16; letter-spacing: .2px; line-height: 1.1; margin: 0; }
+  .header-meta { margin-top: 2mm; font-size: 10px; color: #444; line-height: 1.25; }
+  .hr { height: 1px; background: #ddd; margin: 8px 0 10px; }
+  .group-title { font-size: 13px; font-weight: 900; margin: 10px 0 6px; }
+
+  .col-rut { width: 95px; white-space: nowrap; }
+  .col-obra { width: 130px; }
+  .col-emp { width: 140px; }
+  .money { text-align: right; white-space: nowrap; width: 95px; font-size: 9px; }
+
+  .subtotal {
+    margin: 6px 0 10px;
+    text-align: right;
+    font-weight: 800;
+    font-size: 10px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .total {
+    margin: 8px 0 6px;
+    text-align: right;
+    font-size: 11px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .total .big { font-size: 13px; font-weight: 900; }
+
+  .push-soft { height: 6mm; }
+
+  .signatures { margin-top: 6mm; break-inside: avoid; page-break-inside: avoid; }
+  .sign-title { font-weight: 800; margin-bottom: 20mm; }
+  .sign-col { padding: 0 10px; }
+</style>
+{% endblock %}
+
+{% block print_header %}
+  <div>
+    <div class="brand-title">Nómina de Sueldos (Líquido a Pago)</div>
+
+    <div class="header-meta">
+      <div>
+        <strong>{{ periodo }}</strong>
+        · Centro de costo: <strong>{{ centro_costo }}</strong>
+      </div>
+
+      <div>
+        Importaciones incluidas:
+        {% for n in nominas %}
+          #{{ n.id }} · {{ n.empleador.razon_social }}{% if not loop.last %} | {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block print_footer_left %}
+  © 2026 Grupo CS · Sistema Interno RRHH · Desarrollado por AOE Asesorías
+{% endblock %}
+
+{% block content %}
+
+  {% if detalles and detalles|length > 0 %}
+    <div class="hr"></div>
+
+    {# Preconteo de grupos #}
+    {% set c = namespace(curr=None, grupos=0) %}
+    {% for item in detalles %}
+      {% set k = ((item.tipo_trabajador or "SIN TIPO")|trim|upper) %}
+      {% if not k %}{% set k = "SIN TIPO" %}{% endif %}
+      {% if c.curr != k %}
+        {% set c.curr = k %}
+        {% set c.grupos = c.grupos + 1 %}
+      {% endif %}
+    {% endfor %}
+
+    {# Render real #}
+    {% set ns = namespace(current_tipo=None, subtotal=0, total=0, grupos=c.grupos, rendered=0) %}
+
+    {% for item in detalles %}
+      {% set d = item.d %}
+      {% set tipo_key = ((item.tipo_trabajador or "SIN TIPO")|trim|upper) %}
+      {% if not tipo_key %}{% set tipo_key = "SIN TIPO" %}{% endif %}
+
+      {% if ns.current_tipo != tipo_key %}
+        {% if ns.current_tipo is not none %}
+            </tbody>
+          </table>
+
+          <div class="subtotal">
+            Subtotal {{ ns.current_tipo }} (Líquido):
+            ${{ "{:,.0f}".format(ns.subtotal|float).replace(",", ".") }}
+          </div>
+
+          {% if ns.rendered < ns.grupos %}
+            <div class="page-break"></div>
+          {% endif %}
+        {% endif %}
+
+        {% set ns.current_tipo = tipo_key %}
+        {% set ns.subtotal = 0 %}
+        {% set ns.rendered = ns.rendered + 1 %}
+
+        <div class="group-title">{{ ns.current_tipo }}</div>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="col-rut">RUT</th>
+              <th>Trabajador</th>
+              <th>Cargo</th>
+              <th class="col-obra">Obra</th>
+              <th class="col-emp">Empleador</th>
+              <th class="money">Alcance líquido</th>
+              <th class="money">Anticipo</th>
+              <th class="money">Líquido</th>
+            </tr>
+          </thead>
+          <tbody>
+      {% endif %}
+
+      {% set ns.subtotal = ns.subtotal + (item.liquido|float) %}
+      {% set ns.total    = ns.total    + (item.liquido|float) %}
+
+      <tr>
+        <td class="col-rut">{{ item.rut_fmt or "-" }}</td>
+        <td>{{ item.nombre_ordenado }}</td>
+        <td>{{ item.cargo_nombre }}</td>
+        <td class="col-obra">{{ d.nombre_obra or "-" }}</td>
+        <td class="col-emp">{{ item.empleador_rs or "-" }}</td>
+        <td class="money">${{ "{:,.0f}".format(item.alcance_liquido|float).replace(",", ".") }}</td>
+        <td class="money">${{ "{:,.0f}".format(item.anticipo|float).replace(",", ".") }}</td>
+        <td class="money">${{ "{:,.0f}".format(item.liquido|float).replace(",", ".") }}</td>
+      </tr>
+
+      {% if loop.last %}
+          </tbody>
+        </table>
+
+        <div class="subtotal">
+          Subtotal {{ ns.current_tipo }} (Líquido):
+          ${{ "{:,.0f}".format(ns.subtotal|float).replace(",", ".") }}
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="total">
+          <div class="big">
+            Total general líquido:
+            ${{ "{:,.0f}".format(ns.total|float).replace(",", ".") }}
+          </div>
+          <div>
+            Total anticipos:
+            ${{ "{:,.0f}".format(total_anticipo|float).replace(",", ".") }}
+          </div>
+          <div>
+            Alcance líquido:
+            ${{ "{:,.0f}".format(total_alcance_liquido|float).replace(",", ".") }}
+          </div>
+        </div>
+
+        <div class="push-soft"></div>
+
+        {# 🔕 Firmas deshabilitadas temporalmente
+        <div class="signatures">
+          <div class="signatures-grid">
+            <div class="sign-col">
+              <div class="sign-title">V°B° Jefe Administración</div>
+              <div class="sign-line"></div>
+              <div class="sign-foot">Nombre / Firma / Fecha</div>
+            </div>
+
+            <div class="sign-col" style="text-align:center;">
+              <div class="sign-title">V°B° Administrador C. Costo</div>
+              <div class="sign-line"></div>
+              <div class="sign-foot">Nombre / Firma / Fecha</div>
+            </div>
+
+            <div class="sign-col" style="text-align:right;">
+              <div class="sign-title">V°B° Gerencia de Proyectos</div>
+              <div class="sign-line"></div>
+              <div class="sign-foot">Nombre / Firma / Fecha</div>
+            </div>
+          </div>
+        </div>
+        #}
+      {% endif %}
+    {% endfor %}
+
+  {% else %}
+    <div class="small">Sin resultados.</div>
+  {% endif %}
+
+{% endblock %}

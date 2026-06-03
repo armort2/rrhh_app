@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Auditoría de datos</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    body { font-family: Arial, sans-serif; color: #111827; font-size: 9px; }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    .muted { color: #6b7280; }
+    .kpis { display: table; width: 100%; margin: 12px 0; border-spacing: 6px; }
+    .kpi { display: table-cell; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; }
+    .kpi .label { color: #6b7280; font-size: 9px; }
+    .kpi .value { font-size: 18px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #d1d5db; padding: 4px 5px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .alta { color: #b91c1c; font-weight: bold; }
+    .media { color: #b45309; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Auditoría de calidad de datos · Sistema Grupo CS</h1>
+  <div class="muted">Fecha reporte: {{ fmt_date(auditoria.fecha_reporte) }} · Filtros aplicados desde Reportería</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Hallazgos</div><div class="value">{{ auditoria.total_issues }}</div></div>
+    <div class="kpi"><div class="label">Contratos afectados</div><div class="value">{{ auditoria.contratos_afectados }}</div></div>
+    <div class="kpi"><div class="label">Alta</div><div class="value alta">{{ auditoria.altas }}</div></div>
+    <div class="kpi"><div class="label">Media</div><div class="value media">{{ auditoria.medias }}</div></div>
+    <div class="kpi"><div class="label">Baja</div><div class="value">{{ auditoria.bajas }}</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Severidad</th><th>Categoría</th><th>Problema</th><th>Sugerencia</th><th>Trabajador</th><th>RUT</th><th>Obra</th><th>Cargo</th><th>ID</th></tr>
+    </thead>
+    <tbody>
+      {% for item in auditoria.issues[:250] %}
+        <tr>
+          <td class="{% if item.severidad == 'Alta' %}alta{% elif item.severidad == 'Media' %}media{% endif %}">{{ item.severidad }}</td>
+          <td>{{ item.categoria }}</td>
+          <td>{{ item.problema }}</td>
+          <td>{{ item.sugerencia }}</td>
+          <td>{{ item.trabajador }}</td>
+          <td>{{ item.rut }}</td>
+          <td>{{ item.obra }}</td>
+          <td>{{ item.cargo }}</td>
+          <td>#{{ item.contrato_id }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9" class="muted">Sin observaciones detectadas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

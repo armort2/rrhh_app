@@ -1,0 +1,244 @@
+{# web/app/templates/rendiciones_gastos/listado.html #}
+{% extends "base.html" %}
+{% block title %}Rendiciones de Gastos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Rendiciones de Gastos</h1>
+      <div class="section-subtitle">Registro y trazabilidad por Centro de Costo, con integración a Solicitud de Fondos (REND).</div>
+      <div class="section-divider"></div>
+    </div>
+
+    {% if not solo_lectura %}
+      <div class="cs-page-actions">
+        <a class="btn btn-primary" href="{{ url_for('rendiciones_gastos.nueva') }}">Nueva rendición</a>
+        {% if is_admin %}
+          <a class="btn btn-outline-secondary" href="{{ url_for('rendiciones_gastos.autorizaciones') }}">Autorizaciones</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card mb-3 cs-filter-card">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end cs-filter-form" data-filter-form data-filter-count-target="#rend-filter-count">
+        <div class="col-12 col-lg-4">
+          <label class="form-label">Centro de Costo</label>
+          <select name="centro_costo" class="form-select">
+            <option value="">Todos</option>
+            {% for cc in centros_costos %}
+              <option value="{{ cc }}" {% if centro_costo == cc %}selected{% endif %}>{{ cc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if puede_filtrar_usuario %}
+          <div class="col-12 col-md-6 col-lg-2">
+            <label class="form-label">Usuario</label>
+            <select name="usuario_id" class="form-select">
+              <option value="">Todos</option>
+              {% for u in usuarios_rendiciones %}
+                <option value="{{ u.id }}" {% if usuario_id and (usuario_id|string) == (u.id|string) %}selected{% endif %}>
+                  {{ u.display }}{% if u.username and u.username != u.display %} / @{{ u.username }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="">Todos</option>
+            {% for e in estados %}
+              <option value="{{ e }}" {% if estado == e %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-lg-2">
+          <label class="form-label">Desde</label>
+          <input type="date" class="form-control" name="desde" value="{{ desde or '' }}">
+        </div>
+
+        <div class="col-6 col-lg-2">
+          <label class="form-label">Hasta</label>
+          <input type="date" class="form-control" name="hasta" value="{{ hasta or '' }}">
+        </div>
+
+        <div class="col-12 d-flex gap-2 mt-2 align-items-center flex-wrap">
+          <button class="btn btn-outline-primary" type="submit">Filtrar</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('rendiciones_gastos.listado') }}">Limpiar</a>
+          <span id="rend-filter-count" class="cs-filter-count is-empty ms-md-auto">0 filtros activos</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% macro fmt_clp(n) -%}
+    ${{ "{:,.0f}".format((n or 0)|float).replace(",", ".") }}
+  {%- endmacro %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <div class="card h-100 cs-kpi-card">
+        <div class="card-body py-3">
+          <div class="text-muted small">Rendiciones encontradas</div>
+          <div class="h4 mb-0">{{ resumen.total_rendiciones or 0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 cs-kpi-card">
+        <div class="card-body py-3">
+          <div class="text-muted small">Ítems rendidos</div>
+          <div class="h4 mb-0">{{ resumen.total_items or 0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 cs-kpi-card">
+        <div class="card-body py-3">
+          <div class="text-muted small">Monto total filtrado</div>
+          <div class="h4 mb-0">{{ fmt_clp(resumen.total_monto or 0) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card cs-table-card">
+    <div class="card-body p-0">
+      <div class="table-responsive cs-table-wrap">
+        <table class="table table-hover mb-0 align-middle cs-polished-table">
+          <thead>
+            <tr>
+              <th style="width:110px;">N°</th>
+              <th style="width:260px;">Usuario</th>
+              <th>Centro de Costo / Referencia</th>
+              <th style="width:150px;">Fecha</th>
+              <th style="width:160px;">Estado</th>
+              <th style="width:110px;" class="text-end">Ítems</th>
+              <th style="width:160px;" class="text-end">Total</th>
+              <th style="width:270px;" class="text-end">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not rendiciones %}
+              <tr>
+                <td colspan="8" class="cs-empty-table-cell">
+                  <div class="cs-empty-state is-table" role="status">
+                    <div class="cs-empty-icon" aria-hidden="true">🧾</div>
+                    <div>
+                      <h2 class="cs-empty-title">Sin rendiciones para mostrar</h2>
+                      <p class="cs-empty-text">No encontramos rendiciones con los filtros seleccionados. Limpia los filtros o registra una nueva rendición.</p>
+                      <div class="cs-empty-actions">
+                        <a href="{{ url_for('rendiciones_gastos.listado') }}" class="btn btn-outline-secondary btn-sm">Limpiar filtros</a>
+                        {% if not solo_lectura %}
+                          <a href="{{ url_for('rendiciones_gastos.nueva') }}" class="btn btn-primary btn-sm">Nueva rendición</a>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+
+              {% for r in rendiciones %}
+                {% set integrada = (r.estado == 'INTEGRADA') or (r.solicitud_fondos_id) %}
+                <tr>
+                  <td class="fw-semibold">#{{ r.numero }}</td>
+
+                  <td>
+                    <div class="fw-semibold">{{ r.creador_display or "-" }}</div>
+                    <div class="text-muted small">
+                      {% if r.creador_username %}@{{ r.creador_username }}{% else %}—{% endif %}
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="fw-semibold">{{ r.centro_costo }}</div>
+                    <div class="text-muted small">
+                      {{ r.referencia_display or "—" }}
+                    </div>
+                  </td>
+
+                  <td>{{ r.fecha_rendicion }}</td>
+
+                  <td>
+                    <span class="badge {% if r.estado == 'INTEGRADA' %}bg-success{% elif r.estado == 'RECHAZADA' %}bg-danger{% elif r.estado == 'ENVIADA' %}bg-primary{% elif r.estado == 'APROBADA' %}bg-success{% else %}bg-secondary{% endif %}">
+                      {{ r.estado }}
+                    </span>
+                  </td>
+
+                  <td class="text-end">
+                    <span class="text-muted">{{ r.n_items or 0 }}</span>
+                  </td>
+
+                  <td class="text-end fw-semibold">
+                    {{ fmt_clp(r.total_monto or 0) }}
+                  </td>
+
+                  <td class="text-end">
+                    <div class="d-inline-flex gap-2">
+                      <a class="btn btn-sm btn-outline-primary"
+                         href="{{ url_for('rendiciones_gastos.detalle', rendicion_id=r.id) }}">Ver</a>
+
+                      <a class="btn btn-sm btn-outline-dark"
+                         href="{{ url_for('rendiciones_gastos.imprimir_pdf', rendicion_id=r.id) }}?v={{ ((r.actualizado_en or r.creado_en).timestamp()|int) if (r.actualizado_en or r.creado_en) else r.id }}"
+                         target="_blank" rel="noopener">
+                        🖨️ PDF
+                      </a>
+
+                      {% if is_admin %}
+                        <form method="post"
+                              action="{{ url_for('rendiciones_gastos.eliminar', rendicion_id=r.id) }}"
+                              class="d-inline"
+                              data-confirm-message="¿Eliminar la rendición #{{ r.numero }}? Solo se eliminará si está vacía y no integrada.">
+                          <button type="submit"
+                                  class="btn btn-sm btn-outline-danger"
+                                  {% if integrada or ((r.n_items or 0) > 0) %}disabled{% endif %}
+                                  title="{% if integrada %}No se puede eliminar una rendición integrada/vinculada{% elif (r.n_items or 0) > 0 %}No se puede eliminar: tiene ítems{% else %}Eliminar rendición (solo si está vacía){% endif %}">
+                            Eliminar
+                          </button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if total_pages > 1 %}
+    <div class="card mt-3">
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="text-muted small">
+            Página {{ page }} de {{ total_pages }} · {{ total }} registro(s)
+          </div>
+
+          <div class="btn-group">
+            <a class="btn btn-outline-secondary btn-sm {% if page <= 1 %}disabled{% endif %}"
+               href="{{ url_for('rendiciones_gastos.listado', centro_costo=centro_costo, usuario_id=usuario_id, estado=estado, desde=desde, hasta=hasta, page=page-1) }}">
+              Anterior
+            </a>
+
+            <a class="btn btn-outline-secondary btn-sm {% if page >= total_pages %}disabled{% endif %}"
+               href="{{ url_for('rendiciones_gastos.listado', centro_costo=centro_costo, usuario_id=usuario_id, estado=estado, desde=desde, hasta=hasta, page=page+1) }}">
+              Siguiente
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

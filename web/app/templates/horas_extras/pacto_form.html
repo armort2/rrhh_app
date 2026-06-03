@@ -1,0 +1,201 @@
+{# web/app/templates/horas_extras/pacto_form.html #}
+{% extends "base.html" %}
+{% block title %}{{ 'Nuevo pacto de horas extra' if modo == 'nuevo' else 'Editar pacto de horas extra' }} · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <div class="section-header mb-3">
+    <h1 class="section-title">{{ 'Nuevo pacto de horas extra' if modo == 'nuevo' else 'Editar pacto de horas extra' }}</h1>
+    <div class="section-subtitle">
+      Documento laboral con vigencia máxima de 3 meses.
+    </div>
+  </div>
+
+  <form method="post"
+        action="{{ url_for('horas_extras.pacto_nuevo') if modo == 'nuevo' else url_for('horas_extras.pacto_editar', pacto_id=pacto.id) }}"
+        data-modo="{{ modo }}"
+        data-api-trabajadores-buscar="{{ url_for('horas_extras.api_trabajadores_buscar') }}"
+        data-api-trabajador-contratos="{{ url_for('horas_extras.api_trabajador_contratos') }}">
+    <div class="card shadow-sm">
+      <div class="card-body">
+
+        {% if modo == 'nuevo' %}
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-8 position-relative">
+            <label class="form-label">Trabajador</label>
+
+            <input type="hidden" id="trabajador_id" name="trabajador_id" value="{{ pre_trabajador_id or '' }}" required>
+            <input type="hidden" id="contrato_id" name="contrato_id" value="">
+
+            <input
+              type="text"
+              class="form-control"
+              id="trabajador_buscar"
+              autocomplete="off"
+              placeholder="Buscar por nombre, apellido o RUT. Ej: Toledo, Gonzalo, Tigre Toledo..."
+              value="{{ pre_trabajador_label or '' }}"
+              required
+            >
+
+            <div class="form-text">
+              Puedes buscar por nombre, apellido paterno, apellido materno o RUT, en cualquier orden.
+            </div>
+
+            <div
+              id="trabajador_suggest"
+              class="list-group position-absolute w-100 shadow-sm"
+              style="z-index: 50; display:none; max-height: 320px; overflow:auto; border-radius: 10px;">
+            </div>
+          </div>
+        </div>
+
+        <div id="bloque_contexto_trabajador" class="card border-0 bg-light-subtle mb-3" style="display:none;">
+          <div class="card-body py-3">
+            <div class="row g-3">
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="text-muted small">Trabajador seleccionado</div>
+                <div class="fw-semibold" id="ctx_nombre">-</div>
+              </div>
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="text-muted small">RUT</div>
+                <div class="fw-semibold" id="ctx_rut">-</div>
+              </div>
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="text-muted small">Obra actual</div>
+                <div class="fw-semibold" id="ctx_obra">-</div>
+              </div>
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="text-muted small">Empleador referencial</div>
+                <div class="fw-semibold" id="ctx_empleador">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="bloque_contratos" class="card border-0 bg-light-subtle mb-3" style="display:none;">
+          <div class="card-body py-3">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Contrato a utilizar para emitir el pacto</label>
+                <div id="contratos_opciones" class="d-grid gap-2"></div>
+                <div class="form-text">
+                  Debes elegir el contrato correcto. De aquí se tomarán el empleador y la obra del pacto.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="bloque_contexto_contrato" class="card border-0 bg-body-tertiary mb-3" style="display:none;">
+          <div class="card-body py-3">
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <div class="text-muted small">Contrato seleccionado</div>
+                <div class="fw-semibold" id="ctx2_contrato">-</div>
+              </div>
+              <div class="col-12 col-md-3">
+                <div class="text-muted small">Tipo</div>
+                <div class="fw-semibold" id="ctx2_tipo">-</div>
+              </div>
+              <div class="col-12 col-md-3">
+                <div class="text-muted small">Empleador</div>
+                <div class="fw-semibold" id="ctx2_empleador">-</div>
+              </div>
+              <div class="col-12 col-md-3">
+                <div class="text-muted small">Obra</div>
+                <div class="fw-semibold" id="ctx2_obra">-</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="text-muted small">Inicio contrato</div>
+                <div class="fw-semibold" id="ctx2_inicio">-</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="text-muted small">Término contrato</div>
+                <div class="fw-semibold" id="ctx2_termino">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% else %}
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-8">
+            <label class="form-label">Trabajador</label>
+            <input class="form-control" value="{{ pacto.trabajador.ap_paterno }} {{ pacto.trabajador.ap_materno or '' }} {{ pacto.trabajador.nombres }} · {{ pacto.trabajador.rut_completo }}" disabled>
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Estado actual</label>
+            <input class="form-control" value="{{ pacto.estado }}" disabled>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-4">
+            <div class="text-muted small">Contrato</div>
+            <div class="fw-semibold">#{{ pacto.contrato_id }}</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="text-muted small">Empleador</div>
+            <div class="fw-semibold">{{ pacto.empleador.razon_social if pacto.empleador else '-' }}</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="text-muted small">Obra</div>
+            <div class="fw-semibold">{{ pacto.obra.nombre if pacto.obra else '-' }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Fecha emisión pacto</label>
+            <input type="date" class="form-control" name="fecha_emision" id="fecha_emision" value="{{ pacto.fecha_emision if pacto else hoy }}" required>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Fecha inicio pacto</label>
+            <input type="date" class="form-control" name="fecha_inicio" id="fecha_inicio" value="{{ pacto.fecha_inicio if pacto else hoy }}" required>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Fecha término pacto</label>
+            <input type="date" class="form-control" name="fecha_termino" id="fecha_termino" value="{{ pacto.fecha_termino if pacto else hoy }}" required>
+          </div>
+
+          <div class="col-12">
+            <div class="alert alert-info mb-0">
+              <div class="fw-semibold mb-1">Regla de vigencia del pacto</div>
+              <div class="small">
+                El pacto puede extenderse por un máximo de 3 meses.
+                Si la fecha de inicio es el día 1 del mes, la fecha de término sugerida será el último día del tercer mes posterior.
+                En los demás casos, se usará el mismo número de día, 3 meses después.
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div id="alerta_fechas_pacto" class="alert alert-warning d-none mb-0">
+              El rango seleccionado excede la vigencia máxima permitida para el pacto de horas extra.
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Observaciones</label>
+            <textarea class="form-control" name="observaciones" rows="4" placeholder="Observaciones internas del pacto...">{{ pacto.observaciones if pacto else '' }}</textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <a class="btn btn-outline-secondary" href="{{ url_for('horas_extras.pactos_listado') }}">Volver</a>
+        <button class="btn btn-primary" type="submit" id="btn_guardar_pacto">Guardar</button>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+  <script src="{{ url_for('static', filename='js/horas_extras_pacto_form.js') }}"></script>
+{% endblock %}

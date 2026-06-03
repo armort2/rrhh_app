@@ -2,9 +2,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-3">
+<div class="container py-3 cs-list-page">
 
-  <div class="card shadow-sm">
+  <div class="card shadow-sm cs-page-card">
     <div class="card-body border-bottom">
       <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
         <div class="section-header mb-0">
@@ -35,7 +35,7 @@
       <!-- ==========================
            FILTROS
       =========================== -->
-      <form method="get" id="form-filtros-trabajadores">
+      <form method="get" id="form-filtros-trabajadores" class="cs-filter-form" data-filter-form data-filter-count-target="#trabajadores-filter-count">
 
         <div class="row g-3">
           <!-- Empleadores -->
@@ -121,13 +121,14 @@
           </div>
         </div>
 
-        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-top pt-3 mt-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 cs-filter-actions">
           <div class="d-flex gap-2 flex-wrap">
             <button type="submit" class="btn btn-primary">Aplicar filtros</button>
             <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="btn btn-outline-secondary">Limpiar todo</a>
           </div>
-          <div class="text-muted small d-flex align-items-center">
-            Tip ejecutivo: Empleador + Obra + “Buscar” = auditoría feliz.
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="trabajadores-filter-count" class="cs-filter-count is-empty">0 filtros activos</span>
+            <span class="text-muted small">Tip ejecutivo: Empleador + Obra + “Buscar” = auditoría feliz.</span>
           </div>
         </div>
       </form>
@@ -138,8 +139,8 @@
       <hr class="my-4">
 
       {% if trabajadores %}
-        <div class="table-responsive">
-          <table class="table align-middle table-striped table-hover">
+        <div class="table-responsive cs-table-wrap">
+          <table class="table align-middle table-striped table-hover cs-polished-table">
             <thead class="table-light">
               <tr>
                 <th>RUT</th>
@@ -226,8 +227,18 @@
         {% endif %}
 
       {% else %}
-        <div class="alert alert-light border mb-0">
-          No hay trabajadores que cumplan con los filtros seleccionados.
+        <div class="cs-empty-state" role="status">
+          <div class="cs-empty-icon" aria-hidden="true">🧑‍🏭</div>
+          <div>
+            <h2 class="cs-empty-title">No hay trabajadores para mostrar</h2>
+            <p class="cs-empty-text">No encontramos trabajadores que cumplan con los filtros actuales. Puedes limpiar los filtros o ajustar la búsqueda.</p>
+            <div class="cs-empty-actions">
+              <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="btn btn-outline-secondary btn-sm">Limpiar filtros</a>
+              {% if current_user and current_user.has_role("ADMIN") %}
+                <a href="{{ url_for('trabajadores.nuevo_trabajador') }}" class="btn btn-primary btn-sm">Agregar trabajador</a>
+              {% endif %}
+            </div>
+          </div>
         </div>
       {% endif %}
 
@@ -235,23 +246,5 @@
   </div>
 </div>
 
-<script>
-(function () {
-  document.querySelectorAll("[data-select-all]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sel = document.querySelector(btn.getAttribute("data-select-all"));
-      if (!sel) return;
-      Array.from(sel.options).forEach(o => o.selected = true);
-    });
-  });
-
-  document.querySelectorAll("[data-clear-all]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sel = document.querySelector(btn.getAttribute("data-clear-all"));
-      if (!sel) return;
-      Array.from(sel.options).forEach(o => o.selected = false);
-    });
-  });
-})();
-</script>
 {% endblock %}
+

@@ -2,107 +2,216 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-4 home-dashboard">
 
-  <!-- Hero -->
-  <section class="card dashboard-hero p-4 mb-4">
-    <div class="section-header section-header--hero mb-0">
-      <h1 class="section-title">Sistema Grupo CS</h1>
-      <div class="section-subtitle">
-        Plataforma interna para la gestión de <strong>trabajadores</strong>, <strong>contratos</strong>,
-        <strong>obras</strong> y futuros módulos de <strong>prevención de riesgos</strong>.
+  <section class="card dashboard-hero p-4 p-lg-5 mb-4" data-animate>
+    <div class="row align-items-center g-4">
+      <div class="col-12 col-xl-8">
+        <div class="eyebrow mb-2">Panel principal · {{ today.strftime('%d-%m-%Y') if today else '' }}</div>
+        <div class="section-header section-header--hero mb-0">
+          <h1 class="section-title display-title">Sistema Grupo CS</h1>
+          <div class="section-subtitle hero-subtitle">
+            Plataforma interna para gestionar <strong>personas</strong>, <strong>contratos</strong>,
+            <strong>remuneraciones</strong>, <strong>flujo operativo</strong> y <strong>prevención de riesgos</strong>.
+          </div>
+          <div class="section-divider"></div>
+        </div>
+
+        <p class="mt-3 mb-0 text-muted hero-copy">
+          Un punto de partida más claro, rápido y agradable para entrar a trabajar sin sentir que uno abrió
+          el Excel prohibido de Mordor. 😄
+        </p>
+
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="btn btn-primary">
+            <i class="bi bi-people-fill me-1"></i> Trabajadores
+          </a>
+          <a href="{{ url_for('prevencion_riesgos.dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-shield-check me-1"></i> Prevención
+          </a>
+          <a href="{{ url_for('dashboard.solicitudes_fondos') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-graph-up-arrow me-1"></i> Dashboard fondos
+          </a>
+        </div>
       </div>
-      <div class="section-divider"></div>
+
+      <div class="col-12 col-xl-4">
+        <div class="hero-status-card">
+          <div class="hero-status-icon">🦺</div>
+          <div>
+            <div class="fw-bold">Prevención habilitada</div>
+            <div class="small text-muted">Matriz, EPP, charlas y documentos preventivos ya disponibles.</div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <p class="mt-3 mb-0 text-muted">
-      Selecciona una de las áreas para comenzar a trabajar.
-    </p>
-
   </section>
 
-
-  <!-- KPIs -->
   <section class="row g-3 mb-4">
-    <div class="col-12 col-md-3">
-      <div class="card kpi-card p-3">
-        <div class="kpi-label">Trabajadores registrados</div>
-        <div class="kpi-value">{{ kpis.trabajadores_total }}</div>
-      </div>
+    <div class="col-12 col-md-6 col-xl-3" data-animate>
+      <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="kpi-link">
+        <div class="card kpi-card p-3 h-100">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-label">Trabajadores registrados</div>
+          <div class="kpi-value" data-count-up="{{ kpis.trabajadores_total or 0 }}">{{ kpis.trabajadores_total }}</div>
+          <div class="kpi-footnote">Base maestra de personal</div>
+        </div>
+      </a>
     </div>
 
-    <div class="col-12 col-md-3">
-      <div class="card kpi-card p-3">
-        <div class="kpi-label">Obras activas</div>
-        <div class="kpi-value">{{ kpis.obras_activas }}</div>
-      </div>
+    <div class="col-12 col-md-6 col-xl-3" data-animate>
+      <a href="/obras/" class="kpi-link">
+        <div class="card kpi-card p-3 h-100">
+          <div class="kpi-icon">🏗️</div>
+          <div class="kpi-label">Obras activas</div>
+          <div class="kpi-value" data-count-up="{{ kpis.obras_activas or 0 }}">{{ kpis.obras_activas }}</div>
+          <div class="kpi-footnote">Centros de costo operativos</div>
+        </div>
+      </a>
     </div>
 
-    <div class="col-12 col-md-3">
-      <div class="card kpi-card p-3">
-        <div class="kpi-label">Contratos vigentes</div>
-        <div class="kpi-value">{{ kpis.contratos_vigentes }}</div>
-      </div>
+    <div class="col-12 col-md-6 col-xl-3" data-animate>
+      <a href="/contratos/" class="kpi-link">
+        <div class="card kpi-card p-3 h-100">
+          <div class="kpi-icon">📝</div>
+          <div class="kpi-label">Contratos vigentes</div>
+          <div class="kpi-value" data-count-up="{{ kpis.contratos_vigentes or 0 }}">{{ kpis.contratos_vigentes }}</div>
+          <div class="kpi-footnote">Relación laboral activa</div>
+        </div>
+      </a>
     </div>
 
-    <div class="col-12 col-md-3">
-      <div class="card kpi-card p-3 {% if (kpis.contratos_por_vencer_30d or 0) > 0 %}kpi-warn{% endif %}">
-        <div class="kpi-label">Por vencer (≤ 30 días)</div>
-        <div class="kpi-value">{{ kpis.contratos_por_vencer_30d }}</div>
-      </div>
+    <div class="col-12 col-md-6 col-xl-3" data-animate>
+      <a href="{{ url_for('contratos_vencimientos.listado') }}" class="kpi-link">
+        <div class="card kpi-card p-3 h-100 {% if (kpis.contratos_por_vencer_30d or 0) > 0 %}kpi-warn{% endif %}">
+          <div class="kpi-icon">⏳</div>
+          <div class="kpi-label">Por vencer ≤ 30 días</div>
+          <div class="kpi-value" data-count-up="{{ kpis.contratos_por_vencer_30d or 0 }}">{{ kpis.contratos_por_vencer_30d }}</div>
+          <div class="kpi-footnote">Alerta documental</div>
+        </div>
+      </a>
     </div>
   </section>
 
-  <!-- Módulos -->
+  <section class="row g-3 mb-4">
+    <div class="col-12 col-xl-8" data-animate>
+      <article class="card p-4 h-100 quick-panel">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+          <div>
+            <div class="eyebrow">Accesos rápidos</div>
+            <h2 class="h4 mb-1">Trabajo diario</h2>
+            <p class="text-muted mb-0">Los módulos que más usamos, a un clic y sin peregrinación por menús.</p>
+          </div>
+        </div>
+
+        <div class="quick-actions-grid">
+          <a href="{{ url_for('trabajadores.nuevo_trabajador') }}" class="quick-action">
+            <span class="quick-action-icon">➕</span>
+            <span><strong>Nuevo trabajador</strong><small>Crear ficha de personal</small></span>
+          </a>
+          <a href="/contratos/" class="quick-action">
+            <span class="quick-action-icon">📄</span>
+            <span><strong>Contratos</strong><small>Crear y revisar contratos</small></span>
+          </a>
+          <a href="{{ url_for('anexos_masivos.listado') }}" class="quick-action">
+            <span class="quick-action-icon">📚</span>
+            <span><strong>Anexos masivos</strong><small>Procesos colectivos</small></span>
+          </a>
+          <a href="{{ url_for('solicitudes_fondos.listado') }}" class="quick-action">
+            <span class="quick-action-icon">💸</span>
+            <span><strong>Solicitudes de fondos</strong><small>Control operativo</small></span>
+          </a>
+          <a href="{{ url_for('rendiciones_gastos.listado') }}" class="quick-action">
+            <span class="quick-action-icon">🧾</span>
+            <span><strong>Rendiciones</strong><small>Respaldo y cierre</small></span>
+          </a>
+          <a href="{{ url_for('prevencion_riesgos.dashboard') }}" class="quick-action quick-action-highlight">
+            <span class="quick-action-icon">🦺</span>
+            <span><strong>Prevención de Riesgos</strong><small>Nuevo módulo disponible</small></span>
+          </a>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-12 col-xl-4" data-animate>
+      <article class="card p-4 h-100 risk-panel">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <div class="eyebrow">Prevención</div>
+            <h2 class="h4 mb-0">Estado preventivo</h2>
+          </div>
+          <span class="risk-badge">Activo</span>
+        </div>
+
+        <div class="risk-metric">
+          <span>Documentos vencidos</span>
+          <strong>{{ prevencion_stats.documentos_vencidos|default(0) }}</strong>
+        </div>
+        <div class="risk-metric">
+          <span>Documentos por vencer</span>
+          <strong>{{ prevencion_stats.documentos_por_vencer|default(0) }}</strong>
+        </div>
+        <div class="risk-metric">
+          <span>Reposiciones EPP vencidas</span>
+          <strong>{{ prevencion_stats.reposiciones_epp_vencidas|default(0) }}</strong>
+        </div>
+        <div class="risk-metric">
+          <span>Charlas del mes</span>
+          <strong>{{ prevencion_stats.charlas_mes|default(0) }}</strong>
+        </div>
+
+        <div class="d-grid gap-2 mt-4">
+          <a href="{{ url_for('prevencion_riesgos.dashboard') }}" class="btn btn-primary">Abrir dashboard preventivo</a>
+          <a href="{{ url_for('prevencion_riesgos.matriz') }}" class="btn btn-outline-secondary">Ver matriz preventiva</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
   <section class="row g-3">
-    <div class="col-12 col-lg-4">
-      <article class="card p-4 h-100">
+    <div class="col-12 col-lg-4" data-animate>
+      <article class="card module-card p-4 h-100">
+        <div class="module-icon">👥</div>
         <h2 class="card-title mb-1">Gestión de Trabajadores</h2>
         <p class="card-subtitle mb-3">Consulta fichas, crea nuevos trabajadores y revisa información contractual asociada.</p>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap gap-2 mt-auto">
           <a href="{{ url_for('trabajadores.listado_trabajadores') }}" class="btn btn-primary">Ver trabajadores</a>
           <a href="{{ url_for('trabajadores.nuevo_trabajador') }}" class="btn btn-outline-secondary">Nuevo trabajador</a>
         </div>
       </article>
     </div>
 
-    <div class="col-12 col-lg-4">
-      <article class="card p-4 h-100">
+    <div class="col-12 col-lg-4" data-animate>
+      <article class="card module-card p-4 h-100">
+        <div class="module-icon">📝</div>
         <h2 class="card-title mb-1">Gestión de Contratos</h2>
-        <p class="card-subtitle mb-3">Crea, revisa y administra contratos de trabajo asociados a los distintos trabajadores.</p>
-        <a href="/contratos/" class="btn btn-primary">Ver contratos</a>
+        <p class="card-subtitle mb-3">Crea, revisa y administra contratos de trabajo y sus anexos.</p>
+        <a href="/contratos/" class="btn btn-primary mt-auto">Ver contratos</a>
       </article>
     </div>
 
-    <div class="col-12 col-lg-4">
-      <article class="card p-4 h-100">
+    <div class="col-12 col-lg-4" data-animate>
+      <article class="card module-card p-4 h-100">
+        <div class="module-icon">🏗️</div>
         <h2 class="card-title mb-1">Gestión de Obras</h2>
-        <p class="card-subtitle mb-3">Administra las obras activas, asigna trabajadores y centraliza información relevante.</p>
-        <a href="/obras/" class="btn btn-primary">Ver obras</a>
+        <p class="card-subtitle mb-3">Administra obras activas, asignaciones y centros de costo.</p>
+        <a href="/obras/" class="btn btn-primary mt-auto">Ver obras</a>
       </article>
     </div>
 
-    <div class="col-12 col-lg-6">
-      <article class="card p-4 h-100">
+    <div class="col-12" data-animate>
+      <article class="card module-card module-card-featured p-4 h-100">
+        <div class="module-icon">🦺</div>
         <h2 class="card-title mb-1">Prevención de Riesgos</h2>
-        <p class="card-subtitle mb-3">Módulo en construcción para integrar reportes, investigaciones de incidentes y documentación preventiva.</p>
-        <button type="button" class="btn btn-outline-secondary" disabled>Próximamente</button>
-      </article>
-    </div>
-
-    {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN") %}
-    <div class="col-12 col-lg-6">
-      <article class="card p-4 h-100">
-        <h2 class="card-title mb-1">Administración</h2>
-        <p class="card-subtitle mb-3">Configura catálogos del sistema (horarios, usuarios y parámetros).</p>
-        <div class="d-flex flex-wrap gap-2">
-          <a href="{{ url_for('horarios.horarios_listado') }}" class="btn btn-primary">Gestionar horarios</a>
-          <a href="{{ url_for('core.cargos_listado') }}" class="btn btn-primary">Gestionar cargos</a>
-          <a href="{{ url_for('admin.users_list') }}" class="btn btn-primary">Usuarios</a>
+        <p class="card-subtitle mb-3">Matriz preventiva, entregas de EPP, charlas de seguridad y documentos preventivos por trabajador/contrato.</p>
+        <div class="d-flex flex-wrap gap-2 mt-auto">
+          <a href="{{ url_for('prevencion_riesgos.dashboard') }}" class="btn btn-primary">Abrir módulo</a>
+          <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-outline-secondary">EPP</a>
+          <a href="{{ url_for('prevencion_riesgos.charlas_listado') }}" class="btn btn-outline-secondary">Charlas</a>
         </div>
       </article>
     </div>
-    {% endif %}
+
   </section>
 
 </div>

@@ -3,7 +3,7 @@
 {% block title %}Registrar inasistencia{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-form-page">
 
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
@@ -152,139 +152,10 @@
 
 </div>
 
-<script>
-  function toggleHoras() {
-    const tipo = document.getElementById('tipo').value;
-    const box = document.getElementById('box-horas');
-    box.style.display = (tipo === 'HORAS') ? 'block' : 'none';
-
-    // Alternar grupos de motivos
-    const grpDia = document.getElementById('grp-dia');
-    const grpHoras = document.getElementById('grp-horas');
-    grpDia.hidden = (tipo !== 'DIA');
-    grpHoras.hidden = (tipo !== 'HORAS');
-
-    // Alinear motivo con tipo (si quedó seleccionado uno del otro grupo)
-    forceMotivoMatchTipo();
-    updateMotivoInfo();
-  }
-
-  function forceMotivoMatchTipo() {
-    const tipo = document.getElementById('tipo').value;
-    const sel = document.getElementById('motivo');
-    const err = document.getElementById('motivo_tipo_error');
-
-    const opt = sel.options[sel.selectedIndex];
-    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
-
-    if (optTipo && optTipo !== tipo) {
-      // buscar primera opción del tipo actual
-      for (let i = 0; i < sel.options.length; i++) {
-        const o = sel.options[i];
-        const t = (o.getAttribute('data-tipo') || '').toUpperCase();
-        if (t === tipo) {
-          sel.selectedIndex = i;
-          break;
-        }
-      }
-      err.style.display = 'none';
-      return true;
-    }
-
-    err.style.display = 'none';
-    return true;
-  }
-
-  function extractIdFromOptionValue(val) {
-    const m = (val || "").match(/^(\d+)\s*-\s*/);
-    return m ? m[1] : "";
-  }
-
-  function syncHiddenTrabajadorId() {
-    const input = document.getElementById("trabajador_search");
-    const hidden = document.getElementById("trabajador_id");
-    const err = document.getElementById("trabajador_error");
-
-    const id = extractIdFromOptionValue(input.value);
-    hidden.value = id;
-
-    err.style.display = id ? "none" : "block";
-  }
-
-  function validateTrabajadorSelected(e) {
-    const hidden = document.getElementById("trabajador_id");
-    const err = document.getElementById("trabajador_error");
-    if (!hidden.value) {
-      e.preventDefault();
-      err.style.display = "block";
-      document.getElementById("trabajador_search").focus();
-      return false;
-    }
-    return true;
-  }
-
-  function validateMotivoTipo(e) {
-    const tipo = document.getElementById('tipo').value;
-    const sel = document.getElementById('motivo');
-    const err = document.getElementById('motivo_tipo_error');
-
-    const opt = sel.options[sel.selectedIndex];
-    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
-
-    if (!optTipo || optTipo !== tipo) {
-      // reintentar alineación automática
-      forceMotivoMatchTipo();
-      const opt2 = sel.options[sel.selectedIndex];
-      const optTipo2 = opt2 ? (opt2.getAttribute('data-tipo') || '').toUpperCase() : '';
-
-      if (!optTipo2 || optTipo2 !== tipo) {
-        e.preventDefault();
-        err.style.display = 'block';
-        sel.focus();
-        return false;
-      }
-    }
-
-    err.style.display = 'none';
-    return true;
-  }
-
-  function updateMotivoInfo() {
-    const sel = document.getElementById('motivo');
-    const opt = sel.options[sel.selectedIndex];
-    const noDesc = opt && opt.getAttribute('data-no-descuenta') === '1';
-    const val = sel.value;
-
-    const boxNoDesc = document.getElementById('info_no_descuenta');
-    const boxDuelo = document.getElementById('info_duelo');
-
-    boxNoDesc.style.display = noDesc ? 'block' : 'none';
-    boxDuelo.style.display = (val === 'PERMISO_DUELO') ? 'block' : 'none';
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    toggleHoras();
-    document.getElementById('tipo').addEventListener('change', toggleHoras);
-
-    const input = document.getElementById("trabajador_search");
-    input.addEventListener("input", syncHiddenTrabajadorId);
-    input.addEventListener("change", syncHiddenTrabajadorId);
-
-    document.getElementById("motivo").addEventListener("change", () => {
-      forceMotivoMatchTipo();
-      updateMotivoInfo();
-    });
-
-    const form = document.getElementById("form-inasistencia");
-    form.addEventListener("submit", (e) => {
-      const okTrab = validateTrabajadorSelected(e);
-      if (!okTrab) return;
-      validateMotivoTipo(e);
-    });
-
-    syncHiddenTrabajadorId();
-    forceMotivoMatchTipo();
-    updateMotivoInfo();
-  });
-</script>
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/inasistencias_form.js') }}"></script>
+{% endblock %}
+

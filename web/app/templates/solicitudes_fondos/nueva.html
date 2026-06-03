@@ -17,7 +17,7 @@
 
         <div class="col-12 col-md-6">
           <label class="form-label">Centro de Costo</label>
-          <select name="centro_costo" class="form-select" required>
+          <select name="centro_costo" id="centroCostoSelect" class="form-select" required>
             <option value="">Seleccione...</option>
             {% for cc in centros_costos %}
               <option value="{{ cc }}">{{ cc }}</option>
@@ -39,8 +39,19 @@
         </div>
 
         <div class="col-6 col-md-2">
-          <label class="form-label">N° (opcional)</label>
-          <input type="number" name="numero" class="form-control" placeholder="Auto">
+          <label class="form-label">N° solicitud</label>
+          <input
+            type="number"
+            name="numero"
+            id="numeroSolicitudInput"
+            class="form-control"
+            placeholder="Auto"
+            readonly
+            tabindex="-1"
+          >
+          <div class="form-text" id="numeroSolicitudHelp">
+            Se asigna automáticamente según el Centro de Costo.
+          </div>
         </div>
 
         <div class="col-6 col-md-4">
@@ -83,3 +94,55 @@
 
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const centroCostoSelect = document.getElementById('centroCostoSelect');
+    const numeroInput = document.getElementById('numeroSolicitudInput');
+    const numeroHelp = document.getElementById('numeroSolicitudHelp');
+    const endpoint = "{{ url_for('solicitudes_fondos.api_siguiente_numero') }}";
+
+    if (!centroCostoSelect || !numeroInput) return;
+
+    const setEstadoNumero = (valor, ayuda) => {
+      numeroInput.value = valor || '';
+      if (numeroHelp && ayuda) numeroHelp.textContent = ayuda;
+    };
+
+    const cargarSiguienteNumero = async () => {
+      const cc = (centroCostoSelect.value || '').trim();
+
+      if (!cc) {
+        setEstadoNumero('', 'Se asigna automáticamente según el Centro de Costo.');
+        return;
+      }
+
+      setEstadoNumero('', 'Calculando siguiente N°...');
+
+      try {
+        const url = `${endpoint}?centro_costo=${encodeURIComponent(cc)}`;
+        const resp = await fetch(url, {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin'
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.ok) {
+          setEstadoNumero('', data.message || 'No se pudo calcular el siguiente N°.');
+          return;
+        }
+
+        setEstadoNumero(data.siguiente_numero, `Próxima solicitud para ${cc}: N° ${data.siguiente_numero}.`);
+      } catch (error) {
+        console.error('Error calculando siguiente N° de Solicitud de Fondos:', error);
+        setEstadoNumero('', 'No se pudo calcular el siguiente N°. Revisa la conexión e intenta nuevamente.');
+      }
+    };
+
+    centroCostoSelect.addEventListener('change', cargarSiguienteNumero);
+    cargarSiguienteNumero();
+  });
+</script>
+{% endblock %}
+

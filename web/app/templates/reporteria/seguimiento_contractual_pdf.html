@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Seguimiento contractual</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    body { font-family: Arial, sans-serif; color: #111827; font-size: 9px; }
+    h1 { margin: 0 0 4px; font-size: 17px; }
+    .muted { color: #6b7280; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #d1d5db; padding: 4px 5px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .danger { color: #b91c1c; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Seguimiento de gestión contractual · Sistema Grupo CS</h1>
+  <div class="muted">Fecha reporte: {{ fmt_date(metricas.fecha_reporte) }} · Registros: {{ seguimiento_rows|length }}</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Bloque</th><th>Gestión</th><th>Acción sugerida</th><th>Días</th><th>Inicio</th><th>Término</th><th>Antigüedad</th><th>Trabajador</th><th>RUT</th><th>Obra</th><th>Cargo</th><th>Tipo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in seguimiento_rows[:120] %}
+        <tr>
+          <td>{{ r.bloque }}</td>
+          <td>{{ r.estado_gestion }}</td>
+          <td>{{ r.accion_sugerida }}</td>
+          <td class="{% if r.dias_para_vencer is not none and r.dias_para_vencer <= 7 %}danger{% endif %}">{{ r.dias_para_vencer if r.dias_para_vencer is not none else '—' }}</td>
+          <td>{{ fmt_date(r.fecha_inicio) }}</td>
+          <td>{{ fmt_date(r.fecha_termino) }}</td>
+          <td>{{ r.antiguedad }}</td>
+          <td>{{ r.trabajador }}</td>
+          <td>{{ r.rut }}</td>
+          <td>{{ r.obra }}</td>
+          <td>{{ r.cargo }}</td>
+          <td>{{ r.tipo_contrato }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="12" class="muted">Sin contratos para seguimiento según los filtros actuales.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

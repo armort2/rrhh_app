@@ -37,7 +37,7 @@
           Centro de Costo: <span class="fw-semibold">{{ s.centro_costo or "-" }}</span>
         {% endif %}
         · Estado:
-        <span class="badge {{ badge_estado(s.estado) if badge_estado is defined else 'badge-muted' }}">
+        <span class="{{ badge_estado(s.estado) if badge_estado is defined else 'cs-badge cs-badge-muted' }}">
           {{ s.estado }}
         </span>
       </div>

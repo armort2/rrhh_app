@@ -1,0 +1,207 @@
+{# web/app/templates/solicitudes_fondos/solicitudes_fondos_nominas_banco_preparar.html #}
+{% extends "base.html" %}
+{% block title %}Preparar Nómina Bancaria{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header mb-3">
+    <h1 class="section-title">Preparar nómina bancaria</h1>
+    <div class="section-subtitle">
+      Revisión y selección de líneas pendientes de pago para generar una nómina persistente.
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-3">
+          <div class="text-muted small">Período</div>
+          <div class="fw-semibold">{{ periodo_label }}</div>
+        </div>
+        <div class="col-12 col-lg-3">
+          <div class="text-muted small">Corte</div>
+          <div class="fw-semibold">{{ periodo_tipo_label }}</div>
+        </div>
+        <div class="col-12 col-lg-3">
+          <div class="text-muted small">Candidatos</div>
+          <div class="fw-semibold">{{ candidates|length }}</div>
+        </div>
+        <div class="col-12 col-lg-3">
+          <div class="text-muted small">Total pendiente visible</div>
+          <div class="fw-semibold">$ {{ fmt_clp_text(total_pendiente) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('solicitudes_fondos.nominas_banco_guardar') }}">
+    <input type="hidden" name="plantilla" value="{{ form.plantilla }}">
+    <input type="hidden" name="periodo" value="{{ form.periodo }}">
+    <input type="hidden" name="periodo_tipo" value="{{ form.periodo_tipo }}">
+    <input type="hidden" name="tipo_pago" value="{{ form.tipo_pago }}">
+    {% if form.incluir_aprobadas %}<input type="hidden" name="incluir_aprobadas" value="1">{% endif %}
+    {% if form.incluir_pagadas %}<input type="hidden" name="incluir_pagadas" value="1">{% endif %}
+
+    {% for cc in form.centro_costos or [] %}
+      <input type="hidden" name="centro_costos" value="{{ cc }}">
+    {% endfor %}
+    {% for eid in form.empresa_ids or [] %}
+      <input type="hidden" name="empresa_ids" value="{{ eid }}">
+    {% endfor %}
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-lg-8">
+            <label class="form-label">Observaciones de la nómina</label>
+            <input type="text" class="form-control" name="observaciones" placeholder="Ej.: pago parcial priorizado por flujo de caja">
+          </div>
+          <div class="col-12 col-lg-4 d-flex justify-content-lg-end gap-2">
+            <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.nominas_banco') }}">
+              ⬅ Volver a filtros
+            </a>
+            <button class="btn btn-primary" type="submit">
+              💾 Guardar nómina y generar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="fw-semibold">Líneas candidatas</div>
+        <div class="text-muted small">
+          Puedes modificar el monto a pagar ahora, siempre que no supere el pendiente.
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width:70px;">Sel.</th>
+                <th style="width:120px;">Origen</th>
+                <th style="width:90px;">Sección</th>
+                <th>Beneficiario</th>
+                <th>Referencia</th>
+                <th style="width:140px;" class="text-end">Original</th>
+                <th style="width:140px;" class="text-end">Pagado</th>
+                <th style="width:140px;" class="text-end">Pendiente</th>
+                <th style="width:170px;" class="text-end">Pagar ahora</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if not candidates %}
+                <tr>
+                  <td colspan="9" class="text-center text-muted py-4">
+                    No hay líneas disponibles para generar la nómina.
+                  </td>
+                </tr>
+              {% else %}
+                {% for c in candidates %}
+                  {% set safe = c.key %}
+                  <tr>
+                    <td>
+                      <input class="form-check-input js-check-row" type="checkbox" name="selected_keys" value="{{ safe }}" checked>
+                    </td>
+                    <td>
+                      <span class="cs-badge cs-badge-muted">{{ c.origen_tipo }}</span>
+                    </td>
+                    <td>
+                      <span class="cs-badge cs-badge-muted">{{ c.seccion }}</span>
+                    </td>
+                    <td>
+                      <div class="fw-semibold">{{ c.nombre_beneficiario }}</div>
+                      <div class="text-muted small">
+                        RUT: {{ c.rut_beneficiario or "-" }}
+                        {% if c.codigo_banco or c.cuenta_destino %}
+                          · Banco: {{ c.codigo_banco or "-" }}
+                          · Cuenta: {{ c.cuenta_destino or "-" }}
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="fw-semibold">{{ c.solicitud_label or "-" }}</div>
+                      <div class="text-muted small">
+                        {% if c.solicitud_id %}Solicitud #{{ c.solicitud_id }}{% endif %}
+                        {% if c.nro_documento %} · {{ c.nro_documento }}{% endif %}
+                        {% if c.descripcion %}<br>{{ c.descripcion }}{% endif %}
+                      </div>
+                    </td>
+                    <td class="text-end">$ {{ fmt_clp_text(c.monto_original) }}</td>
+                    <td class="text-end">$ {{ fmt_clp_text(c.ya_pagado) }}</td>
+                    <td class="text-end fw-semibold">$ {{ fmt_clp_text(c.monto_pendiente) }}</td>
+                    <td class="text-end">
+                        <input
+                        type="text"
+                        class="form-control form-control-sm text-end"
+                        name="monto_pagar__{{ safe }}"
+                        value="{{ fmt_clp_text(c.monto_sugerido) }}"
+                        >
+                    </td>
+
+                    <input type="hidden" name="origen_tipo__{{ safe }}" value="{{ c.origen_tipo }}">
+                    <input type="hidden" name="seccion__{{ safe }}" value="{{ c.seccion }}">
+                    <input type="hidden" name="solicitud_id__{{ safe }}" value="{{ c.solicitud_id or '' }}">
+                    <input type="hidden" name="solicitud_item_id__{{ safe }}" value="{{ c.origen_id if c.origen_tipo == 'SF_ITEM' else '' }}">
+                    <input type="hidden" name="rendicion_gasto_id__{{ safe }}" value="{{ c.origen_id if c.origen_tipo == 'RENDICION' else '' }}">
+                    <input type="hidden" name="rut_beneficiario__{{ safe }}" value="{{ c.rut_beneficiario or '' }}">
+                    <input type="hidden" name="nombre_beneficiario__{{ safe }}" value="{{ c.nombre_beneficiario or '' }}">
+                    <input type="hidden" name="codigo_banco__{{ safe }}" value="{{ c.codigo_banco or '' }}">
+                    <input type="hidden" name="cuenta_destino__{{ safe }}" value="{{ c.cuenta_destino or '' }}">
+                    <input type="hidden" name="email_beneficiario__{{ safe }}" value="{{ c.email_beneficiario or '' }}">
+                    <input type="hidden" name="nro_documento__{{ safe }}" value="{{ c.nro_documento or '' }}">
+                    <input type="hidden" name="glosa__{{ safe }}" value="{{ c.glosa or '' }}">
+                    <input type="hidden" name="descripcion__{{ safe }}" value="{{ c.descripcion or '' }}">
+                    <input type="hidden" name="monto_original__{{ safe }}" value="{{ c.monto_original }}">
+                    <input type="hidden" name="monto_pendiente__{{ safe }}" value="{{ c.monto_pendiente }}">
+                  </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% if excluidos %}
+    <div class="card mt-3">
+      <div class="card-header">
+        <div class="fw-semibold">Excluidos</div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Sección</th>
+                <th>Motivo</th>
+                <th>RUT</th>
+                <th>Nombre</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for x in excluidos %}
+                <tr>
+                  <td>{{ x.item_id or "-" }}</td>
+                  <td>{{ x.seccion or "-" }}</td>
+                  <td>{{ x.motivo or "-" }}</td>
+                  <td>{{ x.rut or "-" }}</td>
+                  <td>{{ x.nombre or "-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

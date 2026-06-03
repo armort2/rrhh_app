@@ -3,9 +3,16 @@ from __future__ import annotations
 
 from flask import Flask, redirect, request, url_for, render_template
 from flask_login import current_user
+from datetime import datetime
+from pathlib import Path
+import os
 
 from .config import DevConfig
 from .extensions import db, login_manager
+
+from .services.rut_format import rut_con_puntos
+
+from zoneinfo import ZoneInfo
 
 # Flask-Migrate (si está instalado y declarado en extensions.py)
 try:
@@ -14,12 +21,42 @@ except Exception:  # pragma: no cover
     migrate = None  # fallback seguro
 
 
+def _read_system_version() -> str:
+    """Lee la versión institucional del sistema desde VERSION.
+
+    Regla operacional:
+    1) SYSTEM_VERSION_OVERRIDE permite forzar una versión puntual.
+    2) El archivo VERSION del proyecto tiene prioridad sobre variables genéricas
+       del entorno Docker, evitando textos como dev o sin-version en producción.
+    3) SYSTEM_VERSION queda solo como respaldo si no existe VERSION.
+    """
+    forced_version = os.environ.get("SYSTEM_VERSION_OVERRIDE")
+    if forced_version and forced_version.strip():
+        return forced_version.strip()
+
+    current_path = Path(__file__).resolve()
+    for parent in current_path.parents:
+        version_file = parent / "VERSION"
+        try:
+            file_version = version_file.read_text(encoding="utf-8").strip()
+        except Exception:
+            continue
+        if file_version:
+            return file_version
+
+    env_version = os.environ.get("SYSTEM_VERSION")
+    if env_version and env_version.strip() and env_version.strip().lower() not in {"dev", "development"}:
+        return env_version.strip()
+
+    return "2026.06.03-v3"
+
 def create_app(config_class=DevConfig):
     app = Flask(__name__)
 
+    app.config.from_object(config_class)
     app.config["SYSTEM_NAME"] = "Sistema Grupo CS"
     app.config["SYSTEM_TAGLINE"] = "Gestión de Recursos Humanos"
-    app.config.from_object(config_class)
+    app.config["SYSTEM_VERSION"] = _read_system_version()
 
     # ---------------------------
     # Extensiones
@@ -30,9 +67,14 @@ def create_app(config_class=DevConfig):
     if migrate is not None:
         migrate.init_app(app, db)
 
+    @app.context_processor
+    def _inject_now():
+        return {"now": datetime.now}
+
     # ---------------------------
     # Blueprints (imports locales para evitar circulares)
     # ---------------------------
+    # OJO: Este import viene desde app/blueprints/__init__.py
     from .blueprints import (
         core_bp,
         trabajadores_bp,
@@ -43,17 +85,40 @@ def create_app(config_class=DevConfig):
         anexos_indefinidos_bp,
         terceros_bp,
         solicitudes_fondos_bp,
+        rendiciones_gastos_bp,
+        # ✅ NO importar acá egresos/acuerdos/transferencias si no están expuestos en blueprints/__init__.py
     )
+
+    # Blueprints que se importan directo (porque no necesariamente están expuestos en app/blueprints/__init__.py)
     from .blueprints.documentos import bp as documentos_bp
     from .blueprints.desvinculaciones.routes import bp as desvinculaciones_bp
     from .blueprints.horarios import bp as horarios_bp
     from .blueprints.inasistencias import bp as inasistencias_bp
     from .blueprints.anticipos.routes import bp as anticipos_bp
     from .blueprints.horas_extras.routes import bp as horas_extras_bp
-    from .blueprints.terceros import bp as terceros_bp
-    from .blueprints.solicitudes_fondos import bp as solicitudes_fondos_bp
+    from .blueprints.certificados import bp as certificados_bp
+    from .blueprints.sueldos.routes import bp as sueldos_bp
 
-    # Registro
+    from .blueprints.egresos import bp as egresos_bp
+    from .blueprints.acuerdos_pago import bp as acuerdos_pago_bp
+    from .blueprints.transferencias_bancarias import bp as transferencias_bancarias_bp
+    from .blueprints.vacaciones import bp as vacaciones_bp
+    from .blueprints.feriados import bp as feriados_bp
+    from .blueprints.pago_proveedores import bp as pago_proveedores_bp
+    from .blueprints.extras_remuneracion import bp as extras_remuneracion_bp
+    from .blueprints.contratos_vencimientos import bp as contratos_vencimientos_bp
+    from .blueprints.dashboard import bp as dashboard_bp
+    from .blueprints.parametros_laborales import bp as parametros_laborales_bp
+    from .blueprints.anexos_masivos import bp as anexos_masivos_bp
+    from .blueprints.anexos_cambio_sueldo import bp as anexos_cambio_sueldo_bp
+    from .blueprints.anexos_cambio_cargo import bp as anexos_cambio_cargo_bp
+    from .blueprints.prevencion_riesgos import bp as prevencion_riesgos_bp
+    from .blueprints.reporteria import bp as reporteria_bp
+
+
+    # ---------------------------
+    # Registro de blueprints
+    # ---------------------------
     app.register_blueprint(horarios_bp)
     app.register_blueprint(core_bp)
     app.register_blueprint(trabajadores_bp)
@@ -69,7 +134,25 @@ def create_app(config_class=DevConfig):
     app.register_blueprint(horas_extras_bp)
     app.register_blueprint(terceros_bp)
     app.register_blueprint(solicitudes_fondos_bp)
-
+    app.register_blueprint(rendiciones_gastos_bp)
+    app.register_blueprint(certificados_bp)
+    app.register_blueprint(sueldos_bp)
+    app.register_blueprint(egresos_bp)
+    app.register_blueprint(acuerdos_pago_bp)
+    app.register_blueprint(transferencias_bancarias_bp)
+    app.register_blueprint(vacaciones_bp)
+    app.register_blueprint(feriados_bp)
+    app.register_blueprint(pago_proveedores_bp)
+    app.register_blueprint(extras_remuneracion_bp)
+    app.register_blueprint(contratos_vencimientos_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(parametros_laborales_bp)
+    app.register_blueprint(anexos_masivos_bp)
+    app.register_blueprint(anexos_cambio_sueldo_bp)
+    app.register_blueprint(anexos_cambio_cargo_bp)
+    app.register_blueprint(prevencion_riesgos_bp)
+    app.register_blueprint(reporteria_bp)
+    
     # Auth blueprint
     from .auth import auth as auth_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -88,8 +171,6 @@ def create_app(config_class=DevConfig):
     # ---------------------------
     @app.before_request
     def require_login():
-        from flask_login import current_user  # import local (más robusto)
-
         path = request.path
 
         # Permitir estáticos
@@ -109,7 +190,11 @@ def create_app(config_class=DevConfig):
     # ---------------------------
     # Filtros Jinja: RUT
     # ---------------------------
+
+    app.jinja_env.filters["rut"] = rut_con_puntos  # filtro genérico de RUT con puntos (siempre disponible)
+
     from .utils import format_rut_parts  # una sola fuente
+
 
     @app.template_filter("rut_trabajador")
     def rut_trabajador_filter(t):
@@ -133,6 +218,36 @@ def create_app(config_class=DevConfig):
         dv = getattr(obj, dv_attr, None)
         return format_rut_parts(rut_digits, dv) or (str(rut_digits) if rut_digits else "")
 
+    from .utils import format_rut_with_dots
+
+    @app.template_filter("rut_tercero")
+    def rut_tercero_filter(t):
+        if not t:
+            return ""
+        rut_digits = getattr(t, "rut_num", None)
+        dv = getattr(t, "dv", None)
+        return format_rut_with_dots(rut_digits, dv)
+    
+    CL_TZ = ZoneInfo("America/Santiago")
+
+    @app.template_filter("dt_cl")
+    def dt_cl_filter(value, fmt: str = "%d-%m-%Y %H:%M"):
+        """
+        Convierte un datetime a hora Chile (America/Santiago) y formatea.
+        - Si viene naive, se asume UTC (comportamiento típico cuando guardan UTC en DB).
+        - Si viene aware, se convierte a CL.
+        """
+        if not value:
+            return ""
+        dt = value
+
+        # si viene naive, asumimos UTC
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+        dt = dt.astimezone(CL_TZ)
+        return dt.strftime(fmt)
+
     # ---------------------------
     # CLI (un solo punto de registro)
     # ---------------------------
@@ -142,7 +257,6 @@ def create_app(config_class=DevConfig):
     # ---------------------------
     # Handlers de errores
     # ---------------------------
-
     @app.errorhandler(403)
     def forbidden(error):
         return (
@@ -167,8 +281,8 @@ def create_app(config_class=DevConfig):
     def internal_error(error):
         # IMPORTANTE: rollback defensivo
         try:
-            from .extensions import db
-            db.session.rollback()
+            from .extensions import db as _db
+            _db.session.rollback()
         except Exception:
             pass
 
@@ -179,15 +293,39 @@ def create_app(config_class=DevConfig):
             ),
             500,
         )
-    
-    from .utils import format_rut_with_dots
 
-    @app.template_filter("rut_tercero")
-    def rut_tercero_filter(t):
-        if not t:
+    # ---------------------------
+    # Context processors
+    # ---------------------------
+    @app.context_processor
+    def _inject_config():
+        """Inyecta `config` en el contexto de Jinja para plantillas que lo esperan."""
+        return {"config": app.config}
+
+
+    # ---------------------------
+    # Números en formato chileno (con puntos)
+    # ---------------------------
+    def fmt_cl(value, decimals=0):
+        """
+        Formato numérico chileno:
+        miles con punto, decimal con coma.
+        """
+        if value is None:
             return ""
-        rut_digits = getattr(t, "rut_num", None)
-        dv = getattr(t, "dv", None)
-        return format_rut_with_dots(rut_digits, dv)
+
+        try:
+            n = float(value)
+
+            if decimals == 0:
+                s = f"{n:,.0f}"
+            else:
+                s = f"{n:,.{decimals}f}"
+
+            return s.replace(",", "X").replace(".", ",").replace("X", ".")
+        except Exception:
+            return value
+
+    app.jinja_env.filters["fmt_cl"] = fmt_cl
 
     return app

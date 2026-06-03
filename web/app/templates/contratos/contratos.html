@@ -4,44 +4,20 @@
 {% block title %}Contratos · GRUPO CS{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-
-  {# =========================================================
-     Helpers de formato local (evitamos tocar routes.py)
-     ========================================================= #}
-  {% macro format_rut_local(raw) -%}
-    {# raw puede venir ya con puntos/guion o solo dígitos; intentamos normalizar #}
-    {% set s = (raw|string)|upper %}
-    {% set s = s|replace(".", "")|replace("-", "")|replace(" ", "") %}
-    {% if s|length < 2 %}
-      {{ raw }}
-    {% else %}
-      {% set dv = s[-1] %}
-      {% set digits = s[:-1] %}
-      {# agrupar de a 3 desde el final #}
-      {% set rev = digits|reverse %}
-      {% set out = [] %}
-      {% for i in range(0, digits|length, 3) %}
-        {% set chunk = rev[i:i+3]|reverse %}
-        {% set _ = out.insert(0, chunk|join) %}
-      {% endfor %}
-      {{ out|join(".") ~ "-" ~ dv }}
-    {% endif %}
-  {%- endmacro %}
+<div class="container-fluid py-3 cs-list-page">
 
   {% set next_url = request.full_path %}
 
-  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Contratos</h1>
       <div class="section-subtitle">
-        Vista global por empleador, obra, estado e inicio dentro de un rango de fechas.
+        Vista global por empleador, obra, estado, inicio y <strong>término</strong> dentro de rangos de fechas.
       </div>
       <div class="section-divider"></div>
     </div>
 
-    <div class="d-flex gap-2 flex-wrap">
-      {# Botón opcional: crear contrato. Si no tienes current_user en templates, puedes eliminar este bloque #}
+    <div class="cs-page-actions">
       {% if current_user.is_authenticated and (current_user.has_role("ADMIN") or current_user.has_role("OPERADOR")) %}
         <a class="btn btn-primary" href="{{ url_for('contratos.nuevo_contrato', next=next_url) }}">
           + Nuevo contrato
@@ -50,9 +26,9 @@
     </div>
   </div>
 
-  <div class="card shadow-sm mb-3">
+  <div class="card shadow-sm mb-3 cs-filter-card">
     <div class="card-body">
-      <form method="get" id="form-filtros-contratos">
+      <form method="get" id="form-filtros-contratos" class="cs-filter-form" data-filter-form data-filter-count-target="#contratos-filter-count">
 
         <div class="row g-3">
 
@@ -113,6 +89,9 @@
             </select>
           </div>
 
+          {# =========================
+             FECHA INICIO
+             ========================= #}
           <div class="col-12 col-md-3">
             <label for="inicio_desde" class="form-label">Inicio desde</label>
             <input type="date" id="inicio_desde" name="inicio_desde" class="form-control"
@@ -127,12 +106,49 @@
           </div>
 
           <div class="col-12 col-md-3">
-            <div class="text-muted small mb-1">Períodos rápidos</div>
+            <div class="text-muted small mb-1">Períodos rápidos (inicio)</div>
             <div class="d-flex gap-2 flex-wrap">
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="this-month">Este mes</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="prev-month">Mes anterior</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="ytd">Año en curso</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="clear-dates">Limpiar fechas</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="this-month" data-target="inicio">Este mes</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="prev-month" data-target="inicio">Mes anterior</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="ytd" data-target="inicio">Año en curso</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="clear-dates" data-target="inicio">Limpiar fechas</button>
+            </div>
+          </div>
+
+          {# =========================
+             FECHA TÉRMINO (NUEVO)
+             ========================= #}
+          <div class="col-12 col-md-3">
+            <label for="termino_estado" class="form-label">Fecha término</label>
+            <select id="termino_estado" name="termino_estado" class="form-select">
+              <option value="" {% if not filtro_termino_estado %}selected{% endif %}>Todas</option>
+              <option value="CON_FECHA" {% if filtro_termino_estado == "CON_FECHA" %}selected{% endif %}>Con fecha</option>
+              <option value="SIN_FECHA" {% if filtro_termino_estado == "SIN_FECHA" %}selected{% endif %}>Sin fecha</option>
+            </select>
+            <div class="form-text">Útil para separar plazo fijo vs indefinidos/mal informados.</div>
+          </div>
+          
+             <div class="col-12 col-md-3">
+            <label for="termino_desde" class="form-label">Término desde</label>
+            <input type="date" id="termino_desde" name="termino_desde" class="form-control"
+                   value="{{ filtro_termino_desde or '' }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="termino_hasta" class="form-label">Término hasta</label>
+            <input type="date" id="termino_hasta" name="termino_hasta" class="form-control"
+                   value="{{ filtro_termino_hasta or '' }}">
+            <div class="form-text">Filtra por <strong>fecha de término</strong> (ideal para anexos de extensión).</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Períodos rápidos (término)</div>
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="next-7" data-target="termino">Próx. 7 días</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="next-15" data-target="termino">Próx. 15 días</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="next-30" data-target="termino">Próx. 30 días</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="this-month" data-target="termino">Este mes</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-range="clear-dates" data-target="termino">Limpiar fechas</button>
             </div>
           </div>
 
@@ -140,14 +156,15 @@
 
         <hr class="my-3">
 
-        <div class="d-flex justify-content-between gap-2 flex-wrap">
+        <div class="d-flex justify-content-between gap-2 flex-wrap cs-filter-actions">
           <div class="d-flex gap-2 flex-wrap">
             <button type="submit" class="btn btn-primary">Aplicar filtros</button>
             <a href="{{ url_for('contratos.lista_contratos') }}" class="btn btn-outline-secondary">Limpiar todo</a>
           </div>
 
-          <div class="text-muted small align-self-center">
-            Tip ejecutivo: “Año en curso” + 2 empleadores = informe inmediato para gerencia.
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="contratos-filter-count" class="cs-filter-count is-empty">0 filtros activos</span>
+            <span class="text-muted small">Tip ejecutivo: “Próx. 30 días (término)” + obra = lista directa de anexos 😄</span>
           </div>
         </div>
 
@@ -155,10 +172,10 @@
     </div>
   </div>
 
-  <div class="card shadow-sm">
+  <div class="card shadow-sm cs-table-card">
     <div class="card-body">
 
-      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
+      <div class="cs-table-meta">
         <div class="text-muted small">
           {% if contratos %}
             Mostrando <strong>{{ contratos|length }}</strong> contrato(s) según filtros aplicados.
@@ -167,16 +184,26 @@
           {% endif %}
         </div>
 
-        {% if filtro_estado or filtro_inicio_desde or filtro_inicio_hasta or (filtro_empleador_ids and filtro_empleador_ids|length) or (filtro_obra_ids and filtro_obra_ids|length) %}
+        {% if filtro_estado
+              or filtro_inicio_desde or filtro_inicio_hasta
+              or filtro_termino_desde or filtro_termino_hasta
+              or (filtro_empleador_ids and filtro_empleador_ids|length)
+              or (filtro_obra_ids and filtro_obra_ids|length) %}
           <div class="d-flex gap-2 flex-wrap">
             {% if filtro_estado %}
               <span class="badge text-bg-light border">Estado: {{ filtro_estado }}</span>
             {% endif %}
             {% if filtro_inicio_desde %}
-              <span class="badge text-bg-light border">Desde: {{ filtro_inicio_desde }}</span>
+              <span class="badge text-bg-light border">Inicio desde: {{ filtro_inicio_desde }}</span>
             {% endif %}
             {% if filtro_inicio_hasta %}
-              <span class="badge text-bg-light border">Hasta: {{ filtro_inicio_hasta }}</span>
+              <span class="badge text-bg-light border">Inicio hasta: {{ filtro_inicio_hasta }}</span>
+            {% endif %}
+            {% if filtro_termino_desde %}
+              <span class="badge text-bg-light border">Término desde: {{ filtro_termino_desde }}</span>
+            {% endif %}
+            {% if filtro_termino_hasta %}
+              <span class="badge text-bg-light border">Término hasta: {{ filtro_termino_hasta }}</span>
             {% endif %}
             {% if filtro_empleador_ids and filtro_empleador_ids|length %}
               <span class="badge text-bg-light border">Empleadores: {{ filtro_empleador_ids|length }}</span>
@@ -184,13 +211,16 @@
             {% if filtro_obra_ids and filtro_obra_ids|length %}
               <span class="badge text-bg-light border">Obras: {{ filtro_obra_ids|length }}</span>
             {% endif %}
+            {% if filtro_termino_estado %}
+              <span class="badge text-bg-light border">Término: {{ filtro_termino_estado }}</span>
+            {% endif %}
           </div>
         {% endif %}
       </div>
 
       {% if contratos %}
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle mb-0">
+        <div class="table-responsive cs-table-wrap">
+          <table class="table table-sm table-hover align-middle mb-0 cs-polished-table">
             <thead>
               <tr>
                 <th>Trabajador</th>
@@ -218,7 +248,7 @@
                   </td>
 
                   <td class="font-monospace">
-                    {{ format_rut_local(c.trabajador.rut) }}
+                    {{ format_rut(c.trabajador.rut, c.trabajador.dv) }}
                   </td>
 
                   <td>
@@ -282,75 +312,26 @@
           </table>
         </div>
       {% else %}
-        <div class="text-muted">No hay contratos que cumplan con los filtros seleccionados.</div>
+        <div class="cs-empty-state" role="status">
+          <div class="cs-empty-icon" aria-hidden="true">📝</div>
+          <div>
+            <h2 class="cs-empty-title">No hay contratos para mostrar</h2>
+            <p class="cs-empty-text">No existen contratos que cumplan con los filtros seleccionados. Prueba ampliando el rango de fechas o limpiando los filtros.</p>
+            <div class="cs-empty-actions">
+              <a href="{{ url_for('contratos.lista_contratos') }}" class="btn btn-outline-secondary btn-sm">Limpiar filtros</a>
+              <a href="{{ url_for('contratos.nuevo_contrato') }}" class="btn btn-primary btn-sm">Nuevo contrato</a>
+            </div>
+          </div>
+        </div>
       {% endif %}
     </div>
   </div>
 
 </div>
 
-<script>
-(function () {
-  const form = document.getElementById("form-filtros-contratos");
-  const desde = document.getElementById("inicio_desde");
-  const hasta = document.getElementById("inicio_hasta");
+{% endblock %}
 
-  function pad2(n) { return String(n).padStart(2, "0"); }
-  function toISODate(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
-  function firstDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
-  function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
-
-  document.querySelectorAll("[data-select-all]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sel = document.querySelector(btn.getAttribute("data-select-all"));
-      if (!sel) return;
-      Array.from(sel.options).forEach(o => o.selected = true);
-    });
-  });
-
-  document.querySelectorAll("[data-clear-all]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sel = document.querySelector(btn.getAttribute("data-clear-all"));
-      if (!sel) return;
-      Array.from(sel.options).forEach(o => o.selected = false);
-    });
-  });
-
-  document.querySelectorAll("[data-range]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const now = new Date();
-      const action = btn.getAttribute("data-range");
-
-      if (action === "this-month") {
-        desde.value = toISODate(firstDayOfMonth(now));
-        hasta.value = toISODate(lastDayOfMonth(now));
-        form.submit();
-        return;
-      }
-
-      if (action === "prev-month") {
-        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        desde.value = toISODate(firstDayOfMonth(prev));
-        hasta.value = toISODate(lastDayOfMonth(prev));
-        form.submit();
-        return;
-      }
-
-      if (action === "ytd") {
-        desde.value = toISODate(new Date(now.getFullYear(), 0, 1));
-        hasta.value = toISODate(new Date(now.getFullYear(), 11, 31));
-        form.submit();
-        return;
-      }
-
-      if (action === "clear-dates") {
-        desde.value = "";
-        hasta.value = "";
-        form.submit();
-        return;
-      }
-    });
-  });
-})();
-</script>
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/contratos_listado.js') }}"></script>
 {% endblock %}

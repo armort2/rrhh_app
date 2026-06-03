@@ -1,0 +1,217 @@
+{# web/app/templates/vacaciones/detalle.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid cs-detail-page py-3">
+  <div class="section-header">
+    <div class="section-title">Comprobante de Vacaciones</div>
+    <div class="section-subtitle">
+      ID: {{ v.id }} · Comprobante N° {{ v.corr_contrato }} · Estado:
+      {% if v.estado == 'EMITIDO' %}
+        <span class="badge bg-success">EMITIDO</span>
+      {% elif v.estado == 'ANULADO' %}
+        <span class="badge bg-danger">ANULADO</span>
+      {% else %}
+        <span class="badge bg-secondary">BORRADOR</span>
+      {% endif %}
+
+      {# ✅ Badge adicional: ANTICIPO #}
+      {% if v.es_anticipo %}
+        <span class="badge bg-warning text-dark ms-2">ANTICIPO</span>
+      {% endif %}
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-3 cs-detail-actions cs-action-strip">
+
+    <a class="btn btn-outline-secondary d-inline-flex align-items-center"
+       href="{{ url_for('vacaciones.contrato_detalle', contrato_id=contrato.id) }}">
+      Volver al contrato
+    </a>
+
+    {% if v.estado == 'BORRADOR' %}
+      <a class="btn btn-outline-warning d-inline-flex align-items-center"
+         href="{{ url_for('vacaciones.editar', vacaciones_id=v.id) }}">
+        Editar BORRADOR
+      </a>
+
+      <form method="post"
+            action="{{ url_for('vacaciones.emitir', vacaciones_id=v.id) }}"
+            class="d-flex flex-wrap align-items-center gap-3 m-0">
+
+        <div class="d-flex flex-column">
+          <span class="small fw-semibold">Formato de emisión</span>
+          <div class="d-flex align-items-center gap-3">
+
+            <div class="form-check m-0">
+              <input class="form-check-input"
+                     type="radio"
+                     name="formato"
+                     value="pdf"
+                     id="emitir_formato_pdf"
+                     checked>
+              <label class="form-check-label" for="emitir_formato_pdf">
+                PDF <span class="text-muted">(recomendado)</span>
+              </label>
+            </div>
+
+            <div class="form-check m-0">
+              <input class="form-check-input"
+                     type="radio"
+                     name="formato"
+                     value="docx"
+                     id="emitir_formato_docx">
+              <label class="form-check-label" for="emitir_formato_docx">
+                Word (DOCX)
+              </label>
+            </div>
+
+          </div>
+
+          {# ✅ Mensaje contextual si es anticipo #}
+          {% if v.es_anticipo %}
+            <div class="form-text text-warning">
+              ⚠️ Este comprobante está marcado como <strong>vacaciones anticipadas</strong> (puede dejar saldo negativo).
+            </div>
+          {% endif %}
+        </div>
+
+        <button class="btn btn-success d-inline-flex align-items-center px-4"
+                type="submit">
+          Emitir comprobante
+        </button>
+
+      </form>
+    {% endif %}
+
+    {% if v.estado == 'EMITIDO' %}
+      <form method="post"
+            action="{{ url_for('vacaciones.reemitir', vacaciones_id=v.id) }}"
+            class="d-flex flex-wrap align-items-center gap-3 m-0"
+            onsubmit="return confirm('¿Re-emitir el comprobante? Esto regenerará el/los archivos en Nextcloud (sin afectar saldos).');">
+
+        <div class="d-flex flex-column">
+          <span class="small fw-semibold">Formato de re-emisión</span>
+          <div class="d-flex align-items-center gap-3">
+
+            <div class="form-check m-0">
+              <input class="form-check-input"
+                     type="radio"
+                     name="formato"
+                     value="pdf"
+                     id="reemitir_formato_pdf"
+                     checked>
+              <label class="form-check-label" for="reemitir_formato_pdf">
+                PDF <span class="text-muted">(recomendado)</span>
+              </label>
+            </div>
+
+            <div class="form-check m-0">
+              <input class="form-check-input"
+                     type="radio"
+                     name="formato"
+                     value="docx"
+                     id="reemitir_formato_docx">
+              <label class="form-check-label" for="reemitir_formato_docx">
+                Word (DOCX)
+              </label>
+            </div>
+
+          </div>
+
+          {# ✅ Recordatorio: reemitir no cambia saldos, solo archivos #}
+          <div class="form-text">
+            🔁 Re-emisión solo regenera archivos. No modifica días ni saldos.
+            {% if v.es_anticipo %}
+              <span class="text-warning">Este comprobante sigue siendo <strong>ANTICIPO</strong>.</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <button class="btn btn-outline-primary d-inline-flex align-items-center px-4"
+                type="submit">
+          🔁 Re-emitir
+        </button>
+
+      </form>
+
+      <form method="post"
+            action="{{ url_for('vacaciones.anular', vacaciones_id=v.id) }}"
+            class="m-0">
+        <button class="btn btn-danger">Anular</button>
+      </form>
+    {% endif %}
+
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Emisión</div>
+          <div>{{ v.fecha_emision }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Inicio</div>
+          <div>{{ v.fecha_inicio }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Término</div>
+          <div>{{ v.fecha_termino }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Retorno</div>
+          <div>{{ v.fecha_retorno }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Días hábiles</div>
+          <div><strong>{{ v.dias_habiles }}</strong></div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Saldo previo</div>
+          <div>{{ v.saldo_prev }}</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Saldo post</div>
+          <div><strong>{{ v.saldo_post }}</strong></div>
+        </div>
+
+        {# ✅ Campo “Tipo” para lectura rápida #}
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Tipo</div>
+          <div>
+            {% if v.es_anticipo %}
+              <span class="badge bg-warning text-dark">Vacaciones anticipadas</span>
+            {% else %}
+              <span class="badge bg-light text-dark border">Normal</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted small">Observaciones</div>
+          <div>{{ v.observaciones or '-' }}</div>
+        </div>
+
+        {% if v.estado == 'EMITIDO' %}
+        <div class="col-12">
+          <div class="text-muted small">Archivos</div>
+          <div class="d-flex flex-column gap-1">
+            <div>DOCX: <code>{{ v.docx_ruta or '-' }}</code></div>
+            <div>PDF: <code>{{ v.pdf_ruta or '-' }}</code></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,333 @@
+{# web/app/templates/dashboard/bienestar.html #}
+{% extends "base.html" %}
+{% block title %}Bienestar · Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  {% macro fmt_date(d) -%}
+    {%- if not d -%}
+      -
+    {%- elif d is string -%}
+      {{ d }}
+    {%- else -%}
+      {{ d.strftime("%d-%m-%Y") }}
+    {%- endif -%}
+  {%- endmacro %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Dashboard · Bienestar</h1>
+      <div class="section-subtitle">
+        Indicadores de cultura y gestión de personas (cumpleaños, antigüedad, ingresos y alertas contractuales).
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <form method="get" class="d-flex align-items-end gap-2">
+      <div>
+        <label class="form-label mb-1">Ventana (días)</label>
+        <select name="days" class="form-select form-select-sm">
+          {% for opt in [7, 15, 30, 60, 90] %}
+            <option value="{{ opt }}" {% if days == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-sm btn-primary" type="submit">
+        <i class="bi bi-funnel"></i> Aplicar
+      </button>
+    </form>
+  </div>
+
+  {# KPIs #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted small">Cumpleaños próximos</div>
+              <div class="fs-3 fw-semibold">{{ kpi.cumpleanos }}</div>
+              <div class="small text-muted">Próximos {{ days }} días</div>
+            </div>
+            <div class="fs-3">🎂</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted small">Aniversarios (hitos)</div>
+              <div class="fs-3 fw-semibold">{{ kpi.aniversarios }}</div>
+              <div class="small text-muted">1, 3, 5, 10, 15, 20 años</div>
+            </div>
+            <div class="fs-3">🏅</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted small">Ingresos recientes</div>
+              <div class="fs-3 fw-semibold">{{ kpi.ingresos }}</div>
+              <div class="small text-muted">Últimos {{ days }} días</div>
+            </div>
+            <div class="fs-3">👷‍♂️</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted small">Contratos por vencer</div>
+              <div class="fs-3 fw-semibold">{{ kpi.vencen }}</div>
+              <div class="small text-muted">Próximos {{ days }} días</div>
+            </div>
+            <div class="fs-3">⏳</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Cumpleaños #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="fw-semibold">🎂 Cumpleaños próximos ({{ days }} días)</div>
+      <div class="text-muted small">Desde {{ fmt_date(today) }} hasta {{ fmt_date(until) }}</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Trabajador</th>
+              <th>RUT</th>
+              <th>Obra</th>
+              <th>Centro de costo</th>
+              <th class="text-end">Edad</th>
+              <th class="text-center">Días</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if cumpleanos %}
+              {% for r in cumpleanos %}
+                <tr class="{% if r.dias_restantes == 0 %}table-success{% endif %}">
+                  <td class="fw-semibold">
+                    {{ r.trabajador }}
+                    {% if r.dias_restantes == 0 %}
+                      <span class="ms-1">🎂</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">{{ r.rut | rut }}</td>
+                  <td>{{ r.obra }}</td>
+                  <td><span class="badge text-bg-secondary">{{ r.centro_costo or "-" }}</span></td>
+                  <td class="text-end">{{ r.edad|int if r.edad is not none else "-" }}</td>
+                  <td class="text-center">
+                    {% if r.dias_restantes == 0 %}
+                      <span class="badge text-bg-success">Hoy</span>
+                    {% else %}
+                      {{ r.dias_restantes }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ fmt_date(r.proxima_fecha) }}
+                    {% if r.dias_restantes == 0 %}
+                      <span class="ms-1">🎉</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="7" class="text-center text-muted py-3">Sin cumpleaños en este rango.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Aniversarios #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="fw-semibold">🏅 Aniversarios de antigüedad (hitos)</div>
+      <div class="text-muted small">Desde {{ fmt_date(today) }} hasta {{ fmt_date(until) }}</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Trabajador</th>
+              <th>RUT</th>
+              <th>Obra</th>
+              <th>Centro de costo</th>
+              <th class="text-end">Años</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if aniversarios %}
+              {% for r in aniversarios %}
+                <tr>
+                  <td class="fw-semibold">{{ r.trabajador }}</td>
+                  <td class="text-muted">{{ r.rut | rut }}</td>
+                  <td>{{ r.obra }}</td>
+                  <td><span class="badge text-bg-secondary">{{ r.centro_costo or "-" }}</span></td>
+                  <td class="text-end">{{ r.anios|int if r.anios is not none else "-" }}</td>
+                  <td>{{ fmt_date(r.proxima_fecha) }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Sin aniversarios (hitos) en este rango.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Top 10 trabajadores más antiguos #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="fw-semibold">🏆 Top 10 trabajadores más antiguos</div>
+      <div class="text-muted small">Base ideal para reconocimientos y premiaciones</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Trabajador</th>
+              <th>RUT</th>
+              <th>Empresa</th>
+              <th>Obra</th>
+              <th>Centro de costo</th>
+              <th>Fecha ingreso</th>
+              <th class="text-end">Años</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if mas_antiguos %}
+              {% for r in mas_antiguos %}
+                <tr>
+                  <td class="fw-semibold">{{ loop.index }}</td>
+                  <td class="fw-semibold">
+                    {{ r.trabajador }}
+                    {% if loop.index == 1 %}<span class="ms-1">🥇</span>{% endif %}
+                    {% if loop.index == 2 %}<span class="ms-1">🥈</span>{% endif %}
+                    {% if loop.index == 3 %}<span class="ms-1">🥉</span>{% endif %}
+                  </td>
+                  <td class="text-muted">{{ r.rut | rut }}</td>
+                  <td>{{ r.empresa or "-" }}</td>
+                  <td>{{ r.obra }}</td>
+                  <td><span class="badge text-bg-secondary">{{ r.centro_costo or "-" }}</span></td>
+                  <td>{{ fmt_date(r.fecha_ingreso) }}</td>
+                  <td class="text-end">{{ r.anios_servicio|int if r.anios_servicio is not none else "-" }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="8" class="text-center text-muted py-3">No hay información suficiente para calcular antigüedad.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Ingresos recientes #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="fw-semibold">👷‍♂️ Ingresos recientes</div>
+      <div class="text-muted small">Últimos {{ days }} días</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Trabajador</th>
+              <th>RUT</th>
+              <th>Empresa</th>
+              <th>Obra</th>
+              <th>Centro de costo</th>
+              <th>Fecha inicio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if ingresos %}
+              {% for r in ingresos %}
+                <tr>
+                  <td class="fw-semibold">{{ r.trabajador }}</td>
+                  <td class="text-muted">{{ r.rut | rut }}</td>
+                  <td>{{ r.empresa }}</td>
+                  <td>{{ r.obra }}</td>
+                  <td><span class="badge text-bg-secondary">{{ r.centro_costo or "-" }}</span></td>
+                  <td>{{ fmt_date(r.fecha) }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Sin ingresos recientes en este rango.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Contratos por vencer #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="fw-semibold">⏳ Contratos por vencer</div>
+      <div class="text-muted small">Próximos {{ days }} días</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Trabajador</th>
+              <th>RUT</th>
+              <th>Empresa</th>
+              <th>Obra</th>
+              <th>Centro de costo</th>
+              <th>Fecha término</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if por_vencer %}
+              {% for r in por_vencer %}
+                <tr>
+                  <td class="fw-semibold">{{ r.trabajador }}</td>
+                  <td class="text-muted">{{ r.rut | rut }}</td>
+                  <td>{{ r.empresa }}</td>
+                  <td>{{ r.obra }}</td>
+                  <td><span class="badge text-bg-secondary">{{ r.centro_costo or "-" }}</span></td>
+                  <td class="fw-semibold">{{ fmt_date(r.fecha) }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Sin contratos por vencer en este rango.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

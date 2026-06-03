@@ -1,3 +1,4 @@
+# web/Dockerfile
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -22,6 +23,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfontconfig1 \
     fonts-dejavu-core \
     shared-mime-info \
+    # LibreOffice for PDF conversion
+    libreoffice \
+    libreoffice-writer \
+    fonts-dejavu \
+    fonts-liberation \
+    fonts-crosextra-carlito \
+    fontconfig \
   && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -29,4 +37,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:create_app()"]
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "--workers", "1", "--timeout", "600", "app:create_app()"]

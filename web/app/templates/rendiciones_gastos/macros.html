@@ -1,0 +1,35 @@
+{# web/app/templates/rendiciones_gastos/macros.html #}
+
+{% macro fmt_clp(val) -%}
+  {%- if val is none -%}
+    0
+  {%- else -%}
+    {%- if val is number -%}
+      {{ ("{:,.0f}".format(val)).replace(",", ".") }}
+    {%- else -%}
+      {%- set s = (val|string)|trim -%}
+      {%- set s = s.replace(",", ".") -%}
+      {%- if "." in s -%}{%- set s = s.split(".")[0] -%}{%- endif -%}
+      {%- set s = s.replace(".", "").replace(" ", "") -%}
+      {{ ("{:,.0f}".format(s|int)).replace(",", ".") }}
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro badge_estado(estado) -%}
+  {%- set e = (estado or "")|upper -%}
+  {%- if e in ["APROBADA","PAGADA"] -%}bg-success
+  {%- elif e in ["ENVIADA"] -%}bg-warning text-dark
+  {%- elif e in ["RECHAZADA","ANULADA"] -%}bg-danger
+  {%- else -%}bg-secondary
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro pill_tipo(tipo) -%}
+  {%- set t = (tipo or "")|upper -%}
+  {%- if not t -%}
+    <span class="badge bg-secondary">Sin tipo</span>
+  {%- else -%}
+    <span class="badge bg-light text-dark border">{{ tipo }}</span>
+  {%- endif -%}
+{%- endmacro %}

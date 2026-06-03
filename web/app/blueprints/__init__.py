@@ -18,6 +18,9 @@ from .anexos import bp as anexos_bp
 from .anexos_indefinidos import bp as anexos_indefinidos_bp
 from .terceros import bp as terceros_bp
 from .solicitudes_fondos import bp as solicitudes_fondos_bp
+from .rendiciones_gastos import bp as rendiciones_gastos_bp
+from .egresos import bp as egresos_bp
+from .acuerdos_pago import bp as acuerdos_pago_bp
 
 __all__ = [
     "core_bp",
@@ -29,4 +32,7 @@ __all__ = [
     "anexos_indefinidos_bp",
     "terceros_bp",
     "solicitudes_fondos_bp",
+    "rendiciones_gastos_bp",
+    "egresos_bp",
+    "acuerdos_pago_bp",
 ]

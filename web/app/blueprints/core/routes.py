@@ -8,9 +8,11 @@ from functools import wraps
 from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from sqlalchemy import or_, func
+from sqlalchemy.exc import SQLAlchemyError
 
 from ...extensions import db
 from ...models import Trabajador, Obra, Cargo, Contrato
+from ..prevencion_riesgos.queries import dashboard_counts as prevencion_dashboard_counts
 from ...auth.decorators import role_required
 
 from . import bp
@@ -66,7 +68,15 @@ def index():
         "contratos_por_vencer_30d": contratos_por_vencer_30d,
     }
 
-    return render_template("index.html", kpis=kpis)
+    try:
+        prevencion_stats = prevencion_dashboard_counts(current_user)
+    except SQLAlchemyError:
+        # Fallback defensivo: evita dejar sin portada al sistema si el servidor
+        # aún no tiene aplicadas las migraciones del módulo preventivo.
+        db.session.rollback()
+        prevencion_stats = {}
+
+    return render_template("index.html", kpis=kpis, prevencion_stats=prevencion_stats, today=hoy)
 
 
 @bp.route("/ping")

@@ -1,0 +1,48 @@
+{# web/app/templates/transferencias_bancarias/excluidos.html #}
+{% extends "base.html" %}
+{% block title %}Transferencias · Excluidos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="section-header">
+    <div class="section-title">⚠️ Excluidos</div>
+    <div class="section-subtitle">Registros que no se pudieron incluir en la nómina por validación.</div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="mb-3">
+    <a class="btn btn-outline-secondary" href="{{ url_for('transferencias_bancarias.listado') }}">← Volver</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      {% if not excluidos %}
+        <div class="p-3 text-muted">No hay excluidos ✅</div>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>ID</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for x in excluidos %}
+                <tr>
+                  <td>{{ x.tipo }}</td>
+                  <td>{{ x.ref_id }}</td>
+                  <td>{{ x.motivo }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

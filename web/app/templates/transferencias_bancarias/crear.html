@@ -1,0 +1,129 @@
+{# web/app/templates/transferencias_bancarias/crear.html #}
+{% extends "base.html" %}
+
+{% block title %}Transferencias Bancarias{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="section-header">
+    <div class="section-title">🏦 Transferencias bancarias</div>
+    <div class="section-subtitle">Arma una nómina “extra” con beneficiarios desde Trabajadores y Terceros.</div>
+    <div class="section-divider"></div>
+  </div>
+
+  <form method="POST" id="frm-nomina" class="card shadow-sm border-0"
+        data-api-beneficiarios-url="{{ url_for('transferencias_bancarias.api_buscar_beneficiario') }}">
+    <div class="card-body">
+
+      <div class="row g-3">
+        <div class="col-12 col-md-2">
+          <label class="form-label">Año</label>
+          <input type="number" class="form-control" name="anio" value="{{ anio or 2026 }}" min="2000" max="2100" required>
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label">Mes</label>
+          <input type="number" class="form-control" name="mes" value="{{ mes or 1 }}" min="1" max="12" required>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Glosa por defecto (opcional)</label>
+          <input type="text" class="form-control" id="glosa-default" name="glosa_default" value="{{ glosa_default or '' }}"
+                 placeholder="Ej: Pago finiquito / acuerdo / diferencia sueldo...">
+          <div class="form-text">Se copiará automáticamente al agregar filas (puedes editar cada una).</div>
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <div class="row g-3">
+        <!-- Inputs -->
+        <div class="col-12 col-md-8">
+          <label class="form-label">🔎 Buscar beneficiario</label>
+          <input type="text" class="form-control" id="benef-search"
+                 placeholder="Escribe nombre, apellido, RUT o razón social..."
+                 autocomplete="off">
+          <div class="position-relative">
+            <div id="benef-suggestions" class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index: 20; display:none;"></div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label">Monto</label>
+          <input type="number" step="0.01" min="0" class="form-control" id="benef-monto" placeholder="0">
+        </div>
+
+        <div class="col-12 col-md-2 d-grid">
+          <label class="form-label d-none d-md-block">&nbsp;</label>
+          <button type="button" id="btn-add" class="btn btn-primary">
+            ➕ Agregar
+          </button>
+        </div>
+
+        <!-- Ayudas / form-text (segunda fila) -->
+        <div class="col-12 col-md-8">
+          <div class="form-text">Mínimo 2 caracteres. Resultados desde Trabajadores + Terceros.</div>
+        </div>
+        <div class="col-12 col-md-2">
+          <div class="form-text">&nbsp;</div>
+        </div>
+        <div class="col-12 col-md-2">
+          <div class="form-text">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th style="width: 22%">Beneficiario</th>
+                <th style="width: 10%">RUT</th>
+                <th style="width: 10%">Banco</th>
+                <th style="width: 12%">Cuenta</th>
+                <th style="width: 12%">Monto</th>
+                <th>Glosa</th>
+                <th style="width: 8%"></th>
+              </tr>
+            </thead>
+            <tbody id="rows-body">
+              {# filas se agregan por JS #}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="text-muted">
+            <span class="badge bg-secondary" id="rows-count">0</span> registros
+          </div>
+          <div class="fw-semibold">
+            Total: $ <span id="rows-total">0</span>
+          </div>
+        </div>
+      </div>
+
+      <input type="hidden" name="items_json" id="items-json" value="[]">
+      <input type="hidden" name="cuenta_origen" value="5555555555">
+
+    </div>
+
+    <div class="card-footer bg-white border-0 d-flex gap-2 justify-content-end">
+      {# ✅ Volver al “home” del módulo #}
+      <a href="{{ url_for('transferencias_bancarias.listado') }}"
+         class="btn btn-outline-secondary">
+        Volver
+      </a>
+      <button type="submit" class="btn btn-success" id="btn-submit">
+        📥 Generar XLSX
+      </button>
+    </div>
+  </form>
+
+</div>
+
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/transferencias_bancarias_crear.js') }}"></script>
+{% endblock %}

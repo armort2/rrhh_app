@@ -4,7 +4,7 @@
 {% block title %}Nuevo Trabajador · GRUPO CS{% endblock %}
 
 {% block content %}
-<div class="container py-3">
+<div class="container py-3 cs-form-page">
 
   <div class="card shadow-sm">
     <div class="card-body border-bottom">
@@ -549,115 +549,10 @@
   </div>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const form = document.getElementById("form-nuevo-trabajador");
-  const accionHidden = document.getElementById("accion");
-  if (!form || !accionHidden) return;
-
-  form.addEventListener("click", function (ev) {
-    const btn = ev.target.closest("button[type='submit'][data-accion]");
-    if (!btn) return;
-    accionHidden.value = btn.getAttribute("data-accion") || "guardar";
-  });
-
-  form.addEventListener("submit", function (ev) {
-    const submitter = ev.submitter;
-    if (submitter && submitter.dataset && submitter.dataset.accion) {
-      accionHidden.value = submitter.dataset.accion;
-    }
-    if (!accionHidden.value) accionHidden.value = "guardar";
-  });
-});
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const inputCargo   = document.getElementById("cargo_search");
-  const hiddenCargo  = document.getElementById("cargo_id");
-  const datalist     = document.getElementById("lista_cargos");
-  const cargoError   = document.getElementById("cargo_error");
-
-  if (!inputCargo || !hiddenCargo || !datalist) return;
-
-  function sincronizarCargoId() {
-    const valor = inputCargo.value.trim();
-    if (!valor) {
-      hiddenCargo.value = "";
-      if (cargoError) cargoError.style.display = "none";
-      return;
-    }
-
-    const opciones = Array.from(datalist.options);
-    const encontrada = opciones.find(opt => opt.value === valor);
-
-    if (encontrada) {
-      hiddenCargo.value = encontrada.getAttribute("data-id") || "";
-      if (cargoError) cargoError.style.display = "none";
-    } else {
-      hiddenCargo.value = "";
-      if (cargoError) cargoError.style.display = "block";
-    }
-  }
-
-  inputCargo.addEventListener("change", sincronizarCargoId);
-  inputCargo.addEventListener("blur", sincronizarCargoId);
-  sincronizarCargoId();
-});
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const rutInput      = document.getElementById("rut");
-  const tipoCuentaSel = document.getElementById("tipo_cuenta");
-  const cuentaNumInp  = document.getElementById("cuenta_numero");
-
-  if (!rutInput || !tipoCuentaSel || !cuentaNumInp) return;
-
-  function actualizarCuentaRut() {
-    if (tipoCuentaSel.value === "CTA_RUT") {
-      const rut = rutInput.value || "";
-      const soloDigitos = rut.replace(/[^0-9]/g, "");
-      if (soloDigitos.length >= 2) {
-        const base = soloDigitos.slice(0, -1);
-        cuentaNumInp.value = base;
-      }
-      cuentaNumInp.readOnly = true;
-    } else {
-      cuentaNumInp.readOnly = false;
-    }
-  }
-
-  tipoCuentaSel.addEventListener("change", actualizarCuentaRut);
-  rutInput.addEventListener("blur", function () {
-    if (tipoCuentaSel.value === "CTA_RUT") actualizarCuentaRut();
-  });
-
-  actualizarCuentaRut();
-});
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const chkTercero    = document.getElementById("pago_tercero_activo");
-  const bloqueTercero = document.getElementById("bloque_pago_tercero");
-
-  if (!chkTercero || !bloqueTercero) return;
-
-  const inputsTercero = bloqueTercero.querySelectorAll("input, select");
-
-  function actualizarBloqueTercero() {
-    if (chkTercero.checked) {
-      bloqueTercero.style.display = "";
-    } else {
-      bloqueTercero.style.display = "none";
-      inputsTercero.forEach(el => { el.value = ""; });
-    }
-  }
-
-  chkTercero.addEventListener("change", actualizarBloqueTercero);
-  actualizarBloqueTercero();
-});
-</script>
-
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/trabajadores_form.js') }}"></script>
+{% endblock %}
+

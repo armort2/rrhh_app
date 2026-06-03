@@ -6,63 +6,350 @@
 {% block content %}
 <div class="container-fluid py-3">
 
+  <style>
+    /* ✅ Alineación: reservamos un “renglón” uniforme bajo cada filtro */
+    .filter-help { min-height: 18px; }
+
+    /* Premium: badges suaves */
+    .badge-soft-warning { background: rgba(255,193,7,.18); color: #856404; border: 1px solid rgba(255,193,7,.35); }
+    .badge-soft-success { background: rgba(25,135,84,.14); color: #0f5132; border: 1px solid rgba(25,135,84,.28); }
+    .badge-soft-secondary { background: rgba(108,117,125,.14); color: #495057; border: 1px solid rgba(108,117,125,.25); }
+  </style>
+
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Desvinculaciones</h1>
-      <div class="section-subtitle">Últimos registros (MVP).</div>
+      <div class="section-subtitle">Gestión y trazabilidad: busca, filtra por obra/mes y accede al detalle.</div>
       <div class="section-divider"></div>
+    </div>
+  </div>
+
+  {# ==========================
+     Panel de filtros + KPI
+     ========================== #}
+
+  {% if kpi is defined %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-lg-3">
+            <div class="text-muted small">Total (según filtros)</div>
+            <div class="fs-4 fw-semibold">{{ kpi.total or 0 }}</div>
+          </div>
+          <div class="col-12 col-lg-3">
+            <div class="text-muted small">Emitidas</div>
+            <div class="fs-4 fw-semibold">{{ kpi.emitida or 0 }}</div>
+          </div>
+          <div class="col-12 col-lg-3">
+            <div class="text-muted small">Borrador</div>
+            <div class="fs-4 fw-semibold">{{ kpi.borrador or 0 }}</div>
+          </div>
+          <div class="col-12 col-lg-3">
+            <div class="text-muted small">Anuladas</div>
+            <div class="fs-4 fw-semibold">{{ kpi.anulada or 0 }}</div>
+          </div>
+        </div>
+
+        {# ✅ KPI Montos #}
+        <hr class="my-3">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="text-muted small">Total a pago (según filtros)</div>
+            <div class="fs-4 fw-semibold">$ {{ total_pago_listado or "0" }}</div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="text-muted small">Total a pago · Emitidas</div>
+            <div class="fs-4 fw-semibold">$ {{ total_pago_emitidas or "0" }}</div>
+          </div>
+        </div>
+
+        {# ✅ KPI Control Premium: pagados/pendientes (si vienen) #}
+        {% if kpi_pagos is defined %}
+          <hr class="my-3">
+          <div class="row g-3">
+            <div class="col-12 col-lg-3">
+              <div class="text-muted small">Pagados</div>
+              <div class="fs-5 fw-semibold">{{ kpi_pagos.pagados or 0 }}</div>
+            </div>
+            <div class="col-12 col-lg-3">
+              <div class="text-muted small">Pendientes</div>
+              <div class="fs-5 fw-semibold">{{ kpi_pagos.pendientes or 0 }}</div>
+            </div>
+            <div class="col-12 col-lg-3">
+              <div class="text-muted small">Monto pagado</div>
+              <div class="fs-5 fw-semibold">$ {{ kpi_pagos.monto_pagado or "0" }}</div>
+            </div>
+            <div class="col-12 col-lg-3">
+              <div class="text-muted small">Monto pendiente</div>
+              <div class="fs-5 fw-semibold">$ {{ kpi_pagos.monto_pendiente or "0" }}</div>
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+
+        {# Buscador #}
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="q">Buscador</label>
+          <input
+            class="form-control"
+            id="q"
+            name="q"
+            value="{{ q or '' }}"
+            placeholder="Nombre, apellidos o RUT (ej: 12.345.678-9)"
+            autocomplete="off"
+          >
+          {# ✅ placeholder uniforme para alinear alturas #}
+          <div class="form-text filter-help">
+            Tip: puedes escribir solo números del RUT y también funciona.
+          </div>
+        </div>
+
+        {# Obra #}
+        <div class="col-12 col-md-6 col-lg-3">
+          <label class="form-label" for="obra_id">Obra / Centro de costo</label>
+          <select class="form-select" id="obra_id" name="obra_id">
+            <option value="">Todas</option>
+            {% for o in (obras or []) %}
+              <option
+                value="{{ o.id }}"
+                {% if (filtro_obra_id|string) == (o.id|string) %}selected{% endif %}
+              >
+                {% set cc = (o.centro_costo or '') %}
+                {{ (cc ~ " · " if cc else "") ~ (o.nombre or ("Obra #" ~ o.id)) }}
+              </option>
+            {% endfor %}
+          </select>
+          {# ✅ placeholder uniforme #}
+          <div class="form-text filter-help">&nbsp;</div>
+        </div>
+
+        {# Mes término (picker real: Año + Mes) #}
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label">Mes término</label>
+
+          {# enviamos "mes" como YYYY-MM (compatible con tu routes.py actual) #}
+          <input type="hidden" id="mes" name="mes" value="{{ filtro_mes or '' }}">
+
+          <div class="input-group">
+            <select class="form-select" id="mes_year" aria-label="Año">
+              {% for yy in (years or []) %}
+                <option value="{{ yy }}" {% if (filtro_mes_year|string) == (yy|string) %}selected{% endif %}>
+                  {{ yy }}
+                </option>
+              {% endfor %}
+            </select>
+
+            <select class="form-select" id="mes_month" aria-label="Mes">
+              <option value="" {% if not filtro_mes_month %}selected{% endif %}>Mes</option>
+              {% set meses = [
+                (1,"Ene"),(2,"Feb"),(3,"Mar"),(4,"Abr"),(5,"May"),(6,"Jun"),
+                (7,"Jul"),(8,"Ago"),(9,"Sep"),(10,"Oct"),(11,"Nov"),(12,"Dic")
+              ] %}
+              {% for mm, label in meses %}
+                <option value="{{ "%02d"|format(mm) }}" {% if (filtro_mes_month|string) == ("%02d"|format(mm)) %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {# ✅ Ahora este help usa el mismo “slot” que los demás #}
+          <div class="form-text filter-help">Selecciona año y mes (sin día).</div>
+        </div>
+
+        {# Estado #}
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label" for="estado">Estado</label>
+          <select class="form-select" id="estado" name="estado">
+            <option value="" {% if not filtro_estado %}selected{% endif %}>Todos</option>
+            <option value="BORRADOR" {% if filtro_estado == "BORRADOR" %}selected{% endif %}>Borrador</option>
+            <option value="EMITIDA" {% if filtro_estado == "EMITIDA" %}selected{% endif %}>Emitida</option>
+            <option value="ANULADA" {% if filtro_estado == "ANULADA" %}selected{% endif %}>Anulada</option>
+          </select>
+          {# ✅ placeholder uniforme #}
+          <div class="form-text filter-help">&nbsp;</div>
+        </div>
+
+        {# Botón #}
+        <div class="col-12 col-md-6 col-lg-1 d-grid">
+          <button class="btn btn-primary" type="submit">Filtrar</button>
+          {# ✅ placeholder uniforme #}
+          <div class="form-text filter-help">&nbsp;</div>
+        </div>
+
+        {# Línea inferior: limpiar + contador #}
+        <div class="col-12 d-flex gap-2 flex-wrap align-items-center">
+          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('desvinculaciones.listado') }}">Limpiar</a>
+
+          <div class="ms-auto text-muted small">
+            Mostrando: <strong>{{ (desvinculaciones|length) if desvinculaciones is defined else 0 }}</strong> registro(s).
+          </div>
+        </div>
+
+      </form>
     </div>
   </div>
 
   <div class="card">
     <div class="card-body">
       {% if not desvinculaciones %}
-        <div class="text-muted">Aún no hay desvinculaciones registradas.</div>
+        <div class="text-muted">No hay desvinculaciones para los filtros seleccionados.</div>
       {% else %}
         <div class="table-responsive">
           <table class="table table-striped table-hover align-middle mb-0">
             <thead>
               <tr>
-                <th>ID</th>
+                <th style="white-space: nowrap;">ID</th>
                 <th>Trabajador</th>
-                <th>Contrato</th>
+                <th style="white-space: nowrap;">Obra</th>
+                <th style="white-space: nowrap;">Contrato</th>
                 <th>Causal</th>
-                <th>F. Término</th>
-                <th>Estado</th>
-                <th class="text-end"></th>
+                <th style="white-space: nowrap;">F. Término</th>
+                <th style="white-space: nowrap;">Estado</th>
+
+                {# ✅ NUEVO: Total a pago #}
+                <th class="text-end" style="white-space: nowrap;">Total a pago</th>
+
+                {# ✅ NUEVO: Control Premium #}
+                <th style="white-space: nowrap;">Pago</th>
+                <th style="white-space: nowrap;">F. Pago</th>
+                <th style="white-space: nowrap;">Medio</th>
+                <th>Obs.</th>
+
+                <th class="text-end" style="white-space: nowrap;">Acciones</th>
               </tr>
             </thead>
+
             <tbody>
               {% for d in desvinculaciones %}
+                {% set rut = (d.trabajador.rut_completo if d.trabajador.rut_completo is defined else (d.trabajador.rut ~ "-" ~ d.trabajador.dv)) %}
+                {% set obra_nombre = (d.contrato.obra.nombre if d.contrato is defined and d.contrato.obra is defined and d.contrato.obra else (d.obra.nombre if d.obra is defined and d.obra else "")) %}
+                {% set obra_cc = (d.contrato.obra.centro_costo if d.contrato is defined and d.contrato.obra is defined and d.contrato.obra else (d.obra.centro_costo if d.obra is defined and d.obra else "")) %}
+
+                {# total a pago desde pagos_map #}
+                {% set p = (pagos_map.get(d.id) if pagos_map is defined else None) %}
+
+                {# control premium desde pago_map (si viene) #}
+                {% set pay = (pago_map.get(d.id) if pago_map is defined else None) %}
+                {% set pay_estado = (pay.estado if pay is not none and pay.estado is defined else "") %}
+                {% set pay_fecha = (pay.fecha_pago if pay is not none and pay.fecha_pago is defined else "") %}
+                {% set pay_medio = (pay.medio if pay is not none and pay.medio is defined else "") %}
+                {% set pay_obs = (pay.obs if pay is not none and pay.obs is defined else "") %}
+
                 <tr>
-                  <td>#{{ d.id }}</td>
+                  <td class="fw-semibold">#{{ d.id }}</td>
+
                   <td>
                     {{ d.trabajador.nombres }} {{ d.trabajador.ap_paterno }} {{ d.trabajador.ap_materno }}
-                    <div class="text-muted small">
-                      RUT: {{ d.trabajador.rut_completo if d.trabajador.rut_completo is defined else (d.trabajador.rut ~ "-" ~ d.trabajador.dv) }}
-                    </div>
+                    <div class="text-muted small">RUT: {{ rut }}</div>
                   </td>
-                  <td>#{{ d.contrato_id }}</td>
-                  <td>{{ d.causal.causal_resumida }}</td>
-                  <td>{{ d.fecha_termino.strftime("%d-%m-%Y") if d.fecha_termino else "-" }}</td>
+
                   <td>
+                    {% if obra_nombre %}
+                      <div class="fw-semibold">{{ obra_nombre }}</div>
+                      {% if obra_cc %}
+                        <div class="text-muted small">CC: {{ obra_cc }}</div>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+
+                  <td style="white-space: nowrap;">#{{ d.contrato_id }}</td>
+
+                  <td>
+                    {{ d.causal.causal_resumida if d.causal is defined and d.causal else "-" }}
+                    {% if d.causal is defined and d.causal and d.causal.causal_finiquito %}
+                      <div class="text-muted small">{{ d.causal.causal_finiquito }}</div>
+                    {% endif %}
+                  </td>
+
+                  <td style="white-space: nowrap;">
+                    {{ d.fecha_termino.strftime("%d-%m-%Y") if d.fecha_termino else "-" }}
+                  </td>
+
+                  <td style="white-space: nowrap;">
                     {% if d.estado == "EMITIDA" %}
                       <span class="badge text-bg-success">Emitida</span>
+                    {% elif d.estado == "ANULADA" %}
+                      <span class="badge text-bg-danger">Anulada</span>
                     {% else %}
                       <span class="badge text-bg-secondary">{{ d.estado or "BORRADOR" }}</span>
                     {% endif %}
                   </td>
-                  <td class="text-end">
-                    <a class="btn btn-sm btn-primary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=d.id) }}">Ver</a>
+
+                  {# ✅ Total a pago (finiquito) #}
+                  <td class="text-end" style="white-space: nowrap;">
+                    {% if p and p.has %}
+                      <span class="fw-semibold">$ {{ p.fmt }}</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                      <div class="text-muted small">Sin finiquito</div>
+                    {% endif %}
+                  </td>
+
+                  {# ✅ Control Premium: Estado pago #}
+                  <td style="white-space: nowrap;">
+                    {% if pay_estado == "PAGADO" %}
+                      <span class="badge badge-soft-success">Pagado</span>
+                    {% elif pay_estado == "PENDIENTE" %}
+                      <span class="badge badge-soft-warning">Pendiente</span>
+                    {% else %}
+                      <span class="badge badge-soft-secondary">Sin registro</span>
+                    {% endif %}
+                  </td>
+
+                  {# ✅ Fecha pago #}
+                  <td style="white-space: nowrap;">
+                    {{ pay_fecha or "-" }}
+                  </td>
+
+                  {# ✅ Medio pago #}
+                  <td style="white-space: nowrap;">
+                    {{ pay_medio or "-" }}
+                  </td>
+
+                  {# ✅ Observación #}
+                  <td>
+                    {% if pay_obs %}
+                      <span class="text-muted small">{{ pay_obs }}</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-end" style="white-space: nowrap;">
+                    <a class="btn btn-sm btn-primary"
+                       href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=d.id) }}">
+                      Ver
+                    </a>
                   </td>
                 </tr>
               {% endfor %}
             </tbody>
+
           </table>
+        </div>
+
+        <div class="text-muted small mt-2">
+          Consejo corporativo 😄: con “Total a pago” + “Pago premium”, este listado ya es medio tesorería sin pedir aumento.
         </div>
       {% endif %}
     </div>
   </div>
 
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/desvinculaciones_listado.js') }}"></script>
 {% endblock %}

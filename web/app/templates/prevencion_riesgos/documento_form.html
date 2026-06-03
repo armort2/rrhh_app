@@ -1,0 +1,122 @@
+{# web/app/templates/prevencion_riesgos/documento_form.html #}
+{% extends "base.html" %}
+{% set es_edicion = (modo == 'editar') %}
+
+{% block title %}{% if es_edicion %}Editar documento preventivo{% else %}Nuevo documento preventivo{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-form-page">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">{% if es_edicion %}Editar documento preventivo{% else %}Nuevo documento preventivo{% endif %}</h1>
+      <p class="text-muted mb-0">Busca el trabajador y selecciona el contrato al que corresponde este documento.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if es_edicion %}<a href="{{ url_for('prevencion_riesgos.documento_detalle', documento_id=doc.id) }}" class="btn btn-outline-secondary">Volver al detalle</a>{% endif %}
+      <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-secondary">Volver al listado</a>
+    </div>
+  </div>
+
+  <form method="post" class="card shadow-sm" data-prevencion-contrato-selector data-mode="single" data-api-url="{{ url_for('prevencion_riesgos.api_contratos_selector') }}">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Contrato asociado</h2>
+
+      {% if es_edicion %}
+        <div class="alert alert-info">El estado se recalcula automáticamente según vencimiento, salvo Pendiente o Anulado.</div>
+      {% endif %}
+
+      <input type="hidden" name="contrato_id" id="contrato_id" value="{{ doc.contrato_id if es_edicion and doc.contrato_id else '' }}">
+      <input type="hidden" name="trabajador_id" id="trabajador_id" value="{{ doc.trabajador_id if es_edicion else '' }}">
+      <input type="hidden" name="obra_id" id="obra_id" value="{{ doc.obra_id if es_edicion and doc.obra_id else '' }}">
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+          <label class="form-label">Buscar trabajador</label>
+          <input type="text" id="buscadorContrato" data-contrato-search class="form-control" autocomplete="off" placeholder="Nombre, apellidos, RUT o ID de contrato">
+          <div class="form-text">Puedes buscar en cualquier orden.</div>
+          <div id="resultadosContrato" data-contrato-results class="list-group mt-2 shadow-sm d-none"></div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+          <label class="form-label">Contrato seleccionado</label>
+          <div id="contratoSeleccionado" data-contrato-selected class="border rounded-3 p-3 bg-light h-100">
+            {% if es_edicion and doc.contrato %}
+              <div class="fw-semibold">{{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}</div>
+              <div class="small text-muted">
+                Contrato #{{ doc.contrato.id }} · {{ doc.obra.nombre if doc.obra else 'Sin obra' }}
+                {% if doc.contrato.cargo %} · {{ doc.contrato.cargo.nombre }}{% endif %}
+              </div>
+            {% else %}
+              <div class="text-muted">Aún no has seleccionado un contrato.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <h2 class="h5 mb-3">Datos del documento</h2>
+
+      <div class="row g-3">
+        <div class="col-12 col-lg-3">
+          <label class="form-label">Tipo documento</label>
+          <select name="tipo_documento" class="form-select" required>
+            <option value="">Seleccionar</option>
+            {% for value, label in tipos_documento %}
+              <option value="{{ value }}" {% if es_edicion and doc.tipo_documento == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label class="form-label">Fecha emisión</label>
+          <input type="date" name="fecha_emision" class="form-control" value="{% if es_edicion and doc.fecha_emision %}{{ doc.fecha_emision.strftime('%Y-%m-%d') }}{% else %}{{ today.strftime('%Y-%m-%d') }}{% endif %}" required>
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label class="form-label">Fecha vencimiento</label>
+          <input type="date" name="fecha_vencimiento" class="form-control" value="{% if es_edicion and doc.fecha_vencimiento %}{{ doc.fecha_vencimiento.strftime('%Y-%m-%d') }}{% endif %}">
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            {% for value, label in estados_documento %}
+              <option value="{{ value }}" {% if es_edicion and doc.estado == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <label class="form-label">Nombre archivo</label>
+          <input type="text" name="archivo_nombre" class="form-control" value="{{ doc.archivo_nombre if es_edicion and doc.archivo_nombre else '' }}" placeholder="Ej: ODI firmada.pdf">
+        </div>
+
+        <div class="col-12 col-lg-8">
+          <label class="form-label">Ruta / enlace archivo</label>
+          <input type="text" name="archivo_path" class="form-control" value="{{ doc.archivo_path if es_edicion and doc.archivo_path else '' }}" placeholder="Ruta Nextcloud o referencia">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observación</label>
+          <textarea name="observacion" class="form-control" rows="3">{% if es_edicion and doc.observacion %}{{ doc.observacion }}{% endif %}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end gap-2">
+      {% if es_edicion %}
+        <a href="{{ url_for('prevencion_riesgos.documento_detalle', documento_id=doc.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      {% else %}
+        <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar documento</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/prevencion_contratos_selector.js') }}"></script>
+{% endblock %}

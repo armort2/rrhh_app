@@ -1,0 +1,118 @@
+{# web/app/templates/rendiciones_gastos/editar.html #}
+{% extends "base.html" %}
+{% block title %}Editar Rendición #{{ r.numero }}{% endblock %}
+
+{% from "rendiciones_gastos/macros.html" import badge_estado %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Editar cabecera · Rendición #{{ r.numero }}</h1>
+      <div class="section-subtitle">
+        Centro de Costo: <span class="fw-semibold">{{ r.centro_costo }}</span>
+        · Fecha: {{ r.fecha_rendicion }}
+        {% if r.obra %}
+          · Ref: {{ r.obra.codigo }} · {{ r.obra.nombre }}
+        {% endif %}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge {{ badge_estado(r.estado) }}">{{ r.estado }}</span>
+      <a class="btn btn-outline-secondary" href="{{ url_for('rendiciones_gastos.detalle', rendicion_id=r.id) }}">Volver</a>
+    </div>
+  </div>
+
+  {% if not editable %}
+    <div class="alert alert-warning mb-3">
+      Esta rendición no admite edición de cabecera en el estado actual.
+    </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header fw-semibold">Cabecera</div>
+        <div class="card-body">
+          <form method="post"
+                action="{{ url_for('rendiciones_gastos.actualizar', rendicion_id=r.id) }}"
+                class="row g-2">
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Centro de Costo</label>
+              <input class="form-control" value="{{ r.centro_costo }}" disabled>
+              <div class="form-text">Bloqueado por control de acceso y trazabilidad.</div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Obra (opcional)</label>
+              <select name="obra_id" class="form-select" {% if not editable %}disabled{% endif %}>
+                <option value="">— Sin obra asociada —</option>
+                {% for o in obras %}
+                  <option value="{{ o.id }}" {% if r.obra_id == o.id %}selected{% endif %}>
+                    {{ o.codigo }} · {{ o.nombre }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Período desde</label>
+              <input type="date"
+                     class="form-control"
+                     name="periodo_desde"
+                     value="{{ r.periodo_desde.isoformat() if r.periodo_desde else '' }}"
+                     {% if not editable %}disabled{% endif %}>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Período hasta</label>
+              <input type="date"
+                     class="form-control"
+                     name="periodo_hasta"
+                     value="{{ r.periodo_hasta.isoformat() if r.periodo_hasta else '' }}"
+                     {% if not editable %}disabled{% endif %}>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <textarea class="form-control"
+                        name="observaciones"
+                        rows="3"
+                        {% if not editable %}disabled{% endif %}>{{ r.observaciones or "" }}</textarea>
+            </div>
+
+            <div class="col-12 d-flex gap-2 mt-2 justify-content-end">
+              <a class="btn btn-outline-secondary" href="{{ url_for('rendiciones_gastos.detalle', rendicion_id=r.id) }}">
+                Cancelar
+              </a>
+              <button class="btn btn-primary" type="submit" {% if not editable %}disabled{% endif %}>
+                Guardar cambios
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Reglas</div>
+          <ul class="mb-0">
+            <li>Centro de Costo no se modifica.</li>
+            <li>Obra es opcional (pero debe pertenecer al mismo CC).</li>
+            <li>Período y observaciones son editables según estado y permisos.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

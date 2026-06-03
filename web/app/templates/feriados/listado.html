@@ -1,0 +1,93 @@
+{# web/app/templates/feriados/listado.html #}
+{% extends "base.html" %}
+{% block title %}Feriados{% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+  <div class="section-header">
+    <div class="section-title">Feriados</div>
+    <div class="section-subtitle">
+      Módulo maestro (solo ADMIN) · Año: <strong>{{ year }}</strong>
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Año</label>
+          <select name="year" class="form-select">
+            {% for y in years %}
+              <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-9 d-flex gap-2">
+          <button class="btn btn-outline-primary" type="submit">Filtrar</button>
+          <a class="btn btn-primary" href="{{ url_for('feriados.nuevo', year=year) }}">+ Nuevo feriado</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {% if not feriados %}
+        <div class="alert alert-info mb-0">
+          No hay feriados registrados para el año <strong>{{ year }}</strong>.
+        </div>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th style="width: 140px;">Fecha</th>
+                <th>Nombre</th>
+                <th style="width: 140px;">Tipo</th>
+                <th style="width: 160px;">Región</th>
+                <th style="width: 140px;">Estado</th>
+                <th style="width: 220px;" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in feriados %}
+                <tr>
+                  <td><strong>{{ f.fecha.isoformat() }}</strong></td>
+                  <td>{{ f.nombre }}</td>
+                  <td>
+                    <span class="badge text-bg-secondary">{{ f.tipo }}</span>
+                  </td>
+                  <td>{{ f.region or "-" }}</td>
+                  <td>
+                    {% if f.activo %}
+                      <span class="badge text-bg-success">ACTIVO</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">INACTIVO</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{{ url_for('feriados.editar', feriado_id=f.id) }}">Editar</a>
+
+                    <form method="post"
+                          action="{{ url_for('feriados.toggle', feriado_id=f.id) }}"
+                          class="d-inline">
+                      <button class="btn btn-sm {% if f.activo %}btn-outline-secondary{% else %}btn-outline-success{% endif %}"
+                              type="submit">
+                        {% if f.activo %}Desactivar{% else %}Activar{% endif %}
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

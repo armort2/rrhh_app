@@ -3,7 +3,7 @@
 {% block title %}Editar inasistencia{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-form-page">
 
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
@@ -154,137 +154,10 @@
 
 </div>
 
-<script>
-  function toggleHoras() {
-    const tipo = document.getElementById('tipo').value;
-    const box = document.getElementById('box-horas');
-    const hhmm = document.getElementById('hhmm');
-    const err = document.getElementById('hhmm_error');
-
-    const esHoras = (tipo === 'HORAS');
-    box.style.display = esHoras ? 'block' : 'none';
-    hhmm.required = esHoras;
-
-    if (!esHoras) {
-      err.style.display = 'none';
-    }
-  }
-
-  function forceMotivoMatchTipo() {
-    const tipo = document.getElementById('tipo').value;
-    const sel = document.getElementById('motivo');
-    const err = document.getElementById('motivo_tipo_error');
-
-    // Alternar optgroups
-    const grpDia = document.getElementById('grp-dia');
-    const grpHoras = document.getElementById('grp-horas');
-    grpDia.hidden = (tipo !== 'DIA');
-    grpHoras.hidden = (tipo !== 'HORAS');
-
-    const opt = sel.options[sel.selectedIndex];
-    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
-
-    // Si la opción actual es "AMBOS" (compatibilidad), se permite.
-    if (optTipo === 'AMBOS') {
-      err.style.display = 'none';
-      return true;
-    }
-
-    if (!optTipo || optTipo !== tipo) {
-      // buscar primera opción del tipo actual (ignorando las ocultas de otros grupos)
-      for (let i = 0; i < sel.options.length; i++) {
-        const o = sel.options[i];
-        const t = (o.getAttribute('data-tipo') || '').toUpperCase();
-        if (t === tipo) {
-          sel.selectedIndex = i;
-          break;
-        }
-      }
-      err.style.display = 'none';
-      return true;
-    }
-
-    err.style.display = 'none';
-    return true;
-  }
-
-  function updateMotivoInfo() {
-    const sel = document.getElementById('motivo');
-    const opt = sel.options[sel.selectedIndex];
-
-    const noDesc = opt && opt.getAttribute('data-no-descuenta') === '1';
-    const val = sel.value;
-
-    const boxNoDesc = document.getElementById('info_no_descuenta');
-    const boxDuelo = document.getElementById('info_duelo');
-
-    boxNoDesc.style.display = noDesc ? 'block' : 'none';
-    boxDuelo.style.display = (val === 'PERMISO_DUELO') ? 'block' : 'none';
-  }
-
-  function validateHoras(e) {
-    const tipo = document.getElementById('tipo').value;
-    const hhmm = document.getElementById('hhmm');
-    const err = document.getElementById('hhmm_error');
-
-    if (tipo === 'HORAS') {
-      const v = (hhmm.value || '').trim();
-      if (!v || v === '00:00') {
-        e.preventDefault();
-        err.style.display = 'block';
-        hhmm.focus();
-        return false;
-      }
-      err.style.display = 'none';
-    }
-    return true;
-  }
-
-  function validateMotivoTipo(e) {
-    const tipo = document.getElementById('tipo').value;
-    const sel = document.getElementById('motivo');
-    const err = document.getElementById('motivo_tipo_error');
-
-    const opt = sel.options[sel.selectedIndex];
-    const optTipo = opt ? (opt.getAttribute('data-tipo') || '').toUpperCase() : '';
-
-    if (optTipo !== 'AMBOS' && (!optTipo || optTipo !== tipo)) {
-      // reintentar alineación automática
-      forceMotivoMatchTipo();
-      const opt2 = sel.options[sel.selectedIndex];
-      const optTipo2 = opt2 ? (opt2.getAttribute('data-tipo') || '').toUpperCase() : '';
-      if (optTipo2 !== 'AMBOS' && (!optTipo2 || optTipo2 !== tipo)) {
-        e.preventDefault();
-        err.style.display = 'block';
-        sel.focus();
-        return false;
-      }
-    }
-
-    err.style.display = 'none';
-    return true;
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    toggleHoras();
-    forceMotivoMatchTipo();
-    updateMotivoInfo();
-
-    document.getElementById('tipo').addEventListener('change', () => {
-      toggleHoras();
-      forceMotivoMatchTipo();
-      updateMotivoInfo();
-    });
-
-    document.getElementById('motivo').addEventListener('change', () => {
-      forceMotivoMatchTipo();
-      updateMotivoInfo();
-    });
-
-    document.getElementById('form-editar-inasistencia').addEventListener('submit', (e) => {
-      validateHoras(e);
-      validateMotivoTipo(e);
-    });
-  });
-</script>
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/inasistencias_form.js') }}"></script>
+{% endblock %}
+

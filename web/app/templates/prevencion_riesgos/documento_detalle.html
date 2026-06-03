@@ -1,0 +1,81 @@
+{# web/app/templates/prevencion_riesgos/documento_detalle.html #}
+{% extends "base.html" %}
+
+{% block title %}Detalle documento preventivo{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">Detalle documento preventivo</h1>
+      <p class="text-muted mb-0">Registro N° {{ doc.id }}</p>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap cs-detail-actions">
+      <a href="{{ url_for('prevencion_riesgos.documento_imprimir', documento_id=doc.id) }}" target="_blank" class="btn btn-outline-primary">
+        Imprimir acta
+      </a>
+      <a href="{{ url_for('prevencion_riesgos.documento_editar', documento_id=doc.id) }}" class="btn btn-warning">
+        Editar
+      </a>
+      <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-secondary">Volver al listado</a>
+      <a href="{{ url_for('prevencion_riesgos.documento_nuevo') }}" class="btn btn-primary">Nuevo documento</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Trabajador</h2>
+          <div class="fw-semibold">
+            {{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}
+          </div>
+          <div class="text-muted">{{ doc.trabajador|rut_trabajador }}</div>
+          <hr>
+          <div><strong>Obra:</strong> {{ doc.obra.nombre if doc.obra else 'Sin obra' }}</div>
+          <div><strong>Registrado por:</strong> {{ doc.registrado_por.username if doc.registrado_por else '-' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Documento</h2>
+          <div><strong>Tipo:</strong> {{ doc.tipo_documento }}</div>
+          <div><strong>Fecha emisión:</strong> {{ doc.fecha_emision.strftime('%d-%m-%Y') }}</div>
+          <div><strong>Fecha vencimiento:</strong> {{ doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else '-' }}</div>
+          <div>
+            <strong>Estado:</strong>
+            {% if doc.estado == 'VIGENTE' %}
+              <span class="badge bg-success">Vigente</span>
+            {% elif doc.estado == 'POR_VENCER' %}
+              <span class="badge bg-warning text-dark">Por vencer</span>
+            {% elif doc.estado == 'VENCIDO' %}
+              <span class="badge bg-danger">Vencido</span>
+            {% elif doc.estado == 'PENDIENTE' %}
+              <span class="badge bg-secondary">Pendiente</span>
+            {% elif doc.estado == 'ANULADO' %}
+              <span class="badge bg-dark">Anulado</span>
+            {% else %}
+              <span class="badge bg-dark">{{ doc.estado }}</span>
+            {% endif %}
+          </div>
+          <hr>
+          <div><strong>Nombre archivo:</strong> {{ doc.archivo_nombre or '-' }}</div>
+          <div><strong>Ruta / enlace:</strong> {{ doc.archivo_path or '-' }}</div>
+          <hr>
+          <div>
+            <strong>Observación:</strong>
+            <p class="mb-0">{{ doc.observacion or 'Sin observaciones.' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

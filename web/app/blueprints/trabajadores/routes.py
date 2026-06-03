@@ -28,6 +28,14 @@ from ...models import (
     Empleador,
     Desvinculacion,
     Inasistencia,
+    DocumentoLaboral,
+    AnexoCambioSueldoContrato,
+    AnexoCambioCargoContrato,
+    AnticipoDetalle,
+    Vacacion,
+    PrevEntregaEPP,
+    PrevCharlaAsistente,
+    PrevDocumentoPreventivo,
 )
 from ...utils import parse_date, parse_int, parse_decimal
 
@@ -345,7 +353,24 @@ def detalle_trabajador(trabajador_id: int):
         .first()
     )
 
-    contrato_contexto = contrato_vigente_actual or (contratos[0] if contratos else None)
+    # Contrato de contexto documental:
+    # - Si viene ?contrato_id=..., usamos exactamente ese contrato del trabajador.
+    # - Si no viene, mantenemos el comportamiento anterior como fallback.
+    # Esto evita que las acciones de anexos operen accidentalmente sobre otro contrato
+    # cuando un trabajador tiene más de una relación contractual vigente/histórica.
+    contrato_contexto = None
+    contrato_contexto_id_raw = (request.args.get("contrato_id") or "").strip()
+    contrato_contexto_id = None
+    if contrato_contexto_id_raw.isdigit():
+        contrato_contexto_id = int(contrato_contexto_id_raw)
+
+    if contrato_contexto_id:
+        contrato_contexto = next((c for c in contratos if c.id == contrato_contexto_id), None)
+        if not contrato_contexto:
+            flash("El contrato seleccionado no pertenece a este trabajador. Se mostrará el contrato de contexto predeterminado.", "warning")
+
+    if not contrato_contexto:
+        contrato_contexto = contrato_vigente_actual or (contratos[0] if contratos else None)
 
     anexos_contrato_vigente = []
     anexos_indefinidos_contrato_vigente = []
@@ -407,6 +432,200 @@ def detalle_trabajador(trabajador_id: int):
     )
 
     rut_formateado = trabajador_rut_formateado(trabajador)
+
+    contrato_ids = [c.id for c in contratos]
+    total_contratos = len(contratos)
+    contratos_vigentes = [
+        c for c in contratos
+        if (getattr(c, "estado_contrato", "") or "").upper() == "VIGENTE"
+    ]
+    total_contratos_vigentes = len(contratos_vigentes)
+    total_contratos_historicos = max(total_contratos - total_contratos_vigentes, 0)
+
+    contratos_por_vencer = []
+    for c in contratos:
+        if (c.estado_contrato or "").upper() == "VIGENTE" and getattr(c, "fecha_termino", None):
+            dias_restantes = (c.fecha_termino - hoy).days
+            if 0 <= dias_restantes <= 45:
+                contratos_por_vencer.append({
+                    "contrato": c,
+                    "dias": dias_restantes,
+                    "fecha": c.fecha_termino,
+                })
+
+    datos_faltantes = []
+    if not (trabajador.telefono or "").strip():
+        datos_faltantes.append("teléfono")
+    if not (trabajador.correo or "").strip():
+        datos_faltantes.append("correo")
+    if not (trabajador.direccion or "").strip():
+        datos_faltantes.append("dirección")
+    if not getattr(trabajador, "banco_id", None):
+        datos_faltantes.append("banco")
+    if not (getattr(trabajador, "cuenta_numero", None) or "").strip():
+        datos_faltantes.append("cuenta bancaria")
+    if not getattr(trabajador, "afp_id", None):
+        datos_faltantes.append("AFP")
+    if not getattr(trabajador, "salud_id", None):
+        datos_faltantes.append("salud")
+
+    alertas_ficha = []
+    if total_contratos_vigentes > 1:
+        alertas_ficha.append({
+            "nivel": "info",
+            "icono": "🔁",
+            "titulo": "Trabajador con más de un contrato vigente",
+            "detalle": "Revisar siempre el contrato seleccionado antes de generar anexos, vacaciones o documentos.",
+        })
+    if contratos_por_vencer:
+        alertas_ficha.append({
+            "nivel": "warning",
+            "icono": "⏳",
+            "titulo": "Contrato próximo a vencer",
+            "detalle": f"Hay {len(contratos_por_vencer)} contrato(s) con término dentro de los próximos 45 días.",
+        })
+    if datos_faltantes:
+        alertas_ficha.append({
+            "nivel": "warning",
+            "icono": "🧩",
+            "titulo": "Datos maestros incompletos",
+            "detalle": "Faltan: " + ", ".join(datos_faltantes[:6]) + ("..." if len(datos_faltantes) > 6 else "."),
+        })
+    if not contratos:
+        alertas_ficha.append({
+            "nivel": "danger",
+            "icono": "📄",
+            "titulo": "Trabajador sin contratos",
+            "detalle": "No registra contratos asociados; algunas acciones documentales estarán bloqueadas.",
+        })
+
+    anexos_cambio_sueldo_contexto = []
+    anexos_cambio_cargo_contexto = []
+    vacaciones_contexto = []
+    documentos_laborales_contexto = []
+
+    if contrato_contexto:
+        anexos_cambio_sueldo_contexto = (
+            AnexoCambioSueldoContrato.query
+            .filter_by(contrato_id=contrato_contexto.id)
+            .order_by(AnexoCambioSueldoContrato.fecha_cambio.desc(), AnexoCambioSueldoContrato.id.desc())
+            .limit(10)
+            .all()
+        )
+        anexos_cambio_cargo_contexto = (
+            AnexoCambioCargoContrato.query
+            .filter_by(contrato_id=contrato_contexto.id)
+            .order_by(AnexoCambioCargoContrato.fecha_cambio.desc(), AnexoCambioCargoContrato.id.desc())
+            .limit(10)
+            .all()
+        )
+        vacaciones_contexto = (
+            Vacacion.query
+            .filter_by(contrato_id=contrato_contexto.id)
+            .order_by(Vacacion.fecha_emision.desc(), Vacacion.id.desc())
+            .limit(10)
+            .all()
+        )
+        documentos_laborales_contexto = (
+            DocumentoLaboral.query
+            .filter_by(contrato_id=contrato_contexto.id)
+            .order_by(DocumentoLaboral.fecha_creacion.desc(), DocumentoLaboral.id.desc())
+            .limit(10)
+            .all()
+        )
+
+    anticipos_resumen = {"cantidad": 0, "total": 0}
+    if contrato_ids:
+        ant_row = (
+            db.session.query(func.count(AnticipoDetalle.id), func.coalesce(func.sum(AnticipoDetalle.monto), 0))
+            .filter(AnticipoDetalle.trabajador_id == trabajador.id)
+            .filter(or_(AnticipoDetalle.contrato_id.in_(contrato_ids), AnticipoDetalle.contrato_id.is_(None)))
+            .first()
+        )
+        anticipos_resumen = {"cantidad": int(ant_row[0] or 0), "total": ant_row[1] or 0}
+
+    prevencion_resumen = {"epp": 0, "charlas": 0, "documentos": 0, "documentos_vencidos": 0}
+    if contrato_ids:
+        prevencion_resumen["epp"] = (
+            PrevEntregaEPP.query
+            .filter(PrevEntregaEPP.trabajador_id == trabajador.id)
+            .filter(or_(PrevEntregaEPP.contrato_id.in_(contrato_ids), PrevEntregaEPP.contrato_id.is_(None)))
+            .count()
+        )
+        prevencion_resumen["charlas"] = (
+            PrevCharlaAsistente.query
+            .filter(PrevCharlaAsistente.trabajador_id == trabajador.id)
+            .filter(or_(PrevCharlaAsistente.contrato_id.in_(contrato_ids), PrevCharlaAsistente.contrato_id.is_(None)))
+            .count()
+        )
+        prevencion_resumen["documentos"] = (
+            PrevDocumentoPreventivo.query
+            .filter(PrevDocumentoPreventivo.trabajador_id == trabajador.id)
+            .filter(or_(PrevDocumentoPreventivo.contrato_id.in_(contrato_ids), PrevDocumentoPreventivo.contrato_id.is_(None)))
+            .count()
+        )
+        prevencion_resumen["documentos_vencidos"] = (
+            PrevDocumentoPreventivo.query
+            .filter(PrevDocumentoPreventivo.trabajador_id == trabajador.id)
+            .filter(PrevDocumentoPreventivo.fecha_vencimiento.isnot(None))
+            .filter(PrevDocumentoPreventivo.fecha_vencimiento < hoy)
+            .filter(PrevDocumentoPreventivo.estado != "ANULADO")
+            .count()
+        )
+
+    if prevencion_resumen["documentos_vencidos"]:
+        alertas_ficha.append({
+            "nivel": "danger",
+            "icono": "🦺",
+            "titulo": "Documentos preventivos vencidos",
+            "detalle": f"Hay {prevencion_resumen['documentos_vencidos']} documento(s) preventivo(s) vencido(s) o fuera de control.",
+        })
+
+    timeline_items = []
+    for c in contratos[:6]:
+        timeline_items.append({
+            "fecha": c.fecha_inicio,
+            "tipo": "Contrato",
+            "titulo": f"Contrato #{c.id}",
+            "detalle": f"{c.tipo_contrato or 'Contrato'} · {c.cargo.nombre if c.cargo else 'Sin cargo'} · {c.obra.nombre if c.obra else 'Sin obra'}",
+            "url": url_for("contratos.contrato_detalle", contrato_id=c.id),
+        })
+    for e in eventos[:8]:
+        timeline_items.append({
+            "fecha": e.fecha_evento,
+            "tipo": e.categoria or "Evento",
+            "titulo": e.titulo or e.tipo or "Evento laboral",
+            "detalle": e.tipo or "",
+            "url": None,
+        })
+    for d in desvinculaciones[:4]:
+        timeline_items.append({
+            "fecha": d.fecha_termino or d.fecha_aviso,
+            "tipo": "Desvinculación",
+            "titulo": f"Desvinculación #{d.id}",
+            "detalle": d.causal.causal_resumida if d.causal else (d.estado or ""),
+            "url": url_for("desvinculaciones.detalle", desvinculacion_id=d.id),
+        })
+    timeline_items = sorted(
+        timeline_items,
+        key=lambda x: (x.get("fecha") is not None, x.get("fecha") or date.min),
+        reverse=True,
+    )[:10]
+
+    resumen_ficha = {
+        "total_contratos": total_contratos,
+        "contratos_historicos": total_contratos_historicos,
+        "contratos_por_vencer": len(contratos_por_vencer),
+        "datos_faltantes": len(datos_faltantes),
+        "anticipos": anticipos_resumen,
+        "prevencion": prevencion_resumen,
+    }
+
+    def _fmt_clp(valor) -> str:
+        try:
+            return "$" + f"{int(round(float(valor or 0))):,}".replace(",", ".")
+        except Exception:
+            return "$0"
 
     def _fmt_hhmm(minutos: int | None) -> str:
         if not minutos:
@@ -495,8 +714,74 @@ def detalle_trabajador(trabajador_id: int):
                 "key": "anexos_remuneraciones",
                 "titulo": "Anexos de remuneraciones",
                 "subtitulo": "Cambios de sueldo, bonos, asignaciones, etc.",
-                "ver_todos_url": None,
-                "items": [],
+                "ver_todos_url": url_for("anexos_cambio_sueldo.listado"),
+                "items": [
+                    {
+                        "id": a.id,
+                        "titulo": f"Cambio de sueldo #{a.id}",
+                        "fecha": _fmt_fecha(getattr(a, "fecha_cambio", None)),
+                        "estado": (getattr(a, "estado", None) or "").upper() or None,
+                        "ver_url": url_for("anexos_cambio_sueldo.detalle", anexo_id=a.id),
+                        "editar_url": None,
+                        "generar_url": url_for("anexos_cambio_sueldo.generar", anexo_id=a.id),
+                        "docx_ruta": getattr(a, "docx_ruta", None),
+                        "pdf_ruta": getattr(a, "pdf_ruta", None),
+                    }
+                    for a in (anexos_cambio_sueldo_contexto or [])
+                ] + [
+                    {
+                        "id": a.id,
+                        "titulo": f"Cambio de cargo #{a.id}",
+                        "fecha": _fmt_fecha(getattr(a, "fecha_cambio", None)),
+                        "estado": (getattr(a, "estado", None) or "").upper() or None,
+                        "ver_url": url_for("anexos_cambio_cargo.detalle", anexo_id=a.id),
+                        "editar_url": None,
+                        "generar_url": url_for("anexos_cambio_cargo.generar", anexo_id=a.id),
+                        "docx_ruta": getattr(a, "docx_ruta", None),
+                        "pdf_ruta": getattr(a, "pdf_ruta", None),
+                    }
+                    for a in (anexos_cambio_cargo_contexto or [])
+                ],
+            },
+            {
+                "key": "vacaciones",
+                "titulo": "Vacaciones",
+                "subtitulo": "Comprobantes y movimientos de feriado legal asociados al contrato.",
+                "ver_todos_url": url_for("vacaciones.contrato_detalle", contrato_id=contrato_contexto.id),
+                "items": [
+                    {
+                        "id": v.id,
+                        "titulo": f"Vacaciones #{v.corr_contrato} · {v.dias_habiles} día(s)",
+                        "fecha": _fmt_fecha(getattr(v, "fecha_emision", None)),
+                        "estado": (getattr(v, "estado", None) or "").upper() or None,
+                        "ver_url": url_for("vacaciones.detalle", vacaciones_id=v.id),
+                        "editar_url": url_for("vacaciones.editar", vacaciones_id=v.id),
+                        "generar_url": None,
+                        "docx_ruta": getattr(v, "docx_ruta", None),
+                        "pdf_ruta": getattr(v, "pdf_ruta", None),
+                    }
+                    for v in (vacaciones_contexto or [])
+                ],
+            },
+            {
+                "key": "documentos_laborales",
+                "titulo": "Otros documentos laborales",
+                "subtitulo": "Documentos cargados manualmente o respaldos asociados al contrato.",
+                "ver_todos_url": url_for("documentos.documentos_por_contrato", contrato_id=contrato_contexto.id),
+                "items": [
+                    {
+                        "id": doc.id,
+                        "titulo": doc.nombre_archivo or doc.tipo or f"Documento #{doc.id}",
+                        "fecha": _fmt_fecha(getattr(doc, "fecha_creacion", None)),
+                        "estado": (getattr(doc, "estado", None) or "").upper() or None,
+                        "ver_url": url_for("documentos.documentos_por_contrato", contrato_id=contrato_contexto.id),
+                        "editar_url": url_for("documentos.editar_documento_contrato", contrato_id=contrato_contexto.id, documento_id=doc.id),
+                        "generar_url": None,
+                        "docx_ruta": None,
+                        "pdf_ruta": getattr(doc, "ruta_archivo", None),
+                    }
+                    for doc in (documentos_laborales_contexto or [])
+                ],
             },
             {
                 "key": "egresos_acuerdos_pago",
@@ -533,6 +818,135 @@ def detalle_trabajador(trabajador_id: int):
                 ],
             },
         ])
+
+    documentos_recientes = []
+    for grupo in documentos_grupos:
+        grupo_titulo = grupo.get("titulo")
+        for item in (grupo.get("items") or []):
+            documentos_recientes.append({
+                "grupo": grupo_titulo,
+                "fecha": item.get("fecha"),
+                "titulo": item.get("titulo"),
+                "estado": item.get("estado"),
+                "ver_url": item.get("ver_url"),
+                "editar_url": item.get("editar_url"),
+                "generar_url": item.get("generar_url"),
+            })
+    documentos_recientes = documentos_recientes[:8]
+
+    puede_editar_ficha = bool(
+        current_user and (
+            current_user.has_role("ADMIN")
+            or current_user.has_role("OPERADOR")
+        )
+    )
+
+    acciones_rapidas_ficha = []
+
+    acciones_gestion = []
+    if puede_editar_ficha:
+        acciones_gestion.append({
+            "label": "Editar trabajador",
+            "icono": "✏️",
+            "url": url_for("trabajadores.editar_trabajador", trabajador_id=trabajador.id, next=request.args.get("next")),
+            "class": "btn-outline-primary",
+            "detalle": "Actualizar datos maestros",
+        })
+        acciones_gestion.append({
+            "label": "Nuevo contrato",
+            "icono": "➕",
+            "url": url_for("contratos.nuevo_contrato", trabajador_id=trabajador.id, next=request.args.get("next")),
+            "class": "btn-primary",
+            "detalle": "Crear relación laboral",
+        })
+        acciones_gestion.append({
+            "label": "Registrar inasistencia",
+            "icono": "📅",
+            "url": url_for("inasistencias.nuevo", trabajador_id=trabajador.id, next=request.args.get("next")),
+            "class": "btn-outline-secondary",
+            "detalle": "Día u horas ausentes",
+        })
+    if acciones_gestion:
+        acciones_rapidas_ficha.append({
+            "titulo": "Gestión laboral",
+            "subtitulo": "Acciones operativas del trabajador",
+            "items": acciones_gestion,
+        })
+
+    acciones_documentales = []
+    if contrato_contexto and puede_editar_ficha:
+        acciones_documentales.extend([
+            {
+                "label": "Generar contrato",
+                "icono": "📄",
+                "url": url_for("contratos.generar_contrato", contrato_id=contrato_contexto.id),
+                "class": "btn-outline-secondary",
+                "detalle": f"Contrato #{contrato_contexto.id}",
+            },
+            {
+                "label": "Anexo extensión",
+                "icono": "🧩",
+                "url": url_for("anexos.anexo_extension", contrato_id=contrato_contexto.id),
+                "class": "btn-outline-primary",
+                "detalle": "Prórroga / renovación",
+            },
+            {
+                "label": "Cambio sueldo",
+                "icono": "💰",
+                "url": url_for("anexos_cambio_sueldo.nuevo", contrato_id=contrato_contexto.id),
+                "class": "btn-outline-primary",
+                "detalle": "Actualizar remuneración",
+            },
+            {
+                "label": "Cambio cargo",
+                "icono": "🧰",
+                "url": url_for("anexos_cambio_cargo.nuevo", contrato_id=contrato_contexto.id),
+                "class": "btn-outline-primary",
+                "detalle": "Actualizar función",
+            },
+            {
+                "label": "Desvinculación",
+                "icono": "⛔",
+                "url": url_for("desvinculaciones.nueva_desvinculacion", trabajador_id=trabajador.id, contrato_id=contrato_contexto.id),
+                "class": "btn-outline-danger",
+                "detalle": "Iniciar egreso",
+            },
+        ])
+    if acciones_documentales:
+        acciones_rapidas_ficha.append({
+            "titulo": "Documentos y anexos",
+            "subtitulo": "Operar sobre el contrato seleccionado",
+            "items": acciones_documentales,
+        })
+
+    acciones_consulta = [
+        {
+            "label": "Contratos",
+            "icono": "📚",
+            "url": "#contratos-trabajador",
+            "class": "btn-outline-secondary",
+            "detalle": f"{total_contratos} registro(s)",
+        },
+        {
+            "label": "Documentos",
+            "icono": "🗂️",
+            "url": "#documentos-trabajador",
+            "class": "btn-outline-secondary",
+            "detalle": f"{len(documentos_recientes)} reciente(s)",
+        },
+        {
+            "label": "Historial",
+            "icono": "🕘",
+            "url": "#historial-trabajador",
+            "class": "btn-outline-secondary",
+            "detalle": f"{len(timeline_items)} hito(s)",
+        },
+    ]
+    acciones_rapidas_ficha.append({
+        "titulo": "Consulta rápida",
+        "subtitulo": "Saltos internos de la ficha",
+        "items": acciones_consulta,
+    })
 
     acciones_documentos = []
     if contrato_contexto:
@@ -573,11 +987,19 @@ def detalle_trabajador(trabajador_id: int):
         anexos_indefinidos_contrato_vigente=anexos_indefinidos_contrato_vigente,
         documentos_grupos=documentos_grupos,
         acciones_documentos=acciones_documentos,
+        acciones_rapidas_ficha=acciones_rapidas_ficha,
+        documentos_recientes=documentos_recientes,
         eventos=eventos,
         rut_formateado=rut_formateado,
         inasistencias_ultimas=inasistencias_ultimas,
         inasistencias_fmt_hhmm=_fmt_hhmm,
         mes_actual=mes_actual,
+        alertas_ficha=alertas_ficha,
+        contratos_por_vencer=contratos_por_vencer,
+        datos_faltantes=datos_faltantes,
+        resumen_ficha=resumen_ficha,
+        timeline_items=timeline_items,
+        fmt_clp=_fmt_clp,
     )
 
 

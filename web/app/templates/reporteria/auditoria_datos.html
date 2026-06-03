@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoría de datos · Reportería{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page reporteria-auditoria-page">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Auditoría de calidad de datos</h1>
+      <div class="section-subtitle">
+        Detección de contratos con datos incompletos, inconsistentes o riesgosos para documentos, nóminas y reportes.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+    <div class="cs-page-actions d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('reporteria.control_contractual', **request.args) }}">← Control contractual</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('reporteria.index', **request.args) }}">Detalle trabajadores</a>
+      <a class="btn btn-outline-success" href="{{ url_for('reporteria.auditoria_datos_xlsx', **request.args) }}">📊 Exportar Excel</a>
+      <a class="btn btn-outline-danger" href="{{ url_for('reporteria.auditoria_datos_pdf', **request.args) }}" target="_blank" rel="noopener">📄 Exportar PDF</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Hallazgos</div><div class="display-6 fw-bold">{{ auditoria.total_issues }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-3"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Contratos afectados</div><div class="display-6 fw-bold">{{ auditoria.contratos_afectados }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Alta</div><div class="display-6 fw-bold text-danger">{{ auditoria.altas }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Media</div><div class="display-6 fw-bold text-warning">{{ auditoria.medias }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Baja</div><div class="display-6 fw-bold">{{ auditoria.bajas }}</div></div></div></div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white"><strong>Hallazgos por categoría</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <tbody>
+              {% for categoria, total in auditoria.por_categoria %}
+                <tr><td>{{ categoria }}</td><td class="text-end fw-semibold">{{ total }}</td></tr>
+              {% else %}
+                <tr><td class="text-center text-muted py-4">Sin hallazgos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-8">
+      <div class="alert alert-warning shadow-sm mb-0 h-100">
+        <strong>Uso recomendado:</strong> revisar primero los hallazgos de severidad alta, especialmente contratos sin obra, sin cargo, sin empleador, sin fecha de inicio o con vigencia inconsistente. Es el “control de calidad” antes de emitir documentos masivos o reportes para gerencia.
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <strong>Detalle de observaciones</strong>
+      <span class="text-muted small">Mostrando hasta 500 hallazgos en pantalla</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Severidad</th><th>Categoría</th><th>Problema</th><th>Sugerencia</th><th>Trabajador</th><th>Obra</th><th>Cargo</th><th>ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in auditoria.issues[:500] %}
+              <tr>
+                <td>
+                  {% if item.severidad == 'Alta' %}<span class="badge text-bg-danger">Alta</span>
+                  {% elif item.severidad == 'Media' %}<span class="badge text-bg-warning">Media</span>
+                  {% else %}<span class="badge text-bg-secondary">Baja</span>{% endif %}
+                </td>
+                <td>{{ item.categoria }}</td>
+                <td class="fw-semibold">{{ item.problema }}</td>
+                <td>{{ item.sugerencia }}</td>
+                <td><div class="fw-semibold">{{ item.trabajador }}</div><div class="small text-muted">{{ item.rut }}</div></td>
+                <td>{{ item.obra }}</td>
+                <td>{{ item.cargo }}</td>
+                <td>#{{ item.contrato_id }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="8" class="text-center text-muted py-5">Sin observaciones detectadas. La base está más ordenada que escritorio recién formateado 😄.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

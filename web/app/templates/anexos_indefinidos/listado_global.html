@@ -97,7 +97,13 @@
         </div>
 
       {% else %}
-        <p class="text-muted mb-0">No hay anexos indefinidos registrados aún.</p>
+        <div class="cs-empty-state" role="status">
+          <div class="cs-empty-icon" aria-hidden="true">📌</div>
+          <div>
+            <h2 class="cs-empty-title">Sin anexos indefinidos</h2>
+            <p class="cs-empty-text">Aún no hay anexos indefinidos registrados. Los procesos emitidos aparecerán aquí.</p>
+          </div>
+        </div>
       {% endif %}
 
     </div>

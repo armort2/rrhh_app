@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Seguimiento contractual · Reportería{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page reporteria-seguimiento-page">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Seguimiento de gestión contractual</h1>
+      <div class="section-subtitle">
+        Tablero operativo para informar a jefatura qué contratos vencen, desde cuándo rigen y qué acción se recomienda gestionar.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+    <div class="cs-page-actions d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('reporteria.control_contractual', **request.args) }}">← Control contractual</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('reporteria.panel', **request.args) }}">Panel ejecutivo</a>
+      <a class="btn btn-outline-success" href="{{ url_for('reporteria.seguimiento_contractual_xlsx', **request.args) }}">📊 Exportar Excel editable</a>
+      <a class="btn btn-outline-danger" href="{{ url_for('reporteria.seguimiento_contractual_pdf', **request.args) }}" target="_blank" rel="noopener">📄 Exportar PDF</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body">
+        <div class="text-muted small">Registros en seguimiento</div>
+        <div class="display-6 fw-bold">{{ seguimiento_rows|length }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-4 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body">
+        <div class="text-muted small">Vencen en 30 días</div>
+        <div class="display-6 fw-bold text-warning">{{ control.total_7 + control.total_15 + control.total_30 }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-4 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body">
+        <div class="text-muted small">Vencidos / urgentes</div>
+        <div class="display-6 fw-bold text-danger">{{ control.total_vencidos }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-4 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body">
+        <div class="text-muted small">Sin término no indefinido</div>
+        <div class="display-6 fw-bold">{{ control.total_sin_fecha_termino_no_indef }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-primary shadow-sm">
+    El Excel de seguimiento incluye columnas editables para <strong>Estado gestión</strong>, <strong>Responsable</strong> y <strong>Observación</strong>. Es ideal para llevarlo a reunión, definir acciones y dejar constancia de RRHH. Nada de “yo pensé que…”: aquí manda la trazabilidad 😄.
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <strong>Contratos para seguimiento</strong>
+      <span class="badge text-bg-primary">{{ seguimiento_rows|length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Bloque</th>
+              <th>Gestión</th>
+              <th>Acción sugerida</th>
+              <th>Días</th>
+              <th>Inicio</th>
+              <th>Término</th>
+              <th>Antigüedad</th>
+              <th>Trabajador</th>
+              <th>Obra</th>
+              <th>Cargo</th>
+              <th>Tipo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in seguimiento_rows[:300] %}
+              <tr>
+                <td><span class="badge text-bg-light border">{{ r.bloque }}</span></td>
+                <td><span class="badge text-bg-secondary">{{ r.estado_gestion }}</span></td>
+                <td>{{ r.accion_sugerida }}</td>
+                <td class="fw-bold {% if r.dias_para_vencer is not none and r.dias_para_vencer <= 7 %}text-danger{% endif %}">{{ r.dias_para_vencer if r.dias_para_vencer is not none else '—' }}</td>
+                <td>{{ fmt_date(r.fecha_inicio) }}</td>
+                <td>{{ fmt_date(r.fecha_termino) }}</td>
+                <td><span class="badge text-bg-light">{{ r.antiguedad or 'Sin dato' }}</span></td>
+                <td><div class="fw-semibold">{{ r.trabajador }}</div><div class="small text-muted">{{ r.rut }} · Contrato #{{ r.contrato_id }}</div></td>
+                <td>{{ r.obra }}</td>
+                <td>{{ r.cargo }}</td>
+                <td>{{ r.tipo_contrato }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="11" class="text-center text-muted py-4">Sin contratos para seguimiento según los filtros actuales.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

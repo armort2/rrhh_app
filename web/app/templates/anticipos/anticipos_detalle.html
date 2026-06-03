@@ -3,66 +3,201 @@
 {% block title %}Anticipos · Nómina #{{ nomina.id }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-detail-page">
 
-  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
-    <div class="section-header mb-0">
-      <h1 class="section-title">Nómina de Anticipos #{{ nomina.id }}</h1>
-      <div class="section-subtitle">
-        {{ "%04d-%02d"|format(nomina.anio, nomina.mes) }} · {{ nomina.centro_costo }}
-        · Estado: <strong>{{ nomina.estado }}</strong>
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+
+      {# =========================
+         CABECERA PRINCIPAL
+         ========================= #}
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+        <div class="section-header mb-0">
+          <h1 class="section-title mb-1">Nómina de Anticipos #{{ nomina.id }}</h1>
+
+          <div class="section-subtitle">
+            {{ "%04d-%02d"|format(nomina.anio, nomina.mes) }} · {{ nomina.centro_costo }}
+            · Estado:
+            {% if nomina.estado == "VISADA" %}
+              <span class="badge text-bg-success">VISADA</span>
+            {% elif nomina.estado == "ENVIADA_A_VISACION" %}
+              <span class="badge text-bg-warning">ENVIADA A VISACIÓN</span>
+            {% else %}
+              <span class="badge text-bg-secondary">{{ nomina.estado }}</span>
+            {% endif %}
+          </div>
+
+          <div class="section-subtitle mt-2">
+            Total:
+            <strong>${{ "{:,.0f}".format(total_monto|float).replace(",", ".") }}</strong>
+
+            {% if total_integrado is defined %}
+              · Integrado a SF:
+              <strong>${{ "{:,.0f}".format(total_integrado|float).replace(",", ".") }}</strong>
+              · Pendiente:
+              <strong>${{ "{:,.0f}".format(pendiente_integrar|float).replace(",", ".") }}</strong>
+            {% endif %}
+
+            {% if periodo_prev_str %}
+              <span class="text-muted">· Referencia mes anterior: {{ periodo_prev_str }}</span>
+            {% endif %}
+          </div>
+
+          <div class="section-divider"></div>
+        </div>
+
+        <div class="d-flex flex-column align-items-stretch gap-2" style="min-width: 260px;">
+          <div class="d-flex gap-2 flex-wrap justify-content-end">
+            {% if nomina.estado == "VISADA" %}
+              <a class="btn btn-outline-success"
+                 href="{{ url_for('anticipos.nominas_banco', periodo='%04d-%02d'|format(nomina.anio, nomina.mes)) }}">
+                🏦 Nómina bancaria
+              </a>
+            {% endif %}
+
+            <a class="btn btn-outline-secondary"
+               href="{{ url_for('anticipos.imprimir_pdf', nomina_id=nomina.id, v=nomina.id ~ '-' ~ (nomina.estado or '') ) }}"
+               target="_blank" rel="noopener noreferrer">
+              🖨️ Imprimir PDF
+            </a>
+
+            <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">
+              ⬅ Volver
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="section-subtitle">
-        Total: <strong>${{ "{:,.0f}".format(total_monto|float).replace(",", ".") }}</strong>
-        {% if periodo_prev_str %}
-          <span class="text-muted">· Referencia mes anterior: {{ periodo_prev_str }}</span>
+
+      {# =========================
+         ACCIONES DE FLUJO
+         ========================= #}
+      <div class="d-flex justify-content-end gap-2 flex-wrap mb-3">
+        {% if nomina.estado == "BORRADOR" %}
+          <a class="btn btn-outline-primary"
+             href="{{ url_for('anticipos.detalle', nomina_id=nomina.id, sync=1) }}">
+            🔄 Sync CC
+          </a>
+
+          <form method="post"
+                action="{{ url_for('anticipos.copiar_mes_anterior', nomina_id=nomina.id) }}"
+                class="d-inline-flex align-items-center">
+            <input type="hidden" name="only_if_zero" value="1">
+            <button class="btn btn-outline-primary" type="submit">📌 Copiar montos mes anterior</button>
+          </form>
+
+          <form method="post" action="{{ url_for('anticipos.enviar_visacion', nomina_id=nomina.id) }}" class="d-inline">
+            <button class="btn btn-primary" type="submit">📤 Enviar a visación</button>
+          </form>
+        {% endif %}
+
+        {% if nomina.estado in ["BORRADOR","ENVIADA_A_VISACION"] %}
+          <form method="post" action="{{ url_for('anticipos.visar', nomina_id=nomina.id) }}" class="d-inline">
+            <button class="btn btn-success" type="submit">✅ Visar</button>
+          </form>
         {% endif %}
       </div>
-      <div class="section-divider"></div>
-    </div>
 
-    <div class="d-flex gap-2 flex-wrap">
+      {# =========================
+         INTEGRACIÓN A SF
+         ========================= #}
+      {% if current_user is defined and current_user.is_authenticated and (current_user.has_role("ADMIN") or current_user.has_role("OPERADOR")) %}
+        <div class="card bg-light border-0 shadow-sm">
+          <div class="card-body">
+            <div class="fw-semibold mb-1">Integración a Solicitud de Fondos</div>
+            <div class="text-muted small mb-3">
+              Proceso QUINCENA · Sección REMU · Solo solicitudes del mismo centro de costo.
+            </div>
 
-      {% if nomina.estado == "VISADA" %}
-        <a class="btn btn-outline-success"
-          href="{{ url_for('anticipos.nominas_banco', periodo='%04d-%02d'|format(nomina.anio, nomina.mes)) }}">
-          🏦 Nómina bancaria
-        </a>
+            {% if solicitudes_quincena and solicitudes_quincena|length > 0 %}
+              <form method="post"
+                    action="{{ url_for('anticipos.integrar_sf', nomina_id=nomina.id) }}"
+                    class="row g-3 align-items-end">
+
+                <div class="col-12 col-lg-4">
+                  <label class="form-label mb-1">Solicitud de Fondos (mismo CC)</label>
+                  <select name="solicitud_id" class="form-select" required>
+                    <option value="">Selecciona...</option>
+                    {% for s in solicitudes_quincena %}
+                      <option value="{{ s.id }}">
+                        SF #{{ s.id }} · N°{{ s.numero }} · {{ s.fecha_solicitud }} · {{ s.estado }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-lg-5">
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="1" id="wipe_anticipo" name="wipe_anticipo">
+                    <label class="form-check-label" for="wipe_anticipo">
+                      🧹 Eliminar anticipos integrados de esta nómina antes de reintegrar
+                    </label>
+                  </div>
+                  <div class="form-text">
+                    Útil si ajustaste montos mientras la nómina sigue en BORRADOR.
+                  </div>
+                </div>
+
+                <div class="col-12 col-lg-3">
+                  <div class="d-grid">
+                    <button class="btn btn-warning" type="submit"
+                            title="Agrega ítems REMU por cada línea con monto > 0 y evita duplicados">
+                      🔗 Integrar anticipos
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {% if nomina.estado == "BORRADOR" %}
+                <div class="text-muted small mt-2">
+                  ⚠️ Nota: integrar desde <strong>BORRADOR</strong> es una vista previa para jefatura
+                  (puedes reintegrar si cambian montos).
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="alert alert-warning mb-0">
+                <strong>Sin Solicitudes de Fondos disponibles</strong> para CC <strong>{{ nomina.centro_costo }}</strong>.
+                Crea una solicitud (tipo QUINCENA) y vuelve acá.
+              </div>
+            {% endif %}
+          </div>
+        </div>
       {% endif %}
 
-      <a class="btn btn-outline-secondary"
-         href="{{ url_for('anticipos.imprimir_pdf', nomina_id=nomina.id, v=nomina.id ~ '-' ~ (nomina.estado or '') ) }}"
-         target="_blank" rel="noopener noreferrer">
-        🖨️ Imprimir PDF
-      </a>
-
-      {% if nomina.estado == "BORRADOR" %}
-        <a class="btn btn-outline-primary"
-           href="{{ url_for('anticipos.detalle', nomina_id=nomina.id, sync=1) }}">
-          🔄 Sync CC
-        </a>
-
-        <form method="post"
-              action="{{ url_for('anticipos.copiar_mes_anterior', nomina_id=nomina.id) }}"
-              class="d-inline-flex align-items-center">
-          <input type="hidden" name="only_if_zero" value="1">
-          <button class="btn btn-outline-primary" type="submit">📌 Copiar montos mes anterior</button>
-        </form>
-
-        <form method="post" action="{{ url_for('anticipos.enviar_visacion', nomina_id=nomina.id) }}" class="d-inline">
-          <button class="btn btn-primary" type="submit">📤 Enviar a visación</button>
-        </form>
-      {% endif %}
-
-      {% if nomina.estado in ["BORRADOR","ENVIADA_A_VISACION"] %}
-        <form method="post" action="{{ url_for('anticipos.visar', nomina_id=nomina.id) }}" class="d-inline">
-          <button class="btn btn-success" type="submit">✅ Visar</button>
-        </form>
-      {% endif %}
-      
-      <a class="btn btn-outline-secondary" href="{{ url_for('anticipos.listado') }}">⬅ Volver</a>
     </div>
   </div>
+
+  {# === Desglose integración por SF (opcional, no rompe si viene vacío) === #}
+  {% if integracion_por_sf is defined and integracion_por_sf and integracion_por_sf|length > 0 %}
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <div class="fw-semibold mb-2">Desglose integración por Solicitud de Fondos</div>
+        <div class="table-responsive">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>SF</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th class="text-end">Ítems</th>
+                <th class="text-end">Total integrado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in integracion_por_sf %}
+                <tr>
+                  <td>#{{ r.sf_numero }} <span class="text-muted">({{ r.sf_id }})</span></td>
+                  <td>{{ r.sf_fecha }}</td>
+                  <td>{{ r.sf_estado }}</td>
+                  <td class="text-end">{{ r.sf_count }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(r.sf_total|float).replace(",", ".") }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
 
   <div class="card">
     <div class="card-body">
@@ -91,55 +226,162 @@
       {% endif %}
 
       {# -------------------------
-         Filtros
+         Filtros premium
          ------------------------- #}
-      <form method="get" class="row g-3 align-items-end mb-3">
-        <div class="col-12 col-md-3">
-          <label class="form-label">Obra</label>
-          <select name="obra_id" class="form-select">
-            <option value="">(Todas)</option>
-            {% for oid, oname in obras %}
-              <option value="{{ oid }}" {% if q_obra_id == oid %}selected{% endif %}>{{ oname }}</option>
-            {% endfor %}
-          </select>
-        </div>
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+            <div>
+              <div class="fw-semibold fs-5">Filtros avanzados</div>
+              <div class="text-muted small">
+                Filtra la nómina por obra, tipo de trabajador, múltiples cargos o búsqueda libre.
+              </div>
+            </div>
 
-        <div class="col-12 col-md-3">
-          <label class="form-label">Tipo trabajador</label>
-          <select name="tipo_trabajador" class="form-select">
-            <option value="">(Todos)</option>
-            {% for tt in tipos_trabajador %}
-              <option value="{{ tt }}" {% if q_tipo == tt %}selected{% endif %}>{{ tt }}</option>
-            {% endfor %}
-          </select>
-        </div>
+            {% if q_cargo_ids or q_obra_id or q_tipo or q_text %}
+              <span class="badge text-bg-primary px-3 py-2">
+                Vista filtrada activa
+              </span>
+            {% endif %}
+          </div>
 
-        <div class="col-12 col-md-2">
-          <label class="form-label">Cargo</label>
-          <select name="cargo_id" class="form-select">
-            <option value="">(Todos)</option>
-            {% for cid, cname in cargos %}
-              <option value="{{ cid }}" {% if q_cargo_id == cid %}selected{% endif %}>{{ cname }}</option>
-            {% endfor %}
-          </select>
-        </div>
+          <form method="get" class="row g-3 mb-2">
 
-        <div class="col-12 col-md-3">
-          <label class="form-label">Buscar (RUT / Nombre / Cargo / Obs.)</label>
-          <input class="form-control" name="q" value="{{ q_text }}" placeholder="Ej: 16232010 o Albañil o licencia">
-        </div>
+            {# ---------------------------
+              FILA 1: filtros principales
+              --------------------------- #}
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold">Obra</label>
+              <select name="obra_id" class="form-select">
+                <option value="">(Todas)</option>
+                {% for oid, oname in obras %}
+                  <option value="{{ oid }}" {% if q_obra_id == oid %}selected{% endif %}>{{ oname }}</option>
+                {% endfor %}
+              </select>
+            </div>
 
-        <div class="col-12 col-md-1 d-flex gap-2">
-          <button class="btn btn-outline-primary w-100" type="submit">Filtrar</button>
-        </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold">Tipo trabajador</label>
+              <select name="tipo_trabajador" class="form-select">
+                <option value="">(Todos)</option>
+                {% for tt in tipos_trabajador %}
+                  <option value="{{ tt }}" {% if q_tipo == tt %}selected{% endif %}>{{ tt }}</option>
+                {% endfor %}
+              </select>
+            </div>
 
-        <div class="col-12 d-flex justify-content-end">
-          <a class="btn btn-outline-secondary"
-             href="{{ url_for('anticipos.detalle', nomina_id=nomina.id) }}">
-            Limpiar
-          </a>
+            <div class="col-12 col-lg-6">
+              <label class="form-label fw-semibold">Buscar</label>
+              <input
+                class="form-control"
+                name="q"
+                value="{{ q_text }}"
+                placeholder="RUT, nombre, cargo, observación..."
+              >
+            </div>
+
+            {# ---------------------------
+              FILA 2: cargos (protagonista)
+              --------------------------- #}
+            <div class="col-12">
+
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label fw-semibold mb-0">Cargos</label>
+
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary" id="btn-seleccionar-todos-cargos">
+                    Todos
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-limpiar-cargos">
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+
+              <select
+                name="cargo_ids"
+                id="cargo_ids"
+                class="form-select"
+                multiple
+                style="height: 140px;"
+              >
+                {% for cid, cname in cargos %}
+                  <option value="{{ cid }}" {% if q_cargo_ids is defined and cid in q_cargo_ids %}selected{% endif %}>
+                    {{ cname }}
+                  </option>
+                {% endfor %}
+              </select>
+
+              <div class="form-text">
+                Puedes seleccionar múltiples cargos o usar los botones rápidos.
+              </div>
+            </div>
+
+            {# ---------------------------
+              BOTONES
+              --------------------------- #}
+            <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+              <a class="btn btn-outline-secondary"
+                href="{{ url_for('anticipos.detalle', nomina_id=nomina.id) }}">
+                Limpiar
+              </a>
+
+              <button class="btn btn-primary px-4" type="submit">
+                🔎 Aplicar filtros
+              </button>
+            </div>
+
+          </form>
         </div>
-      </form>
+      </div>
+
+      {% if q_cargo_ids or q_obra_id or q_tipo or q_text %}
+        <div class="card border-0 bg-light mb-3">
+          <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+              <div class="col-12 col-lg">
+                <div class="fw-semibold">Resumen de la vista filtrada</div>
+                <div class="text-muted small">
+                  Resultado calculado según los filtros actualmente aplicados sobre la nómina.
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-auto">
+                <div class="text-muted small text-lg-end">Total filtrado</div>
+                <div class="fs-5 fw-bold text-success text-lg-end">
+                  ${{ "{:,.0f}".format(total_filtrado|float).replace(",", ".") }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <script>
+        (function () {
+          const selectCargos = document.getElementById("cargo_ids");
+          const btnTodos = document.getElementById("btn-seleccionar-todos-cargos");
+          const btnLimpiar = document.getElementById("btn-limpiar-cargos");
+
+          if (!selectCargos) return;
+
+          if (btnTodos) {
+            btnTodos.addEventListener("click", function () {
+              Array.from(selectCargos.options).forEach(function (opt) {
+                opt.selected = true;
+              });
+            });
+          }
+
+          if (btnLimpiar) {
+            btnLimpiar.addEventListener("click", function () {
+              Array.from(selectCargos.options).forEach(function (opt) {
+                opt.selected = false;
+              });
+            });
+          }
+        })();
+      </script>
 
       {% if subtotales_tipo %}
         <div class="card mb-3">
@@ -188,6 +430,8 @@
               <th>RUT</th>
               <th>Trabajador</th>
               <th>Cargo</th>
+              <th class="text-center">Contrato</th>
+              <th>F. Ingreso</th>
               <th class="text-end">Sueldo base</th>
               <th class="text-end">Mes anterior</th>
               <th class="text-end">Mes actual</th>
@@ -204,19 +448,19 @@
 
               {% if ns.current_tipo != tipo %}
                 {% if ns.current_tipo is not none %}
-                  <tr class="table-light fw-semibold">
-                    <td colspan="4" class="text-end">Subtotal {{ ns.current_tipo }}</td>
-                    <td class="text-end">—</td>
-                    <td class="text-end">—</td>
-                    <td class="text-end">${{ "{:,.0f}".format(ns.subtotal_tipo|float).replace(",", ".") }}</td>
-                    <td></td>
-                  </tr>
+                <tr class="table-light fw-semibold">
+                  <td colspan="6" class="text-end">Subtotal {{ ns.current_tipo }}</td>
+                  <td class="text-end">—</td>
+                  <td class="text-end">—</td>
+                  <td class="text-end">${{ "{:,.0f}".format(ns.subtotal_tipo|float).replace(",", ".") }}</td>
+                  <td></td>
+                </tr>
                   {% set ns.subtotal_tipo = 0 %}
                 {% endif %}
 
                 {% set ns.current_tipo = tipo %}
                 <tr class="table-secondary">
-                  <td colspan="8" class="fw-semibold">{{ ns.current_tipo }}</td>
+                  <td colspan="10" class="fw-semibold">{{ ns.current_tipo }}</td>
                 </tr>
               {% endif %}
 
@@ -228,6 +472,20 @@
                 <td>{{ d.rut or "-" }}</td>
                 <td>{{ item.nombre_ordenado }}</td>
                 <td>{{ item.cargo_nombre }}</td>
+                <td class="text-center">
+                  {% if item.contrato_id %}
+                    <span class="badge text-bg-light border">#{{ item.contrato_id }}</span>
+                  {% else %}
+                    <span class="badge text-bg-warning">Sin contrato</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.fecha_ingreso %}
+                    {{ item.fecha_ingreso.strftime('%d/%m/%Y') }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
 
                 <td class="text-end">
                   {% if item.sueldo_base and (item.sueldo_base|float) > 0 %}
@@ -271,7 +529,7 @@
 
               {% if loop.last %}
                 <tr class="table-light fw-semibold">
-                  <td colspan="4" class="text-end">Subtotal {{ ns.current_tipo }}</td>
+                  <td colspan="6" class="text-end">Subtotal {{ ns.current_tipo }}</td>
                   <td class="text-end">—</td>
                   <td class="text-end">—</td>
                   <td class="text-end">${{ "{:,.0f}".format(ns.subtotal_tipo|float).replace(",", ".") }}</td>
@@ -279,14 +537,14 @@
                 </tr>
 
                 <tr class="table-secondary fw-bold">
-                  <td colspan="6" class="text-end">Total general</td>
+                  <td colspan="8" class="text-end">Total general</td>
                   <td class="text-end">${{ "{:,.0f}".format(ns.total_general|float).replace(",", ".") }}</td>
                   <td></td>
                 </tr>
               {% endif %}
             {% else %}
               <tr>
-                <td colspan="8" class="text-muted">Sin resultados.</td>
+                <td colspan="10" class="text-muted">Sin resultados.</td>
               </tr>
             {% endfor %}
 

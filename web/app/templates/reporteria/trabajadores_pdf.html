@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Reporte de trabajadores</title>
+  <style>
+    @page { size: legal landscape; margin: 12mm; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 10px; }
+    .header { border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 10px; }
+    h1 { margin: 0; font-size: 20px; }
+    .muted { color: #6b7280; }
+    .kpis { display: table; width: 100%; margin: 8px 0 12px; border-spacing: 6px 0; }
+    .kpi { display: table-cell; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; }
+    .kpi-label { color: #6b7280; font-size: 9px; }
+    .kpi-value { font-size: 17px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #d1d5db; padding: 4px; vertical-align: top; }
+    th { background: #f3f4f6; font-size: 9px; text-transform: uppercase; }
+    .nowrap { white-space: nowrap; }
+    .right { text-align: right; }
+    .badge { display: inline-block; padding: 2px 5px; border-radius: 999px; font-size: 8px; background: #e5e7eb; }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    .footer { margin-top: 8px; font-size: 9px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Reporte de trabajadores y contratos</h1>
+    <div class="muted">Sistema Grupo CS · Emitido el {{ fmt_date(metricas.fecha_reporte) }}</div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Contratos</div><div class="kpi-value">{{ metricas.total_contratos }}</div></div>
+    <div class="kpi"><div class="kpi-label">Trabajadores únicos</div><div class="kpi-value">{{ metricas.trabajadores_unicos }}</div></div>
+    <div class="kpi"><div class="kpi-label">Vigentes</div><div class="kpi-value">{{ metricas.vigentes }}</div></div>
+    <div class="kpi"><div class="kpi-label">Vencidos/terminados</div><div class="kpi-value">{{ metricas.vencidos }}</div></div>
+    <div class="kpi"><div class="kpi-label">Por vencer 30 días</div><div class="kpi-value">{{ metricas.por_vencer_30 }}</div></div>
+    <div class="kpi"><div class="kpi-label">Indefinidos</div><div class="kpi-value">{{ metricas.indefinidos }}</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="nowrap">Contrato</th>
+        <th>Trabajador</th>
+        <th>RUT</th>
+        <th>Empleador</th>
+        <th>Obra / CC</th>
+        <th>Cargo</th>
+        <th>Tipo</th>
+        <th>Estado</th>
+        <th class="nowrap">Inicio</th>
+        <th class="nowrap">Término</th>
+        <th class="right nowrap">Sueldo base</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="nowrap">#{{ r.contrato_id }}</td>
+          <td>{{ r.trabajador }}</td>
+          <td class="nowrap">{{ r.rut }}</td>
+          <td>{{ r.empleador }}</td>
+          <td>{{ r.obra }}{% if r.centro_costo %}<br><span class="muted">{{ r.centro_costo }}</span>{% endif %}</td>
+          <td>{{ r.cargo }}</td>
+          <td>{{ r.tipo_contrato }}</td>
+          <td>
+            <span class="badge {% if r.estado_calculado == 'Vigente' %}badge-ok{% endif %}">{{ r.estado_calculado }}</span>
+            {% if r.dias_para_vencer is not none and r.dias_para_vencer >= 0 and r.dias_para_vencer <= 30 %}
+              <br><span class="muted">Vence en {{ r.dias_para_vencer }} día(s)</span>
+            {% endif %}
+          </td>
+          <td class="nowrap">{{ fmt_date(r.fecha_inicio) }}</td>
+          <td class="nowrap">{{ fmt_date(r.fecha_termino) if r.fecha_termino else 'Indefinido' }}</td>
+          <td class="right nowrap">{{ fmt_money(r.sueldo_base) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="11">No hay registros para los filtros seleccionados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Reporte generado desde módulo Reporterías. Uso interno RRHH / Administración.
+  </div>
+</body>
+</html>

@@ -25,7 +25,7 @@
   {%- endif -%}
 {%- endmacro %}
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-detail-page">
 
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
@@ -40,29 +40,66 @@
       {% if obras_cc %}
       <div class="mt-2 d-flex flex-wrap gap-2">
         {% for o in obras_cc %}
-          <span class="badge badge-muted">{{ o.codigo }} · {{ o.nombre }}</span>
+          <span class="cs-badge cs-badge-muted">{{ o.codigo }} · {{ o.nombre }}</span>
         {% endfor %}
       </div>
       {% endif %}
+
+      <div class="section-divider"></div>
     </div>
 
-    <div class="d-flex align-items-center gap-2">
-      <span class="badge {{ badge_estado(s.estado) }}">{{ s.estado }}</span>
-      {% if not solo_lectura %}
-        <form method="post" action="{{ url_for('solicitudes_fondos.cambiar_estado', solicitud_id=s.id) }}" class="d-flex gap-2">
-          <select name="estado" class="form-select form-select-sm">
-            {% for e in estados %}
-              <option value="{{ e }}" {% if s.estado == e %}selected{% endif %}>{{ e }}</option>
-            {% endfor %}
-          </select>
-          <button class="btn btn-sm btn-outline-primary" type="submit">Actualizar</button>
+    <div class="d-flex align-items-center gap-2 flex-wrap cs-detail-actions">
+      <a class="btn btn-sm btn-outline-secondary"
+        href="{{ url_for('solicitudes_fondos.listado') }}">
+        ⬅️ Volver
+      </a>
+      
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for('solicitudes_fondos.imprimir_pdf', solicitud_id=s.id, v=s.id ~ '-' ~ (s.estado or '') ) }}"
+         target="_blank" rel="noopener noreferrer">
+        🖨️ Imprimir PDF
+      </a>
+
+      {# ✅ SOLO ADMIN: volver de APROBADA -> BORRADOR #}
+      {% if current_user and current_user.has_role("ADMIN") and (s.estado or "") == "APROBADA" %}
+        <form method="post"
+              action="{{ url_for('solicitudes_fondos.volver_a_borrador', solicitud_id=s.id) }}"
+              class="d-inline"
+              onsubmit="return confirm('¿Seguro que deseas volver esta solicitud a BORRADOR?\\n\\nEsto se usa solo para correcciones administrativas.');">
+          <button class="btn btn-sm btn-outline-warning" type="submit">
+            ↩️ Volver a Borrador
+          </button>
         </form>
+      {% endif %}
+
+      <span class="{{ badge_estado(s.estado) }}">{{ estado_labels.get(s.estado, s.estado) if estado_labels is defined else s.estado }}</span>
+
+      {% if estados_permitidos is defined and estados_permitidos %}
+        {% for e in estados_permitidos %}
+          <form method="post" action="{{ url_for('solicitudes_fondos.cambiar_estado', solicitud_id=s.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Confirmas cambiar la solicitud a {{ estado_labels.get(e, e) if estado_labels is defined else e }}?');">
+            <input type="hidden" name="estado" value="{{ e }}">
+            <button class="btn btn-sm {% if e == 'APROBADA' %}btn-success{% elif e == 'RECHAZADA' %}btn-outline-danger{% elif e == 'PAGADA' %}btn-primary{% else %}btn-outline-primary{% endif %}" type="submit">
+              {% if e == 'ENVIADA' %}📤 Enviar{% elif e == 'APROBADA' %}✅ Aprobar{% elif e == 'RECHAZADA' %}⛔ Rechazar{% elif e == 'PAGADA' %}💳 Marcar pagada{% elif e == 'BORRADOR' %}↩️ Borrador{% else %}{{ e }}{% endif %}
+            </button>
+          </form>
+        {% endfor %}
       {% endif %}
     </div>
   </div>
 
   <div class="row g-3">
     <div class="col-12 col-lg-8">
+
+      {% if solo_lectura %}
+        <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+          <div>🔒</div>
+          <div>
+            <div class="fw-semibold">Esta solicitud está bloqueada para edición.</div>
+            <div class="small">Solo las solicitudes en estado BORRADOR permiten agregar, editar o eliminar ítems.</div>
+          </div>
+        </div>
+      {% endif %}
 
       <div class="card">
         <div class="card-body">
@@ -87,9 +124,64 @@
         </div>
       </div>
 
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="fw-semibold fs-5">Trazabilidad bancaria</div>
+          <div class="text-muted">Pagado en nóminas: <span class="fw-semibold">$ {{ fmt_clp(bank_trace_total or 0) }}</span></div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Nómina</th>
+                  <th>Beneficiario</th>
+                  <th>Sección</th>
+                  <th>Documento</th>
+                  <th class="text-end">Monto pagado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if bank_trace is defined and bank_trace %}
+                  {% for d in bank_trace %}
+                    <tr>
+                      <td>
+                        {% if d.nomina %}
+                          <a href="{{ url_for('solicitudes_fondos.nominas_banco_detalle', nomina_id=d.nomina.id) }}" class="fw-semibold">#{{ d.nomina.numero }}</a>
+                          <div class="text-muted small">{{ d.nomina.fecha_generacion }} · {{ d.nomina.estado_label }}</div>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                      <td>
+                        <div class="fw-semibold">{{ d.nombre_beneficiario }}</div>
+                        <div class="text-muted small">RUT: {{ d.rut_beneficiario or '-' }}</div>
+                      </td>
+                      <td>{{ d.seccion }}</td>
+                      <td>{{ d.nro_documento or '-' }}</td>
+                      <td class="text-end fw-semibold">$ {{ fmt_clp(d.monto_pagado_en_esta_nomina or 0) }}</td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-3">Sin pagos asociados en nóminas bancarias.</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       {# ============================================================
-         REMU: Solo lectura (Anticipos VISADOS / Remuneraciones)
+         REMU (ÚNICO): Solo lectura
+         - QUINCENA: resumen_anticipos
+         - QUINCENA (integrados): remu_anticipos_cards (subtotales_tipo)
+         - FIN_MES: remu_sueldos_cards (subtotales_tipo estilo anticipos)
+         - FALLBACK: si hay REMU total y existen ítems REMU manuales
          ============================================================ #}
+
+      {# QUINCENA: Anticipos VISADOS #}
       {% if resumen_anticipos %}
         <div class="card mt-3">
           <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -133,15 +225,190 @@
             {% endif %}
 
             <div class="text-muted small mt-2">
-              Nota: esta sección es <span class="fw-semibold">exclusivamente</span> automática (Anticipos VISADOS en Quincena; Remuneraciones en Fin de Mes).
+              Nota: esta sección es <span class="fw-semibold">exclusivamente</span> automática (Anticipos VISADOS en Quincena).
             </div>
           </div>
         </div>
+
+      {# QUINCENA: Anticipos integrados (resumen por tipo) #}
+      {% elif remu_anticipos_cards is defined and remu_anticipos_cards %}
+        <div class="card mt-3">
+          <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="fw-semibold fs-5">Remuneraciones (Anticipos integrados)</div>
+            <div class="text-muted">
+              Total: <span class="fw-semibold">{{ fmt_clp(tot["REMU"]) }}</span>
+            </div>
+          </div>
+
+          <div class="card-body">
+            {% for c in remu_anticipos_cards %}
+              {% set nom = c.nomina %}
+              <div class="text-muted small">
+                {% if nom %}
+                  Nómina <span class="fw-semibold">#{{ nom.id }}</span>
+                  · {{ nom.centro_costo }}
+                  · {{ "%04d-%02d"|format(nom.anio, nom.mes) }}
+                {% else %}
+                  Nómina: <span class="fw-semibold">no vinculada</span> · (resumen desde ítems REMU)
+                {% endif %}
+              </div>
+
+              {% if c.subtotales_tipo %}
+                <hr class="my-2">
+                <div class="row g-2">
+                  {% for row in (c.subtotales_tipo or []) %}
+                    {% set tipo = row[0] %}
+                    {% set subtotal = row[1] if (row|length) > 1 else 0 %}
+                    {% set cant = row[2] if (row|length) > 2 else none %}
+
+                    <div class="col-12">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted">
+                          <span class="fw-semibold">{{ tipo or "SIN TIPO" }}</span>
+                          {% if cant is not none %}
+                            <span class="text-muted small">({{ cant }} trab.)</span>
+                          {% endif %}
+                        </div>
+                        <div class="fw-semibold">{{ fmt_clp(subtotal or 0) }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">Sin categorías en anticipos integrados.</div>
+              {% endif %}
+
+              {% if not loop.last %}
+                <hr class="my-3">
+              {% endif %}
+            {% endfor %}
+
+            <div class="text-muted small mt-3">
+              Nota: este resumen se alimenta desde los <span class="fw-semibold">Anticipos integrados</span> a la solicitud (cuando no existe nómina VISADA).
+            </div>
+          </div>
+        </div>
+
+      {# FIN_MES: Sueldos integrados (resumen estilo anticipos) #}
+      {% elif remu_sueldos_cards is defined and remu_sueldos_cards %}
+        <div class="card mt-3">
+          <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="fw-semibold fs-5">Remuneraciones (Sueldos integrados)</div>
+            <div class="text-muted">
+              Total: <span class="fw-semibold">{{ fmt_clp(tot["REMU"]) }}</span>
+            </div>
+          </div>
+
+          <div class="card-body">
+            {% for c in remu_sueldos_cards %}
+              {% set nom = c.nomina %}
+              <div class="text-muted small">
+                {% if nom %}
+                  Nómina <span class="fw-semibold">#{{ nom.id }}</span>
+                  · {{ nom.centro_costo }}
+                  · {{ "%04d-%02d"|format(nom.anio, nom.mes) }}
+                {% else %}
+                  Nómina: <span class="fw-semibold">no vinculada</span> · (resumen desde ítems REMU)
+                {% endif %}
+              </div>
+
+
+              {% if c.subtotales_tipo %}
+                <hr class="my-2">
+                <div class="row g-2">
+                  {% for row in (c.subtotales_tipo or []) %}
+                    {% set tipo = row[0] %}
+                    {% set subtotal = row[1] if (row|length) > 1 else 0 %}
+                    {% set cant = row[2] if (row|length) > 2 else none %}
+
+                    <div class="col-12">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted">
+                          <span class="fw-semibold">{{ tipo or "SIN TIPO" }}</span>
+                          {% if cant is not none %}
+                            <span class="text-muted small">({{ cant }} trab.)</span>
+                          {% endif %}
+                        </div>
+                        <div class="fw-semibold">{{ fmt_clp(subtotal or 0) }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">Sin categorías en sueldos integrados.</div>
+              {% endif %}
+
+              {% if not loop.last %}
+                <hr class="my-3">
+              {% endif %}
+            {% endfor %}
+
+            <div class="text-muted small mt-3">
+              Nota: esta sección es <span class="fw-semibold">automática</span> y se alimenta desde la integración de la Nómina de Sueldos.
+              No admite edición manual desde este folio.
+            </div>
+          </div>
+        </div>
+
+      {# FALLBACK: si existe total REMU y hay ítems REMU en la solicitud #}
+      {% else %}
+        {% set remu_rows = (items | selectattr("seccion", "equalto", "REMU") | list) %}
+        {% if (tot["REMU"] or 0) and remu_rows %}
+          <div class="card mt-3">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="fw-semibold fs-5">Remuneraciones</div>
+              <div class="text-muted">
+                Total: <span class="fw-semibold">{{ fmt_clp(tot["REMU"]) }}</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                  <thead>
+                    <tr>
+                      <th>Beneficiario</th>
+                      <th style="width:180px;">Concepto</th>
+                      <th>Descripción</th>
+                      <th style="width:140px;" class="text-end">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for it in remu_rows|sort(attribute="beneficiario_display") %}
+                      <tr>
+                        <td>
+                          <div class="fw-semibold">{{ it.beneficiario_display }}</div>
+                          <div class="text-muted small">
+                            {% if it.trabajador %}
+                              Trabajador · {{ it.trabajador.rut_completo }}
+                            {% elif it.tercero %}
+                              Tercero · {{ it.tercero.rut_completo }}
+                            {% else %}
+                              Libre
+                            {% endif %}
+                          </div>
+                        </td>
+                        <td>{{ it.concepto_label }}</td>
+                        <td class="small">{{ it.descripcion or "-" }}</td>
+                        <td class="text-end fw-semibold">{{ fmt_clp(it.monto) }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="text-muted small mt-2">
+                Nota: este resumen se muestra como <span class="fw-semibold">fallback</span> porque no se encontró desglose integrado de sueldos/anticipos.
+              </div>
+            </div>
+          </div>
+        {% endif %}
       {% endif %}
+
 
       {# ============================================================
          Secciones editables (todas excepto REMU)
-         - TERC / VAR con reglas nuevas
          ============================================================ #}
       {% for code, label in secciones %}
         {% if code != "REMU" %}
@@ -154,435 +421,426 @@
               </div>
             </div>
 
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
-                  <thead>
-                    <tr>
-                      <th>Beneficiario</th>
-                      <th style="width:160px;">Pago</th>
-                      <th style="width:230px;">Documento</th>
-                      <th style="width:180px;">Concepto</th>
-                      <th>Descripción</th>
-                      <th style="width:140px;" class="text-end">Monto</th>
-                      {% if not solo_lectura %}
-                        <th style="width:190px;" class="text-end">Acción</th>
-                      {% endif %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% set rows = (items | selectattr("seccion", "equalto", code) | list) %}
-                    {% if not rows %}
+            {# ===========================
+               BODY: REND (RESUMEN)
+               =========================== #}
+            {% if code == "REND" %}
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover mb-0 align-middle">
+                    <thead>
                       <tr>
-                        <td colspan="{% if solo_lectura %}6{% else %}7{% endif %}" class="text-center text-muted py-3">Sin ítems.</td>
+                        <th>Usuario</th>
+                        <th style="width:160px;">RUT</th>
+                        <th style="width:160px;">Tipo de pago</th>
+                        <th style="width:160px;" class="text-end">Total</th>
                       </tr>
-                    {% else %}
-                      {% for it in rows|sort(attribute="beneficiario_display") %}
-                        {# Parse de nro_documento: "TIPO|NUM" #}
-                        {% set _doc_tipo = "" %}
-                        {% set _doc_num = "" %}
-                        {% if it.nro_documento %}
-                          {% set _parts = (it.nro_documento|string).split("|") %}
-                          {% if _parts|length >= 2 %}
-                            {% set _doc_tipo = _parts[0] %}
-                            {% set _doc_num = _parts[1] %}
-                          {% else %}
-                            {% set _doc_tipo = "" %}
-                            {% set _doc_num = it.nro_documento %}
-                          {% endif %}
-                        {% endif %}
-
+                    </thead>
+                    <tbody>
+                      {% if resumen_rendiciones is defined and resumen_rendiciones %}
+                        {% for rr in resumen_rendiciones %}
+                          <tr>
+                            <td class="fw-semibold">{{ rr.usuario_nombre or "-" }}</td>
+                            <td class="small">{{ rr.usuario_rut or "-" }}</td>
+                            <td class="small">Nómina 2</td>
+                            <td class="text-end fw-semibold">{{ fmt_clp(rr.total or 0) }}</td>
+                          </tr>
+                        {% endfor %}
+                      {% else %}
                         <tr>
-                          <td>
-                            <div class="fw-semibold">{{ it.beneficiario_display }}</div>
-                            <div class="text-muted small">
-                              {% if it.trabajador %}
-                                Trabajador · {{ it.trabajador.rut_completo }}
-                              {% elif it.tercero %}
-                                Tercero · {{ it.tercero.rut_completo }}
-                              {% else %}
-                                Libre
-                              {% endif %}
-                            </div>
+                          <td colspan="4" class="text-center text-muted py-3">
+                            Sin rendiciones integradas.
                           </td>
-                          <td class="small">{{ it.tipo_pago_label }}</td>
-                          <td class="small">{{ it.documento_display }}</td>
-                          <td>{{ it.concepto_label }}</td>
-                          <td class="small">{{ it.descripcion or "-" }}</td>
-                          <td class="text-end fw-semibold">{{ fmt_clp(it.monto) }}</td>
+                        </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-                          {% if not solo_lectura %}
-                            <td class="text-end">
-                              <div class="d-inline-flex gap-2">
+              {% if not solo_lectura %}
+                <div class="card-footer">
+                  <div class="text-muted small">
+                    Nota: la sección <span class="fw-semibold">{{ label }}</span> se alimenta exclusivamente desde el módulo de
+                    <span class="fw-semibold">Rendiciones de Gastos</span>. No se permite agregar ítems manualmente desde esta pantalla.
+                  </div>
+                </div>
+              {% endif %}
 
-                                {# Editar SOLO para TERC/VAR #}
-                                {% if code in ["TERC", "VAR"] %}
-                                  <button type="button"
-                                          class="btn btn-sm btn-outline-primary"
-                                          data-bs-toggle="modal"
-                                          data-bs-target="#modalEditItem{{ it.id }}">
-                                    Editar
-                                  </button>
+            {# ===========================
+               BODY: TERC / VAR / otros (tabla ítems)
+               =========================== #}
+            {% else %}
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover mb-0 align-middle">
+                    <thead>
+                      <tr>
+                        <th>Beneficiario</th>
+                        <th style="width:160px;">Pago</th>
+                        <th style="width:230px;">Documento</th>
+                        <th style="width:180px;">Concepto</th>
+                        <th>Descripción</th>
+                        <th style="width:140px;" class="text-end">Monto</th>
+                        {% if not solo_lectura %}
+                          <th style="width:190px;" class="text-end">Acción</th>
+                        {% endif %}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% set rows = (items | selectattr("seccion", "equalto", code) | list) %}
+                      {% if not rows %}
+                        <tr>
+                          <td colspan="{% if solo_lectura %}6{% else %}7{% endif %}" class="text-center text-muted py-3">Sin ítems.</td>
+                        </tr>
+                      {% else %}
+                        {% for it in rows|sort(attribute="beneficiario_display") %}
+                          {# Parse de nro_documento: "TIPO|NUM" #}
+                          {% set _doc_tipo = "" %}
+                          {% set _doc_num = "" %}
+                          {% if it.nro_documento %}
+                            {% set _parts = (it.nro_documento|string).split("|") %}
+                            {% if _parts|length >= 2 %}
+                              {% set _doc_tipo = _parts[0] %}
+                              {% set _doc_num = _parts[1] %}
+                            {% else %}
+                              {% set _doc_tipo = "" %}
+                              {% set _doc_num = it.nro_documento %}
+                            {% endif %}
+                          {% endif %}
+
+                          <tr>
+                            <td>
+                              <div class="fw-semibold">{{ it.beneficiario_display }}</div>
+                              <div class="text-muted small">
+                                {% if it.trabajador %}
+                                  Trabajador · {{ it.trabajador.rut_completo }}
+                                {% elif it.tercero %}
+                                  Tercero · {{ it.tercero.rut_completo }}
+                                {% else %}
+                                  Libre
                                 {% endif %}
-
-                                <form method="post" action="{{ url_for('solicitudes_fondos.item_eliminar', item_id=it.id) }}"
-                                      onsubmit="return confirm('¿Eliminar ítem?');">
-                                  <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
-                                </form>
                               </div>
                             </td>
-                          {% endif %}
-                        </tr>
+                            <td class="small">{{ it.tipo_pago_label }}</td>
+                            <td class="small">{{ it.documento_display }}</td>
+                            <td>{{ it.concepto_label }}</td>
+                            <td class="small">{{ it.descripcion or "-" }}</td>
+                            <td class="text-end fw-semibold">{{ fmt_clp(it.monto) }}</td>
 
-                        {# ===========================
-                           MODAL EDICIÓN (solo TERC/VAR)
-                           =========================== #}
-                        {% if not solo_lectura and code in ["TERC","VAR"] %}
-                          <div class="modal fade" id="modalEditItem{{ it.id }}" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                              <div class="modal-content">
-                                <div class="modal-header">
-                                  <div>
-                                    <div class="fw-semibold">Editar ítem</div>
-                                    <div class="text-muted small">{{ label }} · #{{ s.numero }}</div>
-                                  </div>
-                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            {% if not solo_lectura %}
+                              <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                  {% if code in ["TERC", "VAR"] %}
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditItem{{ it.id }}">
+                                      Editar
+                                    </button>
+                                  {% endif %}
+
+                                  <form method="post" action="{{ url_for('solicitudes_fondos.item_eliminar', item_id=it.id) }}"
+                                        onsubmit="return confirm('¿Eliminar ítem?');">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
+                                  </form>
                                 </div>
+                              </td>
+                            {% endif %}
+                          </tr>
 
-                                <form method="post" action="{{ url_for('solicitudes_fondos.item_actualizar', item_id=it.id) }}">
-                                  <div class="modal-body">
-                                    <input type="hidden" name="solicitud_id" value="{{ s.id }}">
+                          {# ===========================
+                             MODAL EDICIÓN (solo TERC/VAR)
+                             =========================== #}
+                          {% if not solo_lectura and code in ["TERC","VAR"] %}
+                            <div class="modal fade" id="modalEditItem{{ it.id }}" tabindex="-1" aria-hidden="true">
+                              <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                <div class="modal-content">
+                                  <div class="modal-header">
+                                    <div>
+                                      <div class="fw-semibold">Editar ítem</div>
+                                      <div class="text-muted small">{{ label }} · #{{ s.numero }}</div>
+                                    </div>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                  </div>
 
-                                    <div class="row g-2">
-                                      <div class="col-12 col-lg-6">
-                                        <label class="form-label">Tercero (Contratista / Proveedor)</label>
-                                        <input type="text"
-                                               class="form-control js-datalist"
-                                               data-target-hidden="edit_tercero_id_{{ it.id }}"
-                                               list="lista_terceros_global"
-                                               autocomplete="off"
-                                               placeholder="Escribe para buscar tercero..."
-                                               value="{% if it.tercero %}{{ it.tercero.id }} - {{ it.tercero.nombre_display }} · {{ it.tercero.rut_completo }}{% endif %}">
-                                        <input type="hidden" name="tercero_id" id="edit_tercero_id_{{ it.id }}" value="{{ it.tercero.id if it.tercero else '' }}">
-                                        <div class="text-muted small mt-1">Selecciona desde la lista (formato: ID - Nombre · RUT).</div>
-                                      </div>
+                                  <form method="post" action="{{ url_for('solicitudes_fondos.item_actualizar', item_id=it.id) }}">
+                                    <div class="modal-body">
+                                      <input type="hidden" name="solicitud_id" value="{{ s.id }}">
 
-                                      <div class="col-12 col-lg-6">
-                                        <label class="form-label">Trabajador</label>
-                                        <input type="text"
-                                               class="form-control js-datalist"
-                                               data-target-hidden="edit_trabajador_id_{{ it.id }}"
-                                               list="lista_trabajadores_global"
-                                               autocomplete="off"
-                                               placeholder="Escribe para buscar trabajador..."
-                                               value="{% if it.trabajador %}{{ it.trabajador.id }} - {{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno or '' }}, {{ it.trabajador.nombres }} · {{ it.trabajador.rut_completo }}{% endif %}">
-                                        <input type="hidden" name="trabajador_id" id="edit_trabajador_id_{{ it.id }}" value="{{ it.trabajador.id if it.trabajador else '' }}">
-                                        <div class="text-muted small mt-1">Selecciona desde la lista (formato: ID - Apellido, Nombre · RUT).</div>
-                                      </div>
+                                      <div class="row g-2">
+                                        <div class="col-12 col-lg-6">
+                                          <label class="form-label">Tercero (Contratista / Proveedor)</label>
+                                          <input type="text"
+                                                 class="form-control js-datalist"
+                                                 data-target-hidden="edit_tercero_id_{{ it.id }}"
+                                                 list="lista_terceros_global"
+                                                 autocomplete="off"
+                                                 placeholder="Escribe para buscar tercero..."
+                                                 value="{% if it.tercero %}{{ it.tercero.id }} - {{ it.tercero.nombre_display }} · {{ it.tercero.rut_completo }}{% endif %}">
+                                          <input type="hidden" name="tercero_id" id="edit_tercero_id_{{ it.id }}" value="{{ it.tercero.id if it.tercero else '' }}">
+                                          <div class="text-muted small mt-1">Selecciona desde la lista (formato: ID - Nombre · RUT).</div>
+                                        </div>
 
-                                      <div class="col-6 col-md-3">
-                                        <label class="form-label">Monto</label>
-                                        <input type="text" class="form-control" name="monto" required value="{{ it.monto }}">
-                                      </div>
+                                        <div class="col-12 col-lg-6">
+                                          <label class="form-label">Trabajador</label>
+                                          <input type="text"
+                                                 class="form-control js-datalist"
+                                                 data-target-hidden="edit_trabajador_id_{{ it.id }}"
+                                                 list="lista_trabajadores_global"
+                                                 autocomplete="off"
+                                                 placeholder="Escribe para buscar trabajador..."
+                                                 value="{% if it.trabajador %}{{ it.trabajador.id }} - {{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno or '' }}, {{ it.trabajador.nombres }} · {{ it.trabajador.rut_completo }}{% if (it.trabajador.estado_trabajador or '') != 'VIGENTE' %} · NO VIGENTE{% endif %}{% endif %}">
+                                          <input type="hidden" name="trabajador_id" id="edit_trabajador_id_{{ it.id }}" value="{{ it.trabajador.id if it.trabajador else '' }}">
+                                          <div class="text-muted small mt-1">Selecciona desde la lista (formato: ID - Apellido, Nombre · RUT).</div>
+                                        </div>
 
-                                      <div class="col-6 col-md-3">
-                                        <label class="form-label">Tipo de pago</label>
-                                        <select class="form-select" name="tipo_pago" required>
-                                          <option value="TRANSFERENCIA" {% if (it.tipo_pago or "") == "TRANSFERENCIA" %}selected{% endif %}>Transferencia</option>
-                                          <option value="NOMINA_2" {% if (it.tipo_pago or "") == "NOMINA_2" %}selected{% endif %}>Nómina 2</option>
-                                        </select>
-                                      </div>
+                                        <div class="col-6 col-md-3">
+                                          <label class="form-label">Monto</label>
+                                          <input type="text" class="form-control" name="monto" required value="{{ it.monto }}">
+                                        </div>
 
-                                      <div class="col-12 col-md-3">
-                                        <label class="form-label">Tipo documento</label>
-                                        <select class="form-select" name="tipo_documento" required>
-                                          <option value="FACTURA" {% if _doc_tipo == "FACTURA" %}selected{% endif %}>Factura</option>
-                                          <option value="COMPROBANTE" {% if _doc_tipo == "COMPROBANTE" %}selected{% endif %}>Comprobante</option>
-                                          <option value="GUIA_DESPACHO" {% if _doc_tipo == "GUIA_DESPACHO" %}selected{% endif %}>Guía de despacho</option>
-                                          <option value="BOLETA_HONORARIOS" {% if _doc_tipo == "BOLETA_HONORARIOS" %}selected{% endif %}>Boleta de Honorarios</option>
-                                          <option value="SIN_DOCUMENTO" {% if _doc_tipo == "SIN_DOCUMENTO" %}selected{% endif %}>Sin documento</option>
-                                        </select>
-                                      </div>
+                                        <div class="col-6 col-md-3">
+                                          <label class="form-label">Tipo de pago</label>
+                                          <select class="form-select" name="tipo_pago" required>
+                                            <option value="TRANSFERENCIA" {% if (it.tipo_pago or "") == "TRANSFERENCIA" %}selected{% endif %}>Transferencia</option>
+                                            <option value="NOMINA_2" {% if (it.tipo_pago or "") == "NOMINA_2" %}selected{% endif %}>Nómina 2</option>
+                                          </select>
+                                        </div>
 
-                                      <div class="col-12 col-md-3">
-                                        <label class="form-label">N° Doc.</label>
-                                        <input type="text" class="form-control" name="nro_documento" placeholder="(Opcional)" value="{{ _doc_num }}">
-                                        <div class="form-text">Si lo dejas vacío se mostrará “Sin Nro. Doc.”</div>
-                                      </div>
+                                        <div class="col-12 col-md-3">
+                                          <label class="form-label">Tipo documento</label>
+                                          <select class="form-select" name="tipo_documento" required>
+                                            <option value="FACTURA" {% if _doc_tipo == "FACTURA" %}selected{% endif %}>Factura</option>
+                                            <option value="FACTURA_EXENTA" {% if _doc_tipo == "FACTURA_EXENTA" %}selected{% endif %}>Factura exenta</option>
+                                            <option value="BOLETA" {% if _doc_tipo == "BOLETA" %}selected{% endif %}>Boleta</option>
+                                            <option value="BOLETA_HONORARIOS" {% if _doc_tipo == "BOLETA_HONORARIOS" %}selected{% endif %}>Boleta de Honorarios</option>
+                                            <option value="COMPROBANTE" {% if _doc_tipo == "COMPROBANTE" %}selected{% endif %}>Comprobante</option>
+                                            <option value="RECIBO" {% if _doc_tipo == "RECIBO" %}selected{% endif %}>Recibo</option>
+                                            <option value="ORDEN_COMPRA" {% if _doc_tipo == "ORDEN_COMPRA" %}selected{% endif %}>Orden de compra</option>
+                                            <option value="NOTA_VENTA" {% if _doc_tipo == "NOTA_VENTA" %}selected{% endif %}>Nota de venta</option>
+                                            <option value="GUIA_DESPACHO" {% if _doc_tipo == "GUIA_DESPACHO" %}selected{% endif %}>Guía de despacho</option>
+                                            <option value="VOUCHER" {% if _doc_tipo == "VOUCHER" %}selected{% endif %}>Voucher / Transbank</option>
+                                            <option value="LIQUIDACION" {% if _doc_tipo == "LIQUIDACION" %}selected{% endif %}>Liquidación</option>
+                                            <option value="CONTRATO" {% if _doc_tipo == "CONTRATO" %}selected{% endif %}>Contrato</option>
+                                            <option value="SIN_DOCUMENTO" {% if _doc_tipo == "SIN_DOCUMENTO" %}selected{% endif %}>Sin documento</option>
+                                          </select>
+                                        </div>
 
-                                      <div class="col-12 col-md-4">
-                                        <label class="form-label">Concepto</label>
-                                        <select class="form-select" name="concepto" required>
-                                          <option value="CONTRATISTA" {% if (it.concepto or "") == "CONTRATISTA" %}selected{% endif %}>Contratista</option>
-                                          <option value="SERVICIOS" {% if (it.concepto or "") == "SERVICIOS" %}selected{% endif %}>Servicios</option>
-                                          <option value="TRATOS_INTERNOS" {% if (it.concepto or "") == "TRATOS_INTERNOS" %}selected{% endif %}>Tratos internos</option>
-                                          <option value="PROVEEDORES" {% if (it.concepto or "") == "PROVEEDORES" %}selected{% endif %}>Proveedores</option>
-                                          <option value="PROVISIONES" {% if (it.concepto or "") == "PROVISIONES" %}selected{% endif %}>Provisiones</option>
-                                          <option value="FINIQUITOS" {% if (it.concepto or "") == "FINIQUITOS" %}selected{% endif %}>Finiquitos</option>
-                                          <option value="OTROS" {% if (it.concepto or "") == "OTROS" %}selected{% endif %}>Otros</option>
-                                        </select>
-                                      </div>
+                                        <div class="col-12 col-md-3">
+                                          <label class="form-label">N° Doc.</label>
+                                          <input type="text" class="form-control" name="nro_documento" placeholder="(Opcional)" value="{{ _doc_num }}">
+                                          <div class="form-text">Si lo dejas vacío se mostrará “Sin Nro. Doc.”</div>
+                                        </div>
 
-                                      <div class="col-12 col-md-8">
-                                        <label class="form-label">Descripción</label>
-                                        <input type="text" class="form-control" name="descripcion" value="{{ it.descripcion or '' }}" placeholder="Detalle del pago (opcional)">
-                                      </div>
+                                        <div class="col-12 col-md-4">
+                                          <label class="form-label">Concepto</label>
+                                          <select class="form-select" name="concepto" required>
+                                            <option value="CONTRATISTA" {% if (it.concepto or "") == "CONTRATISTA" %}selected{% endif %}>Contratista</option>
+                                            <option value="SERVICIOS" {% if (it.concepto or "") == "SERVICIOS" %}selected{% endif %}>Servicios</option>
+                                            <option value="TRATOS_INTERNOS" {% if (it.concepto or "") == "TRATOS_INTERNOS" %}selected{% endif %}>Tratos internos</option>
+                                            <option value="PROVEEDORES" {% if (it.concepto or "") == "PROVEEDORES" %}selected{% endif %}>Proveedores</option>
+                                            <option value="PROVISIONES" {% if (it.concepto or "") == "PROVISIONES" %}selected{% endif %}>Provisiones</option>
+                                            <option value="FINIQUITOS" {% if (it.concepto or "") == "FINIQUITOS" %}selected{% endif %}>Finiquitos</option>
+                                            <option value="OTROS" {% if (it.concepto or "") == "OTROS" %}selected{% endif %}>Otros</option>
+                                          </select>
+                                        </div>
 
-                                      <div class="col-12">
-                                        <div class="text-muted small">
-                                          Regla: en <span class="fw-semibold">{{ label }}</span> el beneficiario debe existir (Tercero o Trabajador). Mantengamos la contabilidad feliz y el cortisol bajo.
+                                        <div class="col-12 col-md-8">
+                                          <label class="form-label">Descripción</label>
+                                          <input type="text" class="form-control" name="descripcion" value="{{ it.descripcion or '' }}" placeholder="Detalle del pago (opcional)">
+                                        </div>
+
+                                        <div class="col-12">
+                                          <div class="text-muted small">
+                                            Regla: en <span class="fw-semibold">{{ label }}</span> el beneficiario debe existir (Tercero o Trabajador). Mantengamos la contabilidad feliz y el cortisol bajo.
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
 
-                                  <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
-                                  </div>
-                                </form>
+                                    <div class="modal-footer">
+                                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                                    </div>
+                                  </form>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        {% endif %}
+                          {% endif %}
 
-                      {% endfor %}
-                    {% endif %}
-                  </tbody>
-                </table>
+                        {% endfor %}
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
 
-            {% if not solo_lectura %}
-              <div class="card-footer">
+              {# ===========================
+                 FOOTER: formularios (TERC/VAR + fallback)
+                 =========================== #}
+              {% if not solo_lectura %}
+                <div class="card-footer">
 
-                {# ===========================
-                   FORMULARIO: TERC / VAR (NUEVO)
-                   =========================== #}
-                {% if code in ["TERC", "VAR"] %}
+                  {% if code in ["TERC", "VAR"] %}
+                    <form method="post" action="{{ url_for('solicitudes_fondos.item_agregar', solicitud_id=s.id) }}" class="row g-2">
+                      <input type="hidden" name="seccion" value="{{ code }}">
 
-                  <form method="post" action="{{ url_for('solicitudes_fondos.item_agregar', solicitud_id=s.id) }}" class="row g-2 align-items-end">
-                    <input type="hidden" name="seccion" value="{{ code }}">
-
-                    <div class="col-12 col-lg-6">
-                      <label for="tercero_search_{{ code }}" class="form-label">Tercero (Contratista / Proveedor)</label>
-                      <input type="text"
-                             class="form-control"
-                             id="tercero_search_{{ code }}"
-                             name="tercero_search"
-                             list="lista_terceros_{{ code }}"
-                             autocomplete="off"
-                             placeholder="Escribe para buscar tercero..."
-                             value="{{ request.form.get('tercero_search','') }}">
-                      <datalist id="lista_terceros_{{ code }}">
-                        {% for t in terceros %}
-                          <option value="{{ t.id }} - {{ t.nombre_display }} · {{ t.rut_completo }}"></option>
-                        {% endfor %}
-                      </datalist>
-                      <input type="hidden" name="tercero_id" id="tercero_id_{{ code }}" value="">
-                      <div id="tercero_error_{{ code }}" class="text-danger small mt-2" style="display:none;">
-                        Debes seleccionar un Tercero desde la lista (no solo escribirlo).
+                      <div class="col-12 col-lg-6">
+                        <label for="tercero_search_{{ code }}" class="form-label">Tercero (Contratista / Proveedor)</label>
+                        <input type="text"
+                               class="form-control"
+                               id="tercero_search_{{ code }}"
+                               name="tercero_search"
+                               list="lista_terceros_{{ code }}"
+                               autocomplete="off"
+                               placeholder="Escribe para buscar tercero..."
+                               value="{{ request.form.get('tercero_search','') }}">
+                        <datalist id="lista_terceros_{{ code }}">
+                          {% for t in terceros %}
+                            <option value="{{ t.id }} - {{ t.nombre_display }} · {{ t.rut_completo }}"></option>
+                          {% endfor %}
+                        </datalist>
+                        <input type="hidden" name="tercero_id" id="tercero_id_{{ code }}" value="">
+                        <div id="tercero_error_{{ code }}" class="text-danger small mt-2" style="display:none;">
+                          Debes seleccionar un Tercero desde la lista (no solo escribirlo).
+                        </div>
                       </div>
-                    </div>
 
-                    <div class="col-12 col-lg-6">
-                      <label for="trabajador_search_{{ code }}" class="form-label">Trabajador</label>
-                      <input type="text"
-                             class="form-control"
-                             id="trabajador_search_{{ code }}"
-                             name="trabajador_search"
-                             list="lista_trabajadores_{{ code }}"
-                             autocomplete="off"
-                             placeholder="Escribe para buscar trabajador..."
-                             value="{{ request.form.get('trabajador_search','') }}">
-                      <datalist id="lista_trabajadores_{{ code }}">
-                        {% for tr in trabajadores %}
-                          <option value="{{ tr.id }} - {{ tr.ap_paterno }} {{ tr.ap_materno or '' }}, {{ tr.nombres }} · {{ tr.rut_completo }}"></option>
-                        {% endfor %}
-                      </datalist>
-                      <input type="hidden" name="trabajador_id" id="trabajador_id_{{ code }}" value="">
-                      <div id="trabajador_error_{{ code }}" class="text-danger small mt-2" style="display:none;">
-                        Debes seleccionar un Trabajador desde la lista (no solo escribirlo).
+                      <div class="col-12 col-lg-6">
+                        <label for="trabajador_search_{{ code }}" class="form-label">Trabajador</label>
+                        <input type="text"
+                               class="form-control"
+                               id="trabajador_search_{{ code }}"
+                               name="trabajador_search"
+                               list="lista_trabajadores_{{ code }}"
+                               autocomplete="off"
+                               placeholder="Escribe para buscar trabajador..."
+                               value="{{ request.form.get('trabajador_search','') }}">
+                        <datalist id="lista_trabajadores_{{ code }}">
+                          {% for tr in trabajadores %}
+                            <option value="{{ tr.id }} - {{ tr.ap_paterno }} {{ tr.ap_materno or '' }}, {{ tr.nombres }} · {{ tr.rut_completo }}{% if (tr.estado_trabajador or '') != 'VIGENTE' %} · NO VIGENTE{% endif %}"></option>
+                          {% endfor %}
+                        </datalist>
+                        <input type="hidden" name="trabajador_id" id="trabajador_id_{{ code }}" value="">
+                        <div id="trabajador_error_{{ code }}" class="text-danger small mt-2" style="display:none;">
+                          Debes seleccionar un Trabajador desde la lista (no solo escribirlo).
+                        </div>
                       </div>
+
+                      <div class="col-6 col-md-3">
+                        <label class="form-label">Monto</label>
+                        <input type="text" class="form-control" name="monto" placeholder="0" required>
+                      </div>
+
+                      <div class="col-6 col-md-3">
+                        <label class="form-label">Tipo de pago</label>
+                        <select class="form-select" name="tipo_pago" required>
+                          <option value="TRANSFERENCIA">Transferencia</option>
+                          <option value="NOMINA_2">Nómina 2</option>
+                        </select>
+                      </div>
+
+                      <div class="col-12 col-md-3">
+                        <label class="form-label">Tipo documento</label>
+                        <select class="form-select" name="tipo_documento" required>
+                          <option value="FACTURA">Factura</option>
+                          <option value="FACTURA_EXENTA">Factura exenta</option>
+                          <option value="BOLETA">Boleta</option>
+                          <option value="BOLETA_HONORARIOS">Boleta de Honorarios</option>
+                          <option value="COMPROBANTE">Comprobante</option>
+                          <option value="RECIBO">Recibo</option>
+                          <option value="ORDEN_COMPRA">Orden de compra</option>
+                          <option value="NOTA_VENTA">Nota de venta</option>
+                          <option value="GUIA_DESPACHO">Guía de despacho</option>
+                          <option value="VOUCHER">Voucher / Transbank</option>
+                          <option value="LIQUIDACION">Liquidación</option>
+                          <option value="CONTRATO">Contrato</option>
+                          <option value="SIN_DOCUMENTO">Sin documento</option>
+                        </select>
+                      </div>
+
+                      <div class="col-12 col-md-3">
+                        <label class="form-label">N° Doc.</label>
+                        <input type="text" class="form-control" name="nro_documento" placeholder="(Opcional)">
+                        <div class="form-text">Si lo dejas vacío se mostrará “Sin Nro. Doc.”</div>
+                      </div>
+
+                      <div class="col-12 col-md-4">
+                        <label class="form-label">Concepto</label>
+                        <select class="form-select" name="concepto" required>
+                          <option value="CONTRATISTA">Contratista</option>
+                          <option value="SERVICIOS">Servicios</option>
+                          <option value="TRATOS_INTERNOS">Tratos internos</option>
+                          <option value="PROVEEDORES">Proveedores</option>
+                          <option value="PROVISIONES">Provisiones</option>
+                          <option value="FINIQUITOS">Finiquitos</option>
+                          <option value="OTROS">Otros</option>
+                        </select>
+                      </div>
+
+                      <div class="col-12 col-md-8">
+                        <label class="form-label">Descripción</label>
+                        <input type="text" class="form-control" name="descripcion" placeholder="Detalle del pago (opcional)">
+                      </div>
+
+                      <div class="col-12 d-flex gap-2 mt-2">
+                        <button class="btn btn-primary" type="submit">Agregar ítem</button>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Volver al listado</a>
+                      </div>
+                    </form>
+
+                    <div class="text-muted small mt-2">
+                      Nota: en <span class="fw-semibold">{{ label }}</span> el beneficiario debe existir en el sistema (Tercero o Trabajador). Sin “inventos”, que después Contabilidad nos cobra intereses.
                     </div>
 
-                    <div class="col-6 col-md-3">
-                      <label class="form-label">Monto</label>
-                      <input type="text" class="form-control" name="monto" placeholder="0" required>
-                    </div>
+                    <script>
+                      (function() {
+                        function bindDatalist(inputId, hiddenId, errorId) {
+                          const inp = document.getElementById(inputId);
+                          const hid = document.getElementById(hiddenId);
+                          const err = document.getElementById(errorId);
 
-                    <div class="col-6 col-md-3">
-                      <label class="form-label">Tipo de pago</label>
-                      <select class="form-select" name="tipo_pago" required>
-                        <option value="TRANSFERENCIA">Transferencia</option>
-                        <option value="NOMINA_2">Nómina 2</option>
-                      </select>
-                    </div>
+                          if (!inp || !hid) return;
 
-                    <div class="col-12 col-md-3">
-                      <label class="form-label">Tipo documento</label>
-                      <select class="form-select" name="tipo_documento" required>
-                        <option value="FACTURA">Factura</option>
-                        <option value="COMPROBANTE">Comprobante</option>
-                        <option value="GUIA_DESPACHO">Guía de despacho</option>
-                        <option value="BOLETA_HONORARIOS">Boleta de Honorarios</option>
-                        <option value="SIN_DOCUMENTO">Sin documento</option>
-                      </select>
-                    </div>
+                          function clear() {
+                            hid.value = "";
+                            if (err) err.style.display = "none";
+                          }
 
-                    <div class="col-12 col-md-3">
-                      <label class="form-label">N° Doc.</label>
-                      <input type="text" class="form-control" name="nro_documento" placeholder="(Opcional)">
-                      <div class="form-text">Si lo dejas vacío se mostrará “Sin Nro. Doc.”</div>
-                    </div>
+                          function sync() {
+                            const v = (inp.value || "").trim();
+                            if (!v) return clear();
 
-                    <div class="col-12 col-md-4">
-                      <label class="form-label">Concepto</label>
-                      <select class="form-select" name="concepto" required>
-                        <option value="CONTRATISTA">Contratista</option>
-                        <option value="SERVICIOS">Servicios</option>
-                        <option value="TRATOS_INTERNOS">Tratos internos</option>
-                        <option value="PROVEEDORES">Proveedores</option>
-                        <option value="PROVISIONES">Provisiones</option>
-                        <option value="FINIQUITOS">Finiquitos</option>
-                        <option value="OTROS">Otros</option>
-                      </select>
-                    </div>
+                            const first = v.split(" - ")[0];
+                            const id = parseInt(first, 10);
+                            if (!id || String(id) !== first) return clear();
 
-                    <div class="col-12 col-md-8">
-                      <label class="form-label">Descripción</label>
-                      <input type="text" class="form-control" name="descripcion" placeholder="Detalle del pago (opcional)">
-                    </div>
+                            hid.value = id;
+                            if (err) err.style.display = "none";
+                          }
 
-                    <div class="col-12 d-flex gap-2 mt-2">
-                      <button class="btn btn-primary" type="submit">Agregar ítem</button>
-                      <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Volver al listado</a>
-                    </div>
-                  </form>
-
-                  <div class="text-muted small mt-2">
-                    Nota: en <span class="fw-semibold">{{ label }}</span> el beneficiario debe existir en el sistema (Tercero o Trabajador). Sin “inventos”, que después Contabilidad nos cobra intereses.
-                  </div>
-
-                  <script>
-                    (function() {
-                      function bindDatalist(inputId, hiddenId, errorId) {
-                        const inp = document.getElementById(inputId);
-                        const hid = document.getElementById(hiddenId);
-                        const err = document.getElementById(errorId);
-
-                        if (!inp || !hid) return;
-
-                        function clear() {
-                          hid.value = "";
-                          if (err) err.style.display = "none";
+                          inp.addEventListener("change", sync);
+                          inp.addEventListener("blur", sync);
+                          inp.addEventListener("input", function() {
+                            if (!(inp.value || "").trim()) clear();
+                          });
                         }
 
-                        function sync() {
-                          const v = (inp.value || "").trim();
-                          if (!v) return clear();
+                        bindDatalist("tercero_search_{{ code }}", "tercero_id_{{ code }}", "tercero_error_{{ code }}");
+                        bindDatalist("trabajador_search_{{ code }}", "trabajador_id_{{ code }}", "trabajador_error_{{ code }}");
+                      })();
+                    </script>
 
-                          const first = v.split(" - ")[0];
-                          const id = parseInt(first, 10);
-                          if (!id || String(id) !== first) return clear();
-
-                          hid.value = id;
-                          if (err) err.style.display = "none";
-                        }
-
-                        inp.addEventListener("change", sync);
-                        inp.addEventListener("blur", sync);
-                        inp.addEventListener("input", function() {
-                          if (!(inp.value || "").trim()) clear();
-                        });
-                      }
-
-                      bindDatalist("tercero_search_{{ code }}", "tercero_id_{{ code }}", "tercero_error_{{ code }}");
-                      bindDatalist("trabajador_search_{{ code }}", "trabajador_id_{{ code }}", "trabajador_error_{{ code }}");
-                    })();
-                  </script>
-
-                {# ===========================
-                   FORMULARIO: REND (se deja tal cual por ahora)
-                   =========================== #}
-                {% else %}
-
-                  <form method="post" action="{{ url_for('solicitudes_fondos.item_agregar', solicitud_id=s.id) }}" class="row g-2 align-items-end">
-                    <input type="hidden" name="seccion" value="{{ code }}">
-
-                    <div class="col-12 col-md-4">
-                      <label class="form-label">Beneficiario (libre)</label>
-                      <input type="text" class="form-control" name="beneficiario_nombre" placeholder="Nombre / Razón Social">
-                    </div>
-
-                    <div class="col-6 col-md-2">
-                      <label class="form-label">RUT</label>
-                      <input type="number" class="form-control" name="beneficiario_rut_num" placeholder="12345678">
-                    </div>
-
-                    <div class="col-6 col-md-1">
-                      <label class="form-label">DV</label>
-                      <input type="text" class="form-control" name="beneficiario_dv" maxlength="2">
-                    </div>
-
-                    <div class="col-12 col-md-5">
-                      <label class="form-label">O seleccionar Tercero</label>
-                      <select name="tercero_id" class="form-select">
-                        <option value="">(Opcional)</option>
-                        {% for t in terceros %}
-                          <option value="{{ t.id }}">{{ t.nombre_display }} · {{ t.rut_completo }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-
-                    <div class="col-12 col-md-5">
-                      <label class="form-label">O seleccionar Trabajador</label>
-                      <select name="trabajador_id" class="form-select">
-                        <option value="">(Opcional)</option>
-                        {% for tr in trabajadores %}
-                          <option value="{{ tr.id }}">{{ tr.ap_paterno }} {{ tr.ap_materno or '' }}, {{ tr.nombres }} · {{ tr.rut_completo }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-
-                    <div class="col-6 col-md-2">
-                      <label class="form-label">Monto</label>
-                      <input type="text" class="form-control" name="monto" placeholder="0">
-                    </div>
-
-                    <div class="col-12 col-md-3">
-                      <label class="form-label">Tipo pago</label>
-                      <input type="text" class="form-control" name="tipo_pago" placeholder="Transferencia">
-                    </div>
-
-                    <div class="col-12 col-md-3">
-                      <label class="form-label">N° doc</label>
-                      <input type="text" class="form-control" name="nro_documento" placeholder="Factura/OC/etc">
-                    </div>
-
-                    <div class="col-12 col-md-3">
-                      <label class="form-label">Concepto</label>
-                      <input type="text" class="form-control" name="concepto" placeholder="Etiqueta corta">
-                    </div>
-
-                    <div class="col-12 col-md-6">
-                      <label class="form-label">Descripción</label>
-                      <input type="text" class="form-control" name="descripcion" placeholder="Detalle del pago">
-                    </div>
-
-                    <div class="col-12 col-md-3">
-                      <label class="form-label">Control interno</label>
-                      <input type="text" class="form-control" name="control_interno" placeholder="Opcional">
-                    </div>
-
-                    <div class="col-12 d-flex gap-2 mt-2">
-                      <button class="btn btn-primary" type="submit">Agregar ítem</button>
+                  {% else %}
+                    <div class="d-flex gap-2">
                       <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Volver al listado</a>
                     </div>
-                  </form>
+                  {% endif %}
 
-                {% endif %}
-              </div>
+                </div>
+              {% endif %}
+
             {% endif %}
           </div>
 
@@ -617,10 +875,44 @@
           </div>
           <hr>
 
-          {% set total_general_calc = ( (resumen_anticipos.total_monto if resumen_anticipos else tot["REMU"]) + tot["REND"] + tot["TERC"] + tot["VAR"] ) %}
+          {% set remu_for_total = (resumen_anticipos.total_monto if resumen_anticipos else tot["REMU"]) %}
+          {% set total_general_calc = ( remu_for_total + tot["REND"] + tot["TERC"] + tot["VAR"] ) %}
           <div class="d-flex justify-content-between">
             <span class="fw-semibold">Total general</span><span class="fw-semibold">{{ fmt_clp(total_general_calc) }}</span>
           </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <div class="fw-semibold">Bitácora de movimientos</div>
+            <span class="badge text-bg-light">Auditoría</span>
+          </div>
+
+          {% if bitacora_rows is defined and bitacora_rows %}
+            <div class="vstack gap-2">
+              {% for b in bitacora_rows %}
+                <div class="border rounded-3 p-2 bg-light-subtle">
+                  <div class="d-flex justify-content-between gap-2 flex-wrap">
+                    <div class="fw-semibold small">{{ b.accion|replace('_', ' ')|title }}</div>
+                    <div class="text-muted small">{{ b.creado_en }}</div>
+                  </div>
+                  <div class="text-muted small">
+                    {{ b.usuario_nombre or 'Usuario sistema' }}
+                    {% if b.estado_anterior or b.estado_nuevo %}
+                      · {{ b.estado_anterior or '-' }} → {{ b.estado_nuevo or '-' }}
+                    {% endif %}
+                  </div>
+                  {% if b.detalle %}
+                    <div class="small mt-1">{{ b.detalle }}</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted small">Sin movimientos registrados aún. Desde ahora quedará todo con huella digital administrativa.</div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -629,7 +921,35 @@
 
 </div>
 
-{# DATALISTS GLOBALES para modals de edición (evita duplicar en cada modal) #}
+
+{# Modal: rechazo con motivo obligatorio #}
+<div class="modal fade" id="modalRechazarSolicitud" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="fw-semibold">Rechazar Solicitud de Fondos #{{ s.numero }}</div>
+          <div class="text-muted small">El motivo quedará registrado en la bitácora.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form method="post" action="{{ url_for('solicitudes_fondos.cambiar_estado', solicitud_id=s.id) }}">
+        <div class="modal-body">
+          <input type="hidden" name="estado" value="RECHAZADA">
+          <label class="form-label">Motivo del rechazo <span class="text-danger">*</span></label>
+          <textarea name="motivo_rechazo" class="form-control" rows="4" required maxlength="1000" placeholder="Ej.: Falta respaldo de factura, monto no corresponde, proveedor no autorizado..."></textarea>
+          <div class="form-text">Esta observación ayuda a que el usuario corrija sin jugar a las adivinanzas administrativas.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Confirmar rechazo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# DATALISTS GLOBALES para modals de edición #}
 <datalist id="lista_terceros_global">
   {% for t in terceros %}
     <option value="{{ t.id }} - {{ t.nombre_display }} · {{ t.rut_completo }}"></option>
@@ -638,7 +958,7 @@
 
 <datalist id="lista_trabajadores_global">
   {% for tr in trabajadores %}
-    <option value="{{ tr.id }} - {{ tr.ap_paterno }} {{ tr.ap_materno or '' }}, {{ tr.nombres }} · {{ tr.rut_completo }}"></option>
+    <option value="{{ tr.id }} - {{ tr.ap_paterno }} {{ tr.ap_materno or '' }}, {{ tr.nombres }} · {{ tr.rut_completo }}{% if (tr.estado_trabajador or '') != 'VIGENTE' %} · NO VIGENTE{% endif %}"></option>
   {% endfor %}
 </datalist>
 

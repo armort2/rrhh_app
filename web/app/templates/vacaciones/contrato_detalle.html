@@ -1,0 +1,117 @@
+{# web/app/templates/vacaciones/contrato_detalle.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid cs-detail-page py-3">
+  <div class="section-header">
+    <div class="section-title">Vacaciones · Contrato #{{ contrato.id }}</div>
+    <div class="section-subtitle">
+      {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno or '' }}, {{ contrato.trabajador.nombres }}
+      · {{ contrato.trabajador.rut_completo }}
+      · Antigüedad: {{ antiguedad }}
+· Vacaciones:
+
+<span class="badge bg-info text-dark"
+      data-bs-toggle="tooltip"
+      data-bs-placement="top"
+      title="Días devengados a la fecha: se generan por antigüedad (ej: 15 días/año).">
+  <i class="bi bi-calendar-check me-1"></i>
+  Devengado: {{ acumulado }}
+</span>
+
+<span class="badge bg-warning text-dark"
+      data-bs-toggle="tooltip"
+      data-bs-placement="top"
+      title="Días ya utilizados: suma de días hábiles de comprobantes EMITIDOS (BORRADOR no descuenta).">
+  <i class="bi bi-calendar-minus me-1"></i>
+  Usados: {{ usados }}
+</span>
+
+{% set saldo_num = (saldo|float) %}
+{% if saldo_num < 0 %}
+  <span class="badge bg-danger"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        title="Saldo disponible. Puede ser negativo si hubo vacaciones anticipadas autorizadas (anticipo).">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+    Saldo: {{ saldo }}
+  </span>
+{% elif saldo_num > 0 %}
+  <span class="badge bg-success"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        title="Saldo disponible = Devengado - Usados.">
+    <i class="bi bi-check-circle-fill me-1"></i>
+    Saldo: {{ saldo }}
+  </span>
+{% else %}
+  <span class="badge bg-secondary"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        title="Saldo en cero: no hay días disponibles a la fecha.">
+    <i class="bi bi-dash-circle-fill me-1"></i>
+    Saldo: {{ saldo }}
+  </span>
+{% endif %}
+
+
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="d-flex gap-2 mb-3">
+    <a class="btn btn-primary"
+       href="{{ url_for('vacaciones.nuevo', contrato_id=contrato.id) }}">
+      + Nuevo comprobante
+    </a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('vacaciones.index') }}">Volver</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Comprobante</th>
+              <th>Emisión</th>
+              <th>Inicio</th>
+              <th>Término</th>
+              <th class="text-end">Días</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for v in vacaciones %}
+            <tr>
+              <td>{{ v.id }}</td>
+              <td>N° {{ v.corr_contrato }}</td>
+              <td>{{ v.fecha_emision }}</td>
+              <td>{{ v.fecha_inicio }}</td>
+              <td>{{ v.fecha_termino }}</td>
+              <td class="text-end">{{ v.dias_habiles }}</td>
+              <td>
+                {% if v.estado == 'EMITIDO' %}
+                  <span class="badge bg-success">EMITIDO</span>
+                {% elif v.estado == 'ANULADO' %}
+                  <span class="badge bg-danger">ANULADO</span>
+                {% else %}
+                  <span class="badge bg-secondary">BORRADOR</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary"
+                   href="{{ url_for('vacaciones.detalle', vacaciones_id=v.id) }}">Detalle</a>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

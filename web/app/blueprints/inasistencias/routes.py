@@ -83,6 +83,13 @@ MOTIVOS: dict[str, dict] = {
         "badge": "bg-secondary",
         "cuenta_art160": False,
     },
+    "RETIRO DE OBRA SIN PERMISO": {
+        "label": "Retiro de obra sin permiso",
+        "tipo": "HORAS",
+        "no_descuenta": False,
+        "badge": "bg-secondary",
+        "cuenta_art160": False,
+    },
     "PERMISO": {
         "label": "Permiso",
         "tipo": "HORAS",

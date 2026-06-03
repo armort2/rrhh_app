@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import os
 import uuid
+import json
+import glob
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, Tuple
 
 from flask import (
@@ -21,7 +23,7 @@ from flask import (
     abort,
 )
 from flask_login import login_required, current_user
-from sqlalchemy import func, and_, literal, case
+from sqlalchemy import func, and_, or_, literal, case
 from sqlalchemy.orm import aliased
 from jinja2 import TemplateError
 
@@ -35,6 +37,8 @@ from ...models import (
     Contrato,
     Banco,
     Empleador,
+    SolicitudFondos,
+    SolicitudFondosItem,
 )
 
 # Mantengo importación para uso futuro (mes anterior por Excel, etc.)
@@ -122,6 +126,175 @@ def _format_rut_show(t: Trabajador) -> str | None:
     return _rut_con_puntos(s) or s
 
 
+def _rut_sin_puntos_con_guion(rut_raw: str | None) -> str | None:
+    """
+    Normaliza a: 12345678-9 (sin puntos, con guión).
+    Acepta: 12.345.678-9 / 12345678-9 / 12345678 (si no hay DV, devuelve base sin inventar DV).
+    """
+    if not rut_raw:
+        return None
+
+    s = str(rut_raw).strip().replace(" ", "")
+    if not s:
+        return None
+
+    s = s.replace(".", "")
+    if "-" in s:
+        base, dv = s.split("-", 1)
+        base_digits = "".join(ch for ch in base if ch.isdigit())
+        dv = dv.strip().upper()
+        if base_digits and dv:
+            return f"{base_digits}-{dv}"
+        return s
+
+    base_digits = "".join(ch for ch in s if ch.isdigit())
+    return base_digits or s
+
+
+def _rut_trabajador_para_edig(t: Trabajador | None, det: AnticipoDetalle | None) -> str | None:
+    # Preferir rut/dv del Trabajador si existen
+    if t is not None:
+        rut = getattr(t, "rut", None)
+        dv = getattr(t, "dv", None)
+        if rut:
+            base = "".join(ch for ch in str(rut).strip().replace(".", "") if ch.isdigit())
+            if dv:
+                return f"{base}-{str(dv).strip().upper()}"
+            # fallback sin DV (no inventamos)
+            return base or None
+
+    # fallback a lo que haya en detalle
+    if det is not None:
+        return _rut_sin_puntos_con_guion(getattr(det, "rut", None))
+
+    return None
+
+
+def _safe_filename(s: str) -> str:
+    s = (s or "").strip()
+    s = "".join(ch if ch.isalnum() or ch in ("-", "_", ".", " ") else "_" for ch in s)
+    s = s.replace(" ", "_")
+    while "__" in s:
+        s = s.replace("__", "_")
+    return s or "archivo"
+
+
+
+def _build_nros_contrato_edig(contrato_ids: list[int], periodo_inicio: date | None = None, periodo_fin: date | None = None) -> dict[int, int]:
+    """
+    Devuelve el Nro. Contrato que debe viajar al CSV EDIG para cada contrato_id.
+
+    Regla funcional:
+    - El anticipo pertenece a una línea de contrato, no solo al trabajador.
+    - Para EDIG usamos un ordinal estable por trabajador + empleador, ordenado por
+      fecha de inicio e id de contrato: 1, 2, 3...
+    - Esto evita que dos anticipos de un mismo RUT queden ambos como contrato 1.
+    """
+    ids = sorted({int(x) for x in (contrato_ids or []) if x})
+    if not ids:
+        return {}
+
+    base_rows = (
+        db.session.query(Contrato.id, Contrato.trabajador_id, Contrato.empleador_id)
+        .filter(Contrato.id.in_(ids))
+        .all()
+    )
+
+    pares = {
+        (int(trabajador_id), int(empleador_id))
+        for _cid, trabajador_id, empleador_id in base_rows
+        if trabajador_id and empleador_id
+    }
+    if not pares:
+        return {cid: 1 for cid in ids}
+
+    q = (
+        db.session.query(Contrato)
+        .filter(Contrato.trabajador_id.in_({p[0] for p in pares}))
+        .filter(Contrato.empleador_id.in_({p[1] for p in pares}))
+    )
+
+    # Si se entrega período, numeramos contratos que intersectan ese mes.
+    # Así el ordinal representa el set contractual activo/importable del período.
+    if periodo_inicio is not None and periodo_fin is not None:
+        q = q.filter(Contrato.fecha_inicio.isnot(None))
+        q = q.filter(Contrato.fecha_inicio < periodo_fin)
+        q = q.filter(func.coalesce(Contrato.fecha_termino, date(2999, 12, 31)) >= periodo_inicio)
+
+    contratos = q.order_by(Contrato.trabajador_id.asc(), Contrato.empleador_id.asc(), Contrato.fecha_inicio.asc(), Contrato.id.asc()).all()
+
+    grupos: dict[tuple[int, int], list[Contrato]] = {}
+    for c in contratos:
+        if not c.trabajador_id or not c.empleador_id:
+            continue
+        key = (int(c.trabajador_id), int(c.empleador_id))
+        if key in pares:
+            grupos.setdefault(key, []).append(c)
+
+    out: dict[int, int] = {}
+    for key, items in grupos.items():
+        for idx, c in enumerate(items, start=1):
+            out[int(c.id)] = idx
+
+    # Fallback conservador: si algún contrato no entró por datos incompletos, no rompemos exportación.
+    for cid in ids:
+        out.setdefault(cid, 1)
+    return out
+
+
+
+
+def _is_hex_token(s: str) -> bool:
+    s = (s or "").strip().lower()
+    # token uuid4 hex = 32 chars
+    return len(s) == 32 and all(c in "0123456789abcdef" for c in s)
+
+
+def _tmp_edig_dir() -> str:
+    d = os.path.join(current_app.instance_path, "tmp_edig")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _meta_path(token: str) -> str:
+    return os.path.join(_tmp_edig_dir(), f"{token}_meta.json")
+
+
+def _find_csv_by_token(token: str) -> tuple[str, str] | None:
+    if not _is_hex_token(token):
+        return None
+    tmp_dir = _tmp_edig_dir()
+    matches = glob.glob(os.path.join(tmp_dir, f"{token}_*.csv"))
+    if not matches:
+        return None
+    path = sorted(matches)[-1]
+    filename = os.path.basename(path).split("_", 1)[-1]
+    return path, filename
+
+
+def _find_excluidos_by_token(token: str) -> str | None:
+    if not _is_hex_token(token):
+        return None
+    path = os.path.join(_tmp_edig_dir(), f"{token}_excluidos.json")
+    return path if os.path.exists(path) else None
+
+
+def _load_edig_meta(token: str) -> dict | None:
+    if not _is_hex_token(token):
+        return None
+    mp = _meta_path(token)
+    if not os.path.exists(mp):
+        return None
+    try:
+        with open(mp, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+
+
+
 def _ensure_nomina_origen(n: AnticipoNomina, default: str = "MANUAL") -> None:
     # Si aún no existe la columna en BD, no revienta.
     if hasattr(n, "origen"):
@@ -168,38 +341,96 @@ def _require_nomina_access(nomina: AnticipoNomina) -> None:
 
 def _sync_detalles_desde_cc(nomina: AnticipoNomina) -> dict:
     """
-    Inserta AnticipoDetalle faltantes para todos los trabajadores del CC.
-    Etapa actual: incluye NO VIGENTES (no filtra por estado_trabajador).
-    No borra ni pisa montos existentes.
+    Sincroniza AnticipoDetalle a nivel CONTRATO, no solo trabajador.
+
+    Esto corrige el caso de trabajadores con 2 contratos en el mismo período:
+    cada contrato vigente/intersectado en el CC genera su propia línea de anticipo.
     """
     cc = _upper(nomina.centro_costo)
 
-    # trabajadores del CC: trabajadores.obra_id -> obras.centro_costo
-    trabajadores_cc = (
-        db.session.query(Trabajador, Obra)
-        .join(Obra, Obra.id == Trabajador.obra_id)
-        .filter(func.coalesce(Obra.centro_costo, "") == cc)
+    periodo_inicio = date(int(nomina.anio), int(nomina.mes), 1)
+    periodo_fin = (
+        date(int(nomina.anio) + 1, 1, 1)
+        if int(nomina.mes) == 12
+        else date(int(nomina.anio), int(nomina.mes) + 1, 1)
+    )
+
+    contratos_cc = (
+        db.session.query(Trabajador, Contrato, Obra)
+        .join(Contrato, Contrato.trabajador_id == Trabajador.id)
+        .join(Obra, Obra.id == Contrato.obra_id)
+        .filter(func.upper(func.coalesce(Obra.centro_costo, "")) == cc)
+        .filter(Contrato.fecha_inicio.isnot(None))
+        .filter(Contrato.fecha_inicio < periodo_fin)
+        .filter(func.coalesce(Contrato.fecha_termino, date(2999, 12, 31)) >= periodo_inicio)
+        .order_by(
+            func.coalesce(Trabajador.ap_paterno, "").asc(),
+            func.coalesce(Trabajador.ap_materno, "").asc(),
+            func.coalesce(Trabajador.nombres, "").asc(),
+            Contrato.id.asc(),
+        )
         .all()
     )
 
-    existentes = {
-        tid for (tid,) in (
-            db.session.query(AnticipoDetalle.trabajador_id)
-            .filter(AnticipoDetalle.nomina_id == nomina.id)
-            .filter(AnticipoDetalle.trabajador_id.isnot(None))
-            .all()
-        )
-    }
+    elegibles_por_contrato = {int(c.id): (t, c, obra) for t, c, obra in contratos_cc if c and c.id}
+    contratos_por_trabajador: dict[int, list[tuple[Trabajador, Contrato, Obra]]] = {}
+    for t, c, obra in contratos_cc:
+        contratos_por_trabajador.setdefault(int(t.id), []).append((t, c, obra))
+
+    detalles_existentes = (
+        AnticipoDetalle.query
+        .filter(AnticipoDetalle.nomina_id == nomina.id)
+        .order_by(AnticipoDetalle.id.asc())
+        .all()
+    )
 
     insertados = 0
-    for t, obra in trabajadores_cc:
-        if t.id in existentes:
+    eliminados = 0
+    conservados_con_monto = 0
+    actualizados_contrato = 0
+
+    # Backfill suave: detalles antiguos sin contrato_id pasan a una línea por contrato.
+    # Si el trabajador tiene más de un contrato, se asigna el detalle existente al contrato más reciente
+    # y luego se insertan las líneas faltantes con monto 0.
+    for d in detalles_existentes:
+        if getattr(d, "contrato_id", None):
+            continue
+        if not d.trabajador_id:
+            continue
+
+        opciones = contratos_por_trabajador.get(int(d.trabajador_id), [])
+        if not opciones:
+            continue
+
+        # contrato más reciente para conservar la línea/monto existente
+        t, c, obra = sorted(opciones, key=lambda row: int(row[1].id or 0), reverse=True)[0]
+        d.contrato_id = c.id
+        d.obra_id = c.obra_id or (obra.id if obra else d.obra_id)
+        d.nombre_obra = (obra.nombre if obra else d.nombre_obra)
+        d.centro_costo = cc
+        if len(opciones) > 1:
+            msg = f"Backfill automático: trabajador con {len(opciones)} contratos en el período; revisar distribución por contrato."
+            d.observacion = (str(d.observacion).strip() + " | " if d.observacion else "") + msg
+            if d.estado_linea == "OK":
+                d.estado_linea = "AMBIGUO_CONTRATO"
+        actualizados_contrato += 1
+
+    existentes_contrato_ids = {
+        int(d.contrato_id)
+        for d in detalles_existentes
+        if getattr(d, "contrato_id", None) is not None
+    }
+
+    # Insertar una línea por contrato faltante
+    for contrato_id, (t, c, obra) in elegibles_por_contrato.items():
+        if contrato_id in existentes_contrato_ids:
             continue
 
         d = AnticipoDetalle(
             nomina_id=nomina.id,
             trabajador_id=t.id,
-            obra_id=obra.id if obra else None,
+            contrato_id=c.id,
+            obra_id=c.obra_id or (obra.id if obra else None),
             rut=_format_rut_show(t),
             nombre_completo=_format_nombre_completo(t) or None,
             nombre_obra=obra.nombre if obra else None,
@@ -211,9 +442,38 @@ def _sync_detalles_desde_cc(nomina: AnticipoNomina) -> dict:
         db.session.add(d)
         insertados += 1
 
-    db.session.commit()
-    return {"nomina_id": nomina.id, "insertados": insertados, "total_cc": len(trabajadores_cc)}
+    # Eliminar obsoletos sin monto: ahora la llave válida es contrato_id.
+    for d in detalles_existentes:
+        contrato_id = int(d.contrato_id) if getattr(d, "contrato_id", None) else None
+        tid = int(d.trabajador_id) if d.trabajador_id else None
 
+        vigente = contrato_id in elegibles_por_contrato if contrato_id else (tid in contratos_por_trabajador if tid else False)
+        if vigente:
+            continue
+
+        monto_actual = float(d.monto or 0)
+        if monto_actual != 0:
+            conservados_con_monto += 1
+            current_app.logger.warning(
+                "Anticipos sync: detalle obsoleto conservado por tener monto. "
+                "nomina_id=%s detalle_id=%s trabajador_id=%s contrato_id=%s monto=%s",
+                nomina.id, d.id, tid, contrato_id, monto_actual
+            )
+            continue
+
+        db.session.delete(d)
+        eliminados += 1
+
+    db.session.commit()
+
+    return {
+        "nomina_id": nomina.id,
+        "insertados": insertados,
+        "eliminados": eliminados,
+        "conservados_con_monto": conservados_con_monto,
+        "actualizados_contrato": actualizados_contrato,
+        "total_elegibles": len(elegibles_por_contrato),
+    }
 
 def _tipo_key_expr():
     # Normaliza: upper(trim(coalesce(tipo, 'SIN TIPO')))
@@ -226,7 +486,6 @@ def _tipo_priority_expr(tipo_key_expr):
         (tipo_key_expr == "JEFATURA U OTROS", 0),
         else_=1,
     )
-
 
 # ---------------------------
 # Listado de nóminas
@@ -355,8 +614,22 @@ def nueva():
 
         # Sincronizar trabajadores del CC
         res_sync = _sync_detalles_desde_cc(nomina)
+
+        if res_sync.get("actualizados_contrato", 0) > 0:
+            flash(f"Se actualizaron {res_sync['actualizados_contrato']} líneas antiguas para asociarlas a contrato.", "info")
+
         if res_sync.get("insertados", 0) > 0:
-            flash(f"Se agregaron {res_sync['insertados']} trabajadores a la nómina (sincronización CC).", "success")
+            flash(f"Se agregaron {res_sync['insertados']} líneas de contrato a la nómina.", "success")
+
+        if res_sync.get("eliminados", 0) > 0:
+            flash(f"Se eliminaron {res_sync['eliminados']} trabajadores que ya no estaban vigentes en el período.", "info")
+
+        if res_sync.get("conservados_con_monto", 0) > 0:
+            flash(
+                f"Se detectaron {res_sync['conservados_con_monto']} líneas obsoletas con monto distinto de 0; "
+                f"no se eliminaron automáticamente.",
+                "warning",
+            )
 
         return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
 
@@ -451,14 +724,36 @@ def detalle(nomina_id: int):
             abort(403)
         if nomina.estado == "BORRADOR":
             res_sync = _sync_detalles_desde_cc(nomina)
+
+            if res_sync.get("actualizados_contrato", 0) > 0:
+                flash(f"Sync CC: se actualizaron {res_sync['actualizados_contrato']} líneas antiguas para asociarlas a contrato.", "info")
+
             if res_sync.get("insertados", 0) > 0:
-                flash(f"Sync CC: se agregaron {res_sync['insertados']} trabajadores.", "success")
+                flash(f"Sync CC: se agregaron {res_sync['insertados']} líneas de contrato.", "success")
+
+            if res_sync.get("eliminados", 0) > 0:
+                flash(f"Sync CC: se eliminaron {res_sync['eliminados']} trabajadores no vigentes para el período.", "info")
+
+            if res_sync.get("conservados_con_monto", 0) > 0:
+                flash(
+                    f"Sync CC: {res_sync['conservados_con_monto']} líneas obsoletas se conservaron por tener monto distinto de 0.",
+                    "warning",
+                )
         return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
 
     q_text = (request.args.get("q") or "").strip()
     q_obra_id = _to_int(request.args.get("obra_id"))  # (opcional)
     q_tipo = (request.args.get("tipo_trabajador") or "").strip()
-    q_cargo_id = _to_int(request.args.get("cargo_id"))  # ✅ NUEVO
+
+    # ✅ Nuevo: múltiples cargos
+    q_cargo_ids = []
+    for raw in request.args.getlist("cargo_ids"):
+        cid = _to_int(raw)
+        if cid:
+            q_cargo_ids.append(cid)
+
+    # Quitar duplicados preservando orden
+    q_cargo_ids = list(dict.fromkeys(q_cargo_ids))
 
     # Nómina mes anterior (misma CC)
     anio_prev, mes_prev = _prev_period(nomina.anio, nomina.mes)
@@ -470,18 +765,14 @@ def detalle(nomina_id: int):
     nomina_prev_id = nomina_prev.id if nomina_prev else None
 
     PrevDet = aliased(AnticipoDetalle)
-
     monto_prev_expr = func.coalesce(PrevDet.monto, 0) if nomina_prev_id else literal(0)
 
-    # ✅ Contrato vigente: subquery para traer el último contrato VIGENTE por trabajador
-    contrato_vigente_sq = (
-        db.session.query(
-            Contrato.trabajador_id.label("trabajador_id"),
-            func.max(Contrato.id).label("contrato_id"),
-        )
-        .filter(Contrato.estado_contrato == "VIGENTE")
-        .group_by(Contrato.trabajador_id)
-        .subquery()
+    # Contrato vigente EN EL PERÍODO DE LA NÓMINA y en el mismo CC
+    periodo_inicio = date(int(nomina.anio), int(nomina.mes), 1)
+    periodo_fin = (
+        date(int(nomina.anio) + 1, 1, 1)
+        if int(nomina.mes) == 12
+        else date(int(nomina.anio), int(nomina.mes) + 1, 1)
     )
 
     ContratoV = aliased(Contrato)
@@ -496,11 +787,13 @@ def detalle(nomina_id: int):
             Trabajador.nombres.label("nombres"),
             monto_prev_expr.label("monto_prev"),
             func.coalesce(ContratoV.sueldo_base, 0).label("sueldo_base"),
+            ContratoV.fecha_inicio.label("fecha_ingreso"),
+            ContratoV.id.label("contrato_id"),
         )
         .outerjoin(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
-        .outerjoin(Cargo, Cargo.id == Trabajador.cargo_id)
-        .outerjoin(contrato_vigente_sq, contrato_vigente_sq.c.trabajador_id == Trabajador.id)
-        .outerjoin(ContratoV, ContratoV.id == contrato_vigente_sq.c.contrato_id)
+        .outerjoin(ContratoV, ContratoV.id == AnticipoDetalle.contrato_id)
+        # Cargo efectivo: primero el cargo del contrato del detalle; si es línea antigua sin contrato, cae al cargo maestro del trabajador.
+        .outerjoin(Cargo, Cargo.id == func.coalesce(ContratoV.cargo_id, Trabajador.cargo_id))
         .filter(AnticipoDetalle.nomina_id == nomina.id)
     )
 
@@ -510,6 +803,12 @@ def detalle(nomina_id: int):
             and_(
                 PrevDet.nomina_id == nomina_prev_id,
                 PrevDet.trabajador_id == AnticipoDetalle.trabajador_id,
+                # Ideal: mismo contrato. Compatibilidad: nóminas antiguas sin contrato_id.
+                (
+                    (PrevDet.contrato_id == AnticipoDetalle.contrato_id)
+                    | (PrevDet.contrato_id.is_(None))
+                    | (AnticipoDetalle.contrato_id.is_(None))
+                ),
             ),
         )
 
@@ -530,8 +829,9 @@ def detalle(nomina_id: int):
     if q_tipo:
         q = q.filter(func.coalesce(Trabajador.tipo_trabajador, "").ilike(q_tipo))
 
-    if q_cargo_id:
-        q = q.filter(Cargo.id == q_cargo_id)
+    # ✅ Nuevo: múltiples cargos
+    if q_cargo_ids:
+        q = q.filter(Cargo.id.in_(q_cargo_ids))
 
     tipo_key = _tipo_key_expr()
     tipo_prio = _tipo_priority_expr(tipo_key)
@@ -549,10 +849,17 @@ def detalle(nomina_id: int):
     )
 
     detalles = []
-    for d, cargo_nombre, tipo_trabajador, ap_paterno, ap_materno, nombres, monto_prev, sueldo_base in rows:
-        nombre_ordenado = " ".join(p for p in [ap_paterno, ap_materno, nombres] if p and str(p).strip()).strip()
+    total_filtrado = 0.0
+
+    for d, cargo_nombre, tipo_trabajador, ap_paterno, ap_materno, nombres, monto_prev, sueldo_base, fecha_ingreso, contrato_id in rows:
+        nombre_ordenado = " ".join(
+            p for p in [ap_paterno, ap_materno, nombres] if p and str(p).strip()
+        ).strip()
         if not nombre_ordenado:
             nombre_ordenado = (d.nombre_completo or "-").strip()
+
+        monto_actual = float(d.monto or 0)
+        total_filtrado += monto_actual
 
         detalles.append(
             {
@@ -562,13 +869,53 @@ def detalle(nomina_id: int):
                 "monto_prev": float(monto_prev or 0),
                 "nombre_ordenado": nombre_ordenado,
                 "sueldo_base": float(sueldo_base or 0),
+                "fecha_ingreso": fecha_ingreso,
+                "contrato_id": contrato_id or getattr(d, "contrato_id", None),
             }
         )
 
+    # Total general de la nómina completa (sin filtros)
     total_monto = (
         db.session.query(func.coalesce(func.sum(AnticipoDetalle.monto), 0))
         .filter(AnticipoDetalle.nomina_id == nomina.id)
         .scalar()
+    )
+
+    # ==========================
+    # KPIs Integración SF (REMU)
+    # ==========================
+    total_integrado = (
+        db.session.query(func.coalesce(func.sum(SolicitudFondosItem.monto), 0))
+        .filter(SolicitudFondosItem.seccion == "REMU")
+        .filter(SolicitudFondosItem.anticipo_nomina_id == nomina.id)
+        .scalar()
+    ) or 0
+
+    pendiente_integrar = float(total_monto or 0) - float(total_integrado or 0)
+    if pendiente_integrar < 0:
+        pendiente_integrar = 0  # por seguridad contable
+
+    # (Opcional PRO) desglose por SF
+    integracion_por_sf = (
+        db.session.query(
+            SolicitudFondos.id.label("sf_id"),
+            SolicitudFondos.numero.label("sf_numero"),
+            SolicitudFondos.estado.label("sf_estado"),
+            SolicitudFondos.fecha_solicitud.label("sf_fecha"),
+            func.coalesce(func.sum(SolicitudFondosItem.monto), 0).label("sf_total"),
+            func.count(SolicitudFondosItem.id).label("sf_count"),
+        )
+        .join(SolicitudFondos, SolicitudFondos.id == SolicitudFondosItem.solicitud_id)
+        .filter(SolicitudFondosItem.seccion == "REMU")
+        .filter(SolicitudFondosItem.anticipo_nomina_id == nomina.id)
+        .group_by(
+            SolicitudFondos.id,
+            SolicitudFondos.numero,
+            SolicitudFondos.estado,
+            SolicitudFondos.fecha_solicitud,
+        )
+        .order_by(SolicitudFondos.fecha_solicitud.desc(), SolicitudFondos.id.desc())
+        .all()
     )
 
     obras = (
@@ -598,7 +945,8 @@ def detalle(nomina_id: int):
         db.session.query(Cargo.id, Cargo.nombre)
         .select_from(AnticipoDetalle)
         .outerjoin(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
-        .outerjoin(Cargo, Cargo.id == Trabajador.cargo_id)
+        .outerjoin(ContratoV, ContratoV.id == AnticipoDetalle.contrato_id)
+        .outerjoin(Cargo, Cargo.id == func.coalesce(ContratoV.cargo_id, Trabajador.cargo_id))
         .filter(AnticipoDetalle.nomina_id == nomina.id)
         .filter(Cargo.id.isnot(None))
         .distinct()
@@ -606,7 +954,8 @@ def detalle(nomina_id: int):
         .all()
     )
 
-    subtotales_tipo = (
+    # ✅ Subtotales usando el mismo filtro aplicado
+    q_subtotales = (
         db.session.query(
             func.coalesce(Trabajador.tipo_trabajador, "SIN TIPO").label("tipo"),
             func.coalesce(func.sum(AnticipoDetalle.monto), 0).label("total"),
@@ -614,7 +963,33 @@ def detalle(nomina_id: int):
         )
         .select_from(AnticipoDetalle)
         .outerjoin(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
+        .outerjoin(ContratoV, ContratoV.id == AnticipoDetalle.contrato_id)
+        .outerjoin(Cargo, Cargo.id == func.coalesce(ContratoV.cargo_id, Trabajador.cargo_id))
         .filter(AnticipoDetalle.nomina_id == nomina.id)
+    )
+
+    if q_obra_id:
+        q_subtotales = q_subtotales.filter(AnticipoDetalle.obra_id == q_obra_id)
+
+    if q_text:
+        like = f"%{q_text}%"
+        q_subtotales = q_subtotales.filter(
+            (func.coalesce(AnticipoDetalle.rut, "").ilike(like))
+            | (func.coalesce(AnticipoDetalle.nombre_completo, "").ilike(like))
+            | (func.coalesce(AnticipoDetalle.nombre_obra, "").ilike(like))
+            | (func.coalesce(Cargo.nombre, "").ilike(like))
+            | (func.coalesce(Trabajador.tipo_trabajador, "").ilike(like))
+            | (func.coalesce(AnticipoDetalle.observacion, "").ilike(like))
+        )
+
+    if q_tipo:
+        q_subtotales = q_subtotales.filter(func.coalesce(Trabajador.tipo_trabajador, "").ilike(q_tipo))
+
+    if q_cargo_ids:
+        q_subtotales = q_subtotales.filter(Cargo.id.in_(q_cargo_ids))
+
+    subtotales_tipo = (
+        q_subtotales
         .group_by(func.coalesce(Trabajador.tipo_trabajador, "SIN TIPO"))
         .order_by(func.coalesce(Trabajador.tipo_trabajador, "SIN TIPO").asc())
         .all()
@@ -622,11 +997,25 @@ def detalle(nomina_id: int):
 
     periodo_prev_str = f"{anio_prev:04d}-{mes_prev:02d}"
 
+    # ✅ Ahora: permitir ver SF candidatas aunque nómina esté BORRADOR/ENVIADA/VISADA
+    solicitudes_quincena = []
+    if current_user.has_role("ADMIN") or current_user.has_role("OPERADOR"):
+        solicitudes_quincena = (
+            SolicitudFondos.query
+            .filter(SolicitudFondos.centro_costo == (nomina.centro_costo or "").strip().upper())
+            .filter(SolicitudFondos.periodo_tipo == "QUINCENA")
+            .filter(SolicitudFondos.estado.in_(["BORRADOR", "ENVIADA", "APROBADA"]))
+            .order_by(SolicitudFondos.fecha_solicitud.desc(), SolicitudFondos.id.desc())
+            .limit(30)
+            .all()
+        )
+
     return render_template(
         "anticipos/anticipos_detalle.html",
         nomina=nomina,
         detalles=detalles,
         total_monto=total_monto,
+        total_filtrado=total_filtrado,
         obras=obras,
         tipos_trabajador=tipos_trabajador,
         cargos=cargos,
@@ -634,9 +1023,13 @@ def detalle(nomina_id: int):
         q_text=q_text,
         q_obra_id=q_obra_id,
         q_tipo=q_tipo,
-        q_cargo_id=q_cargo_id,
+        q_cargo_ids=q_cargo_ids,
         nomina_prev=nomina_prev,
         periodo_prev_str=periodo_prev_str,
+        solicitudes_quincena=solicitudes_quincena,
+        total_integrado=total_integrado,
+        pendiente_integrar=pendiente_integrar,
+        integracion_por_sf=integracion_por_sf,
     )
 
 
@@ -797,6 +1190,182 @@ def revertir_borrador(nomina_id: int):
     return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
 
 
+@bp.post("/<int:nomina_id>/integrar_sf")
+@login_required
+@role_required("ADMIN", "OPERADOR")
+def integrar_sf(nomina_id: int):
+    nomina = AnticipoNomina.query.get_or_404(nomina_id)
+    _require_nomina_access(nomina)
+
+    # ✅ Permitimos integrar desde BORRADOR / ENVIADA_A_VISACION / VISADA
+    estado_nom = (nomina.estado or "").strip().upper()
+    if estado_nom not in {"BORRADOR", "ENVIADA_A_VISACION", "VISADA"}:
+        flash("Estado de nómina no permite integración a Solicitud de Fondos.", "warning")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    solicitud_id = _to_int(request.form.get("solicitud_id"))
+    if not solicitud_id:
+        flash("Debes seleccionar una Solicitud de Fondos.", "warning")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    solicitud = SolicitudFondos.query.get_or_404(solicitud_id)
+
+    # Validaciones “corporativas”
+    cc_nom = (nomina.centro_costo or "").strip().upper()
+    cc_sf = (solicitud.centro_costo or "").strip().upper()
+
+    if cc_sf != cc_nom:
+        flash("La Solicitud de Fondos no corresponde al mismo Centro de Costo de la nómina.", "danger")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    if (solicitud.periodo_tipo or "").strip().upper() != "QUINCENA":
+        flash("La Solicitud de Fondos seleccionada no es de tipo QUINCENA.", "warning")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    # 🔒 Mantenemos regla: SOLO BORRADOR para integrar (control de flujo)
+    if (solicitud.estado or "").strip().upper() != "BORRADOR":
+        flash("La Solicitud de Fondos debe estar en estado BORRADOR para integrar anticipos.", "warning")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    # Validación de período (evitar mezclar meses)
+    ref = getattr(solicitud, "periodo_desde", None) or getattr(solicitud, "fecha_solicitud", None)
+    if ref:
+        try:
+            if int(ref.year) != int(nomina.anio) or int(ref.month) != int(nomina.mes):
+                flash(
+                    f"Período inconsistente: la SF referencia {int(ref.year):04d}-{int(ref.month):02d} "
+                    f"y la nómina es {int(nomina.anio):04d}-{int(nomina.mes):02d}.",
+                    "warning",
+                )
+                return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+        except Exception:
+            pass
+
+    # Rango mensual (intersección de contratos)
+    periodo_inicio = date(int(nomina.anio), int(nomina.mes), 1)
+    periodo_fin = date(int(nomina.anio) + 1, 1, 1) if int(nomina.mes) == 12 else date(int(nomina.anio), int(nomina.mes) + 1, 1)
+
+    # Líneas con monto > 0
+    detalles = (
+        AnticipoDetalle.query
+        .filter(AnticipoDetalle.nomina_id == nomina.id)
+        .filter(func.coalesce(AnticipoDetalle.monto, 0) > 0)
+        .order_by(AnticipoDetalle.id.asc())
+        .all()
+    )
+    if not detalles:
+        flash("No hay líneas con monto mayor a 0 para integrar.", "info")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    wipe = (request.form.get("wipe_anticipo") or "") == "1"
+
+    insertados = 0
+    omitidos = 0
+    deleted = 0
+
+    try:
+        # 🧹 Wipe quirúrgico: SOLO anticipos de ESTA nómina en ESTA SF (REMU)
+        if wipe:
+            deleted = (
+                SolicitudFondosItem.query
+                .filter(SolicitudFondosItem.solicitud_id == solicitud.id)
+                .filter(SolicitudFondosItem.seccion == "REMU")
+                .filter(SolicitudFondosItem.anticipo_nomina_id == nomina.id)
+                .delete(synchronize_session=False)
+            ) or 0
+            db.session.flush()
+
+        # Orden: continuar desde el máximo existente
+        max_orden = (
+            db.session.query(func.coalesce(func.max(SolicitudFondosItem.orden), 0))
+            .filter(SolicitudFondosItem.solicitud_id == solicitud.id)
+            .scalar()
+        ) or 0
+
+        for det in detalles:
+            # Evitar duplicado por anticipo_detalle_id dentro de esta SF
+            ya = (
+                SolicitudFondosItem.query
+                .filter(SolicitudFondosItem.solicitud_id == solicitud.id)
+                .filter(SolicitudFondosItem.anticipo_detalle_id == det.id)
+                .first()
+            )
+            if ya:
+                omitidos += 1
+                continue
+
+            trabajador_id = det.trabajador_id
+            contrato_id = getattr(det, "contrato_id", None)
+
+            # Fallback para nóminas antiguas no sincronizadas: resolver contrato por trabajador/obra/período.
+            # El camino correcto ahora es que AnticipoDetalle ya venga con contrato_id.
+            if not contrato_id and trabajador_id:
+                q_contr = (
+                    db.session.query(Contrato.id)
+                    .filter(Contrato.trabajador_id == trabajador_id)
+                    .filter(Contrato.fecha_inicio.isnot(None))
+                    .filter(Contrato.fecha_inicio < periodo_fin)
+                    .filter(func.coalesce(Contrato.fecha_termino, date(2999, 12, 31)) >= periodo_inicio)
+                )
+                if getattr(det, "obra_id", None):
+                    q_contr = q_contr.filter(Contrato.obra_id == det.obra_id)
+
+                ids = [r[0] for r in q_contr.order_by(Contrato.id.desc()).limit(5).all()]
+                if len(ids) > 1:
+                    current_app.logger.warning(
+                        "Integración anticipos fallback: trabajador_id=%s sin contrato_id tiene múltiples contratos en período %s-%02d: %s (usando %s)",
+                        trabajador_id, nomina.anio, nomina.mes, ids, ids[0]
+                    )
+                contrato_id = ids[0] if ids else None
+
+            max_orden += 1
+
+            item = SolicitudFondosItem(
+                solicitud_id=solicitud.id,
+                seccion="REMU",
+                trabajador_id=trabajador_id,
+                contrato_id=contrato_id,
+                monto=det.monto or 0,
+                orden=max_orden,
+
+                # Origen / trazabilidad
+                anticipo_nomina_id=nomina.id,
+                anticipo_detalle_id=det.id,
+                concepto="ANTICIPOS",
+                descripcion=f"Anticipo de remuneraciones ({int(nomina.anio):04d}-{int(nomina.mes):02d})",
+                control_interno=f"ANTICIPO_NOMINA_{nomina.id}",
+            )
+
+            db.session.add(item)
+            db.session.flush()
+
+            # Marcar detalle como integrado (si existen columnas)
+            if hasattr(det, "integrado_sf_item_id"):
+                det.integrado_sf_item_id = int(item.id)
+            if hasattr(det, "integrado_en"):
+                det.integrado_en = datetime.utcnow()
+            if hasattr(det, "integrado_por"):
+                det.integrado_por = current_user.id
+
+            insertados += 1
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error integrando anticipos a SF: {e}", "danger")
+        return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+    if wipe and deleted > 0:
+        flash(f"🧹 Se eliminaron {deleted} ítems de anticipos (esta nómina) antes de reintegrar.", "info")
+
+    if estado_nom == "BORRADOR":
+        flash("⚠️ Integración realizada desde nómina en BORRADOR (vista previa para jefatura).", "warning")
+
+    flash(f"Integración completada ✅ Insertados: {insertados} · Omitidos (ya estaban): {omitidos}.", "success")
+    return redirect(url_for("anticipos.detalle", nomina_id=nomina.id))
+
+
 # ---------------------------
 # Imprimible (HTML)
 # ---------------------------
@@ -819,6 +1388,7 @@ def imprimir(nomina_id: int):
 
     PrevDet = aliased(AnticipoDetalle)
     monto_prev_expr = func.coalesce(PrevDet.monto, 0) if nomina_prev_id else literal(0)
+    ContratoV = aliased(Contrato)
 
     q = (
         db.session.query(
@@ -831,7 +1401,8 @@ def imprimir(nomina_id: int):
             monto_prev_expr.label("monto_prev"),
         )
         .outerjoin(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
-        .outerjoin(Cargo, Cargo.id == Trabajador.cargo_id)
+        .outerjoin(ContratoV, ContratoV.id == AnticipoDetalle.contrato_id)
+        .outerjoin(Cargo, Cargo.id == func.coalesce(ContratoV.cargo_id, Trabajador.cargo_id))
         .filter(AnticipoDetalle.nomina_id == nomina.id)
     )
 
@@ -841,6 +1412,12 @@ def imprimir(nomina_id: int):
             and_(
                 PrevDet.nomina_id == nomina_prev_id,
                 PrevDet.trabajador_id == AnticipoDetalle.trabajador_id,
+                # Ideal: mismo contrato. Compatibilidad: nóminas antiguas sin contrato_id.
+                (
+                    (PrevDet.contrato_id == AnticipoDetalle.contrato_id)
+                    | (PrevDet.contrato_id.is_(None))
+                    | (AnticipoDetalle.contrato_id.is_(None))
+                ),
             ),
         )
 
@@ -859,11 +1436,30 @@ def imprimir(nomina_id: int):
         .all()
     )
 
+    observaciones_list = []
+    obs_counter = 1
+
     detalles = []
     for d, cargo_nombre, tipo_trabajador, ap_paterno, ap_materno, nombres, monto_prev in rows:
-        nombre_ordenado = " ".join(p for p in [ap_paterno, ap_materno, nombres] if p and str(p).strip()).strip()
+        nombre_ordenado = " ".join(
+            p for p in [ap_paterno, ap_materno, nombres] if p and str(p).strip()
+        ).strip()
         if not nombre_ordenado:
             nombre_ordenado = (d.nombre_completo or "-").strip()
+
+        obs_ref = None
+        obs_text = (d.observacion or "").strip()
+
+        if obs_text:
+            obs_ref = obs_counter
+            observaciones_list.append({
+                "n": obs_counter,
+                "rut": _rut_con_puntos(getattr(d, "rut", None)) or "-",
+                "nombre": nombre_ordenado,
+                "monto": float(d.monto or 0),
+                "observacion": obs_text,
+            })
+            obs_counter += 1
 
         detalles.append(
             {
@@ -873,6 +1469,7 @@ def imprimir(nomina_id: int):
                 "monto_prev": float(monto_prev or 0),
                 "nombre_ordenado": nombre_ordenado,
                 "rut_fmt": _rut_con_puntos(getattr(d, "rut", None)) or (getattr(d, "rut", None) or "-"),
+                "obs_ref": obs_ref,
             }
         )
 
@@ -889,12 +1486,9 @@ def imprimir(nomina_id: int):
         total_monto=total_monto,
         nomina_prev=nomina_prev,
         periodo_prev_str=periodo_prev_str,
+        observaciones_list=observaciones_list,
     )
 
-
-# ---------------------------
-# Imprimir PDF
-# ---------------------------
 @bp.get("/<int:nomina_id>/imprimir.pdf")
 @login_required
 @role_required("ADMIN", "OPERADOR", "REVISOR")
@@ -929,6 +1523,7 @@ def imprimir_pdf(nomina_id: int):
 
     PrevDet = aliased(AnticipoDetalle)
     monto_prev_expr = func.coalesce(PrevDet.monto, 0) if nomina_prev_id else literal(0)
+    ContratoV = aliased(Contrato)
 
     q = (
         db.session.query(
@@ -941,7 +1536,8 @@ def imprimir_pdf(nomina_id: int):
             monto_prev_expr.label("monto_prev"),
         )
         .outerjoin(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
-        .outerjoin(Cargo, Cargo.id == Trabajador.cargo_id)
+        .outerjoin(ContratoV, ContratoV.id == AnticipoDetalle.contrato_id)
+        .outerjoin(Cargo, Cargo.id == func.coalesce(ContratoV.cargo_id, Trabajador.cargo_id))
         .filter(AnticipoDetalle.nomina_id == nomina.id)
     )
 
@@ -951,6 +1547,12 @@ def imprimir_pdf(nomina_id: int):
             and_(
                 PrevDet.nomina_id == nomina_prev_id,
                 PrevDet.trabajador_id == AnticipoDetalle.trabajador_id,
+                # Ideal: mismo contrato. Compatibilidad: nóminas antiguas sin contrato_id.
+                (
+                    (PrevDet.contrato_id == AnticipoDetalle.contrato_id)
+                    | (PrevDet.contrato_id.is_(None))
+                    | (AnticipoDetalle.contrato_id.is_(None))
+                ),
             ),
         )
 
@@ -986,11 +1588,30 @@ def imprimir_pdf(nomina_id: int):
         parts.insert(0, num)
         return f"{'.'.join(parts)}-{dv.strip()}"
 
+    observaciones_list = []
+    obs_counter = 1
+
     detalles = []
     for d, cargo_nombre, tipo_trabajador, ap_paterno, ap_materno, nombres, monto_prev in rows:
-        nombre_ordenado = " ".join(p for p in [ap_paterno, ap_materno, nombres] if p and str(p).strip()).strip()
+        nombre_ordenado = " ".join(
+            p for p in [ap_paterno, ap_materno, nombres] if p and str(p).strip()
+        ).strip()
         if not nombre_ordenado:
             nombre_ordenado = (d.nombre_completo or "-").strip()
+
+        obs_ref = None
+        obs_text = (d.observacion or "").strip()
+
+        if obs_text:
+            obs_ref = obs_counter
+            observaciones_list.append({
+                "n": obs_counter,
+                "rut": format_rut(getattr(d, "rut", None)),
+                "nombre": nombre_ordenado,
+                "monto": float(d.monto or 0),
+                "observacion": obs_text,
+            })
+            obs_counter += 1
 
         detalles.append(
             {
@@ -1000,6 +1621,7 @@ def imprimir_pdf(nomina_id: int):
                 "monto_prev": float(monto_prev or 0),
                 "nombre_ordenado": nombre_ordenado,
                 "rut_fmt": format_rut(getattr(d, "rut", None)),
+                "obs_ref": obs_ref,
             }
         )
 
@@ -1017,6 +1639,7 @@ def imprimir_pdf(nomina_id: int):
             total_monto=total_monto,
             nomina_prev=nomina_prev,
             periodo_prev_str=periodo_prev_str,
+            observaciones_list=observaciones_list,
         )
     except TemplateError as e:
         flash(f"Error template impresión PDF: {e}", "error")
@@ -1024,7 +1647,11 @@ def imprimir_pdf(nomina_id: int):
 
     pdf_bytes = HTML(string=html, base_url=request.host_url).write_pdf()
 
-    filename = f"anticipos_{nomina.id}_{nomina.anio:04d}-{nomina.mes:02d}_{nomina.centro_costo}.pdf".replace(" ", "_")
+    periodo_label = f"{nomina.anio:04d}-{nomina.mes:02d}"
+    cc_label = (nomina.centro_costo or "SIN_CC").strip()
+    filename = f"{periodo_label} Nómina Anticipos - {cc_label}.pdf"
+    filename = "".join(ch for ch in filename if ch not in '\\/:*?"<>|').strip() or "Nomina_Anticipos.pdf"
+
     resp = make_response(pdf_bytes)
     resp.headers["Content-Type"] = "application/pdf"
     resp.headers["Content-Disposition"] = f'inline; filename="{filename}"'
@@ -1035,6 +1662,251 @@ def imprimir_pdf(nomina_id: int):
     resp.headers["Surrogate-Control"] = "no-store"
 
     return resp
+
+import csv
+from io import StringIO
+
+@bp.get("/edig")
+@login_required
+@role_required("ADMIN")
+def edig():
+    # 1) Preferir última nómina VISADA
+    last_visada = (
+        db.session.query(AnticipoNomina.anio, AnticipoNomina.mes)
+        .filter(AnticipoNomina.estado == "VISADA")
+        .order_by(AnticipoNomina.anio.desc(), AnticipoNomina.mes.desc())
+        .first()
+    )
+
+    # 2) Si no hay VISADA, usar la última nómina existente (cualquier estado)
+    last_any = None
+    if not last_visada:
+        last_any = (
+            db.session.query(AnticipoNomina.anio, AnticipoNomina.mes)
+            .order_by(AnticipoNomina.anio.desc(), AnticipoNomina.mes.desc(), AnticipoNomina.id.desc())
+            .first()
+        )
+
+    if last_visada:
+        default_periodo = f"{int(last_visada.anio):04d}-{int(last_visada.mes):02d}"
+    elif last_any:
+        default_periodo = f"{int(last_any[0]):04d}-{int(last_any[1]):02d}"
+    else:
+        now = datetime.now()
+        default_periodo = f"{now.year:04d}-{now.month:02d}"
+
+
+    empleadores = Empleador.query.order_by(Empleador.razon_social.asc()).all()
+
+    token = (request.args.get("t") or "").strip()
+    resultado = _load_edig_meta(token) if token else None
+
+    return render_template(
+        "anticipos/anticipos_edig.html",
+        default_periodo=default_periodo,
+        empleadores=empleadores,
+        resultado=resultado,
+        selected_periodo=(resultado.get("periodo") if resultado else None),
+        selected_empresa_id=(resultado.get("empresa_id") if resultado else None),
+    )
+
+
+@bp.get("/edig/descargar/<token>")
+@login_required
+@role_required("ADMIN")
+def edig_descargar(token: str):
+    meta = _load_edig_meta(token)
+    if not meta:
+        flash("No se encontró el archivo temporal. Genera nuevamente.", "warning")
+        return redirect(url_for("anticipos.edig"))
+
+    if not meta.get("download_token"):
+        flash("Esta exportación no tiene CSV (no hay filas exportables).", "warning")
+        return redirect(url_for("anticipos.edig", t=token))
+
+    found = _find_csv_by_token(token)
+    if not found:
+        flash("No se encontró el archivo temporal. Genera nuevamente.", "warning")
+        return redirect(url_for("anticipos.edig", t=token))
+
+    path, filename = found
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="text/csv; charset=utf-8",
+        conditional=True,
+    )
+
+
+
+
+from sqlalchemy.orm import aliased
+import csv
+from io import StringIO
+
+@bp.post("/edig/generar")
+@login_required
+@role_required("ADMIN")
+def edig_generar():
+    from datetime import date
+
+    periodo = (request.form.get("periodo") or "").strip()  # YYYY-MM
+    empresa_id = _to_int(request.form.get("empresa_id"))
+
+    if not periodo or "-" not in periodo:
+        flash("Período inválido. Usa formato YYYY-MM (ej: 2026-01).", "warning")
+        return redirect(url_for("anticipos.edig"))
+
+    if not empresa_id:
+        flash("Selecciona una empresa.", "warning")
+        return redirect(url_for("anticipos.edig"))
+
+    try:
+        anio = int(periodo.split("-")[0])
+        mes = int(periodo.split("-")[1])
+    except Exception:
+        flash("Período inválido. Usa formato YYYY-MM (ej: 2026-01).", "warning")
+        return redirect(url_for("anticipos.edig"))
+
+    empresa = Empleador.query.get(empresa_id)
+    if not empresa:
+        flash("Empresa no encontrada.", "warning")
+        return redirect(url_for("anticipos.edig"))
+
+    # Rango del período
+    periodo_inicio = date(anio, mes, 1)
+    periodo_fin = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+
+    q = (
+        db.session.query(AnticipoDetalle, Trabajador, Contrato)
+        .join(AnticipoNomina, AnticipoNomina.id == AnticipoDetalle.nomina_id)
+        .join(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
+        # Fuente de verdad: cada línea de anticipo apunta a SU contrato.
+        # Esto evita volver a resolver por trabajador y perder el segundo contrato.
+        .outerjoin(Contrato, Contrato.id == AnticipoDetalle.contrato_id)
+        .filter(AnticipoNomina.anio == anio, AnticipoNomina.mes == mes)
+        .filter(AnticipoNomina.estado == "VISADA")
+        .filter(Contrato.empleador_id == empresa_id)
+        .filter(func.coalesce(AnticipoDetalle.monto, 0) > 0)
+        .order_by(
+            func.coalesce(Trabajador.ap_paterno, "").asc(),
+            func.coalesce(Trabajador.ap_materno, "").asc(),
+            func.coalesce(Trabajador.nombres, "").asc(),
+            Contrato.fecha_inicio.asc(),
+            AnticipoDetalle.contrato_id.asc(),
+            AnticipoDetalle.id.asc(),
+        )
+    )
+
+    rows = q.all()
+    if not rows:
+        flash("No se encontraron anticipos VISADOS para ese período.", "info")
+        return redirect(url_for("anticipos.edig"))
+
+    output = StringIO()
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
+    writer.writerow(["RUT", "Nombre Trabajador", "Nro. Contrato", "Codigo de Haber o Dscto.", "Monto"])
+
+    excluidos = []
+    ok_count = 0
+    total_monto = 0.0
+    total_count = 0
+
+    contrato_ids_export = [int(c.id) for _det, _t, c in rows if c is not None and getattr(c, "id", None)]
+    nro_contrato_por_id = _build_nros_contrato_edig(contrato_ids_export, periodo_inicio, periodo_fin)
+
+    for det, t, contrato in rows:
+        total_count += 1
+        contrato_id = int(contrato.id) if contrato is not None and getattr(contrato, "id", None) else None
+        nro_contrato_edig = nro_contrato_por_id.get(contrato_id, 1) if contrato_id else None
+
+        monto = float(getattr(det, "monto", 0) or 0)
+        monto_int = int(round(monto))
+
+        rut = _rut_trabajador_para_edig(t, det) or ""
+        nombre = _format_nombre_completo(t) or (getattr(det, "nombre_completo", None) or "")
+        nombre = " ".join(nombre.split()).strip()
+
+        if monto_int <= 0:
+            excluidos.append({"rut": rut, "nombre": nombre, "monto": monto_int, "motivo": "MONTO_CERO"})
+            continue
+
+        if not contrato_id:
+            excluidos.append({"rut": rut, "nombre": nombre, "monto": monto_int, "motivo": "SIN_CONTRATO_EN_PERIODO"})
+            continue
+
+        if not nro_contrato_edig:
+            excluidos.append({"rut": rut, "nombre": nombre, "monto": monto_int, "contrato_id": contrato_id, "motivo": "SIN_NRO_CONTRATO_EDIG"})
+            continue
+
+        if not rut.strip() or "-" not in rut:
+            excluidos.append({"rut": rut, "nombre": nombre, "monto": monto_int, "motivo": "SIN_RUT"})
+            continue
+
+        writer.writerow([rut, nombre, str(nro_contrato_edig), "DANTICIPOS", str(monto_int)])
+        ok_count += 1
+        total_monto += float(monto_int)
+
+    # Guardar siempre meta + excluidos, aunque ok_count sea 0 (para mostrar detalle)
+    token = uuid.uuid4().hex
+    tmp_dir = _tmp_edig_dir()
+
+    periodo_label = f"{anio:04d}-{mes:02d}"
+    filename_csv = _safe_filename(f"{periodo_label} Anticipos - {empresa.razon_social}.csv")
+
+    path_csv = os.path.join(tmp_dir, f"{token}_{filename_csv}")
+
+    path_excl = os.path.join(tmp_dir, f"{token}_excluidos.json")
+    path_meta = _meta_path(token)
+
+    # CSV (solo si hay ok_count > 0)
+    if ok_count > 0:
+        csv_bytes = output.getvalue().encode("utf-8-sig")
+        with open(path_csv, "wb") as f:
+            f.write(csv_bytes)
+
+    with open(path_excl, "w", encoding="utf-8") as f:
+        json.dump(excluidos, f, ensure_ascii=False, indent=2)
+
+    meta = {
+        "periodo": periodo,
+        "empresa_id": empresa_id,
+        "empresa_label": empresa.razon_social,
+        "ok_count": ok_count,
+        "total_monto": float(total_monto or 0),
+        "excluidos_count": len(excluidos),
+        "total_count": total_count,
+        "download_token": token if ok_count > 0 else None,
+    }
+    with open(path_meta, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    if ok_count == 0:
+        flash("No hay filas exportables (revisa el detalle de excluidos).", "warning")
+    else:
+        flash("CSV generado correctamente.", "success")
+
+    # ✅ redirect pro: token via querystring (sin session)
+    return redirect(url_for("anticipos.edig", t=token))
+
+
+
+@bp.get("/edig/excluidos/<token>")
+@login_required
+@role_required("ADMIN")
+def edig_excluidos(token: str):
+    path = _find_excluidos_by_token(token)
+    if not path:
+        return {"error": "Archivo de excluidos no encontrado"}, 404
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    return {"excluidos": data}
+
+
+
 
 
 # ---------------------------
@@ -1210,16 +2082,14 @@ def nominas_banco_generar():
         db.session.query(AnticipoDetalle, Trabajador, Banco)
         .join(AnticipoNomina, AnticipoNomina.id == AnticipoDetalle.nomina_id)
         .join(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
-        .join(
-            Contrato,
-            and_(
-                Contrato.trabajador_id == Trabajador.id,
-                Contrato.estado_contrato == "VIGENTE",
-            ),
-        )
+        # Clave del arreglo: la línea de anticipo pertenece a UN contrato.
+        # Antes se unía por trabajador y contrato vigente, lo que hacía que el sistema
+        # eligiera/duplicara contratos de forma implícita.
+        .outerjoin(Contrato, Contrato.id == AnticipoDetalle.contrato_id)
         .outerjoin(Banco, Banco.id == Trabajador.banco_id)
         .filter(AnticipoNomina.anio == anio, AnticipoNomina.mes == mes)
         .filter(AnticipoNomina.estado == "VISADA")
+        .filter(func.coalesce(AnticipoDetalle.monto, 0) > 0)
     )
 
     if empresa_ids_int:
@@ -1280,13 +2150,7 @@ def nominas_banco_generar():
             db.session.query(func.count(func.distinct(AnticipoDetalle.obra_id)))
             .join(AnticipoNomina, AnticipoNomina.id == AnticipoDetalle.nomina_id)
             .join(Trabajador, Trabajador.id == AnticipoDetalle.trabajador_id)
-            .join(
-                Contrato,
-                and_(
-                    Contrato.trabajador_id == Trabajador.id,
-                    Contrato.estado_contrato == "VIGENTE",
-                ),
-            )
+            .outerjoin(Contrato, Contrato.id == AnticipoDetalle.contrato_id)
             .filter(AnticipoNomina.anio == anio, AnticipoNomina.mes == mes)
             .filter(AnticipoNomina.estado == "VISADA")
             .filter(Contrato.empleador_id.in_(empresa_ids_int) if empresa_ids_int else literal(True))

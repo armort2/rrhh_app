@@ -89,7 +89,13 @@
         </div>
 
       {% else %}
-        <p class="text-muted mb-0">No hay anexos registrados aún.</p>
+        <div class="cs-empty-state" role="status">
+          <div class="cs-empty-icon" aria-hidden="true">📎</div>
+          <div>
+            <h2 class="cs-empty-title">Sin anexos de extensión</h2>
+            <p class="cs-empty-text">Aún no hay anexos de extensión registrados. Cuando se emitan desde el sistema, aparecerán en este listado.</p>
+          </div>
+        </div>
       {% endif %}
 
     </div>

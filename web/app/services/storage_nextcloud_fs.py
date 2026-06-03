@@ -1,22 +1,30 @@
+# web/app/services/storage_nextcloud_fs.py
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Union
 
 
-def ensure_dir(path: Path) -> None:
+PathLike = Union[str, Path]
+
+
+def ensure_dir(path: PathLike) -> Path:
     """
     Crea directorios si no existen (equivalente a mkdir -p).
-    Lanza excepción si no se puede crear por permisos o si el mount no está disponible.
+    Acepta Path o str y retorna Path normalizado.
     """
-    path.mkdir(parents=True, exist_ok=True)
+    p = path if isinstance(path, Path) else Path(path)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
 
-def safe_write_bytes(path: Path, data: bytes) -> None:
+def safe_write_bytes(path: PathLike, data: bytes) -> None:
     """
     Escritura atómica simple:
     - Escribe a .tmp
     - Reemplaza al final
     """
-    tmp = path.with_suffix(path.suffix + ".tmp")
+    p = path if isinstance(path, Path) else Path(path)
+    tmp = p.with_suffix(p.suffix + ".tmp")
     tmp.write_bytes(data)
-    tmp.replace(path)
+    tmp.replace(p)

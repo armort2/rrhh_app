@@ -12,12 +12,24 @@ class BaseConfig:
     """Configuración base (común a todos los entornos)."""
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev_key")
 
-    # Si no viene DATABASE_URL desde el entorno, usamos un SQLite local
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL",
-        "sqlite:///" + os.path.join(BASE_DIR, "rrhh_app_dev.db")
-    )
+    # Base de datos principal del sistema.
+    # En producción y desarrollo Docker debe venir siempre desde DATABASE_URL.
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    if not SQLALCHEMY_DATABASE_URI:
+        raise RuntimeError(
+            "DATABASE_URL no está configurada. "
+            "Revisa el archivo .env o las variables de entorno del contenedor."
+        )
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Rutas de plantillas para desvinculaciones
+    DESVINCULACION_TEMPLATES_DIR = "document_templates/desvinculacion"
+    FINIQUITO_TEMPLATE_NAME = "finiquito.docx"
+    CARTA_AVISO_DEFAULT_TEMPLATE_NAME = "carta_aviso.docx"  # opcional, fallback corporativo
+
+    # Librería de descripciones de cargo (bookmarks CARGO_{id}__DESCRIPCION)
+    CARGOS_LIBRARY_TEMPLATE = "document_templates/contratos/cargos.docx"
 
 
 class DevConfig(BaseConfig):
@@ -46,8 +58,6 @@ NEXTCLOUD_PASSWORD = os.environ.get("NEXTCLOUD_PASSWORD", "")
 
 def normalizar_nombre_trabajador(rut: str, nombres: str, ap_paterno: str, ap_materno: str) -> str:
     """
-    Genera nombre de carpeta estándar:
-    12345710-2_PAILLALEVE_GUINEO_HECTOR_DAVID
 
     - El RUT va SIN PUNTOS, con guión y DV.
     - Nombres y apellidos en MAYÚSCULAS, sin tildes.
@@ -154,6 +164,3 @@ NEXTCLOUD_PATH_TEMPLATE = (
     "{doc_root}/EMPLEADORES/{empleador}/TRABAJADORES/{carpeta_trabajador}/{tipo_doc}"
 )
 
-# Plantillas DOCX (rutas dentro del contenedor)
-TEMPLATE_CARTA_AVISO_DOCX = "/app/app/templates_docx/desvinculaciones/carta_aviso.docx"
-TEMPLATE_FINIQUITO_DOCX = "/app/app/templates_docx/desvinculaciones/finiquito.docx"

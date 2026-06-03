@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Resumen ejecutivo de reportería</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    body { font-family: Arial, sans-serif; color: #111827; font-size: 10px; }
+    h1 { margin: 0 0 4px; font-size: 20px; }
+    h2 { margin: 16px 0 6px; font-size: 14px; }
+    .muted { color: #6b7280; }
+    .kpis { display: table; width: 100%; margin: 12px 0; border-spacing: 6px; }
+    .kpi { display: table-cell; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; }
+    .kpi .label { color: #6b7280; font-size: 9px; }
+    .kpi .value { font-size: 18px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { border: 1px solid #d1d5db; padding: 4px 5px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .right { text-align: right; }
+    .warn { color: #92400e; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Resumen ejecutivo de reportería</h1>
+  <div class="muted">Sistema Grupo CS · Fecha reporte: {{ fmt_date(metricas.fecha_reporte) }}</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Contratos</div><div class="value">{{ metricas.total_contratos }}</div></div>
+    <div class="kpi"><div class="label">Trabajadores únicos</div><div class="value">{{ metricas.trabajadores_unicos }}</div></div>
+    <div class="kpi"><div class="label">Vigentes</div><div class="value">{{ metricas.vigentes }}</div></div>
+    <div class="kpi"><div class="label">Por vencer 30 días</div><div class="value">{{ metricas.por_vencer_30 }}</div></div>
+    <div class="kpi"><div class="label">Indefinidos</div><div class="value">{{ metricas.indefinidos }}</div></div>
+    <div class="kpi"><div class="label">Iniciados 30 días</div><div class="value">{{ metricas.iniciados_30 }}</div></div>
+  </div>
+
+  <h2>Dotación por obra</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Obra</th><th>CC</th><th class="right">Contratos</th><th class="right">Trab. únicos</th>
+        <th class="right">Vigentes</th><th class="right">Vencidos</th><th class="right">Vencen 30</th><th class="right">Sueldo base total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in resumen.obras %}
+        <tr>
+          <td>{{ item.obra }}</td><td>{{ item.centro_costo or '' }}</td><td class="right">{{ item.contratos }}</td>
+          <td class="right">{{ item.trabajadores_unicos }}</td><td class="right">{{ item.vigentes }}</td>
+          <td class="right">{{ item.vencidos }}</td><td class="right {% if item.por_vencer_30 %}warn{% endif %}">{{ item.por_vencer_30 }}</td>
+          <td class="right">{{ fmt_money(item.sueldo_base_total) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Contratos por vencer en 60 días</h2>
+  <table>
+    <thead><tr><th>Días</th><th>Término</th><th>Trabajador</th><th>RUT</th><th>Obra</th><th>Cargo</th></tr></thead>
+    <tbody>
+      {% for r in resumen.vencimientos_60[:40] %}
+        <tr><td class="warn">{{ r.dias_para_vencer }}</td><td>{{ fmt_date(r.fecha_termino) }}</td><td>{{ r.trabajador }}</td><td>{{ r.rut }}</td><td>{{ r.obra }}</td><td>{{ r.cargo }}</td></tr>
+      {% else %}
+        <tr><td colspan="6" class="muted">No hay contratos por vencer en los próximos 60 días.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

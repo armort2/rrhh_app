@@ -8,14 +8,21 @@
 
   {% set next_url = next_url if next_url is defined and next_url else request.args.get("next") or request.full_path %}
 
-  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+
     <div class="section-header mb-0">
-      <h1 class="section-title">Generar contrato</h1>
+      <div class="info-chip mb-2">Generación documental</div>
+
+      <h1 class="section-title mb-1">
+        Generar contrato
+      </h1>
+
       <div class="section-subtitle">
-        Trabajador:
         <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
-        · Contrato ID: {{ contrato.id }}
+        <span class="mx-2">·</span>
+        Contrato #{{ contrato.id }}
       </div>
+
       <div class="section-divider"></div>
     </div>
 
@@ -30,6 +37,7 @@
         Ver detalle
       </a>
     </div>
+
   </div>
 
   <div class="card shadow-sm">
@@ -40,41 +48,292 @@
           <input type="hidden" name="next" value="{{ next_url }}">
         {% endif %}
 
-        <h2 class="h6 mb-3">Formato de salida</h2>
+      <div class="card border-0 bg-light mb-4">
+        <div class="card-body">
 
-        <div class="row g-3">
-          <div class="col-12 col-md-6">
-            <label for="formato" class="form-label">Selecciona formato</label>
-            <select id="formato" name="formato" class="form-select" required>
-              <option value="DOCX" selected>DOCX (Word)</option>
-              <option value="PDF">PDF</option>
-              <option value="AMBOS">DOCX + PDF</option>
-            </select>
-            <div class="form-text">Recomendación operativa: generar ambos para archivo y envío.</div>
-            <div class="invalid-feedback">Selecciona un formato.</div>
+          <h2 class="h6 mb-3">Validación previa</h2>
+
+          <div class="row g-3 small">
+
+            <div class="col-12 col-md-6">
+              <div class="d-flex justify-content-between">
+                <span>Trabajador</span>
+                <span class="text-success">✔ OK</span>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="d-flex justify-content-between">
+                <span>Empleador</span>
+                {% if contrato.empleador %}
+                  <span class="text-success">✔ OK</span>
+                {% else %}
+                  <span class="text-danger">✖ Falta</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="d-flex justify-content-between">
+                <span>Obra / Centro de costo</span>
+                {% if contrato.obra and contrato.obra.centro_costo %}
+                  <span class="text-success">✔ OK</span>
+                {% else %}
+                  <span class="text-danger">✖ Incompleto</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="d-flex justify-content-between">
+                <span>Cargo</span>
+                {% if contrato.cargo_id %}
+                  <span class="text-success">✔ OK</span>
+                {% else %}
+                  <span class="text-danger">✖ Falta</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="d-flex justify-content-between">
+                <span>Tipo contrato</span>
+                {% if contrato.tipo_contrato %}
+                  <span class="text-success">✔ OK</span>
+                {% else %}
+                  <span class="text-danger">✖ Falta</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="d-flex justify-content-between">
+                <span>Fecha inicio</span>
+                {% if contrato.fecha_inicio %}
+                  <span class="text-success">✔ OK</span>
+                {% else %}
+                  <span class="text-danger">✖ Falta</span>
+                {% endif %}
+              </div>
+            </div>
+
           </div>
 
-          <div class="col-12 col-md-6">
-            <div class="alert alert-light border mb-0">
-              <div class="fw-semibold mb-1">Destino del archivo</div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+
+          <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+            <div>
+              <h2 class="h6 mb-1">Vista previa del contrato</h2>
               <div class="text-muted small">
-                El contrato se guardará en la carpeta documental del trabajador dentro de Nextcloud, en <strong>CONTRATOS</strong>.
-                <br>
-                Consejo de control interno: valida <strong>centro de costo</strong> y <strong>cargo</strong> antes de generar.
+                Resumen referencial de la información que se utilizará para generar el documento.
+              </div>
+            </div>
+
+            <span class="badge text-bg-light border" id="preview_formato_badge">DOCX</span>
+          </div>
+
+          <div class="row g-3">
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Trabajador</div>
+              <div class="fw-semibold">
+                {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">RUT</div>
+              <div class="fw-semibold">
+                {{ contrato.trabajador.rut }}{% if contrato.trabajador.dv %}-{{ contrato.trabajador.dv }}{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Empleador</div>
+              <div class="fw-semibold">
+                {{ contrato.empleador.razon_social if contrato.empleador else "No definido" }}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Obra / centro de costo</div>
+              <div class="fw-semibold">
+                {% if contrato.obra %}
+                  {{ contrato.obra.nombre }}
+                  {% if contrato.obra.centro_costo %}
+                    <span class="text-muted">· {{ contrato.obra.centro_costo }}</span>
+                  {% endif %}
+                {% else %}
+                  No definida
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Cargo</div>
+              <div class="fw-semibold">
+                {{ contrato.cargo.nombre if contrato.cargo else "No definido" }}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Tipo de contrato</div>
+              <div class="fw-semibold">
+                {{ contrato.tipo_contrato or "No definido" }}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Fecha inicio</div>
+              <div class="fw-semibold">
+                {% if contrato.fecha_inicio %}{{ contrato.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Fecha término</div>
+              <div class="fw-semibold">
+                {% if contrato.fecha_termino %}{{ contrato.fecha_termino.strftime("%d-%m-%Y") }}{% else %}Sin término definido{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Horario / jornada</div>
+              <div class="fw-semibold">
+                {% if contrato.horario %}
+                  {{ contrato.horario.nombre }}
+                {% elif contrato.jornada %}
+                  Jornada personalizada
+                {% else %}
+                  No definida
+                {% endif %}
+              </div>
+              {% if contrato.horario and contrato.horario.descripcion %}
+                <div class="text-muted small mt-1" style="white-space: pre-wrap;">{{ contrato.horario.descripcion }}</div>
+              {% elif contrato.jornada %}
+                <div class="text-muted small mt-1" style="white-space: pre-wrap;">{{ contrato.jornada }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Horas semanales</div>
+              <div class="fw-semibold">{{ contrato.horas_semanales or "-" }}</div>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-2">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">Sueldo base</div>
+              <div class="fw-semibold">
+                {% if contrato.sueldo_base %}{{ "{:,.0f}".format(contrato.sueldo_base).replace(",", ".") }}{% else %}-{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">Movilización</div>
+              <div class="fw-semibold">
+                {% if contrato.asignacion_movilizacion %}{{ "{:,.0f}".format(contrato.asignacion_movilizacion).replace(",", ".") }}{% else %}-{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">Colación</div>
+              <div class="fw-semibold">
+                {% if contrato.asignacion_colacion %}{{ "{:,.0f}".format(contrato.asignacion_colacion).replace(",", ".") }}{% else %}-{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">Herramientas</div>
+              <div class="fw-semibold">
+                {% if contrato.asignacion_herramientas %}{{ "{:,.0f}".format(contrato.asignacion_herramientas).replace(",", ".") }}{% else %}-{% endif %}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+        <div class="row g-4">
+
+          <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-body">
+
+                <h2 class="h6 mb-3">Formato de salida</h2>
+
+                <label for="formato" class="form-label">Selecciona formato</label>
+                <select id="formato" name="formato" class="form-select" required>
+                  <option value="DOCX" selected>DOCX (Word)</option>
+                  <option value="PDF">PDF</option>
+                  <option value="AMBOS">DOCX + PDF</option>
+                </select>
+
+                <div class="form-text mt-2">
+                  Recomendación operativa: generar ambos para respaldo documental y envío.
+                </div>
+
+                <div class="invalid-feedback">Selecciona un formato.</div>
+
               </div>
             </div>
           </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="card border-0 bg-light h-100">
+              <div class="card-body">
+
+                <h2 class="h6 mb-3">Destino del archivo</h2>
+
+                <p class="text-muted small mb-2">
+                  El contrato se almacenará automáticamente en la carpeta del trabajador en Nextcloud.
+                </p>
+
+                <ul class="small text-muted mb-3">
+                  <li>Ruta: <strong>CONTRATOS</strong></li>
+                  <li>Centro de costo según obra</li>
+                  <li>Nombre estandarizado automático</li>
+                </ul>
+
+                <div class="alert alert-warning small mb-0">
+                  Validar <strong>centro de costo</strong> y <strong>cargo</strong> antes de generar.
+                </div>
+
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <hr class="my-4">
 
-        <div class="d-flex justify-content-between gap-2 flex-wrap">
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mt-4">
+
           <a class="btn btn-outline-secondary"
              href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id, next=next_url) }}">
             Cancelar
           </a>
 
-          <button type="submit" class="btn btn-primary">Generar ahora</button>
+          {% set contrato_valido =
+            contrato.empleador
+            and contrato.obra
+            and contrato.obra.centro_costo
+            and contrato.cargo_id
+            and contrato.tipo_contrato
+            and contrato.fecha_inicio
+          %}
+          <button type="submit"
+                  class="btn btn-primary px-4"
+                  {% if not contrato_valido %}disabled{% endif %}>
+            Generar contrato
+          </button>
+
         </div>
 
       </form>
@@ -83,18 +342,9 @@
 
 </div>
 
-<script>
-(function () {
-  const forms = document.querySelectorAll(".needs-validation");
-  Array.from(forms).forEach(form => {
-    form.addEventListener("submit", event => {
-      if (!form.checkValidity()) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      form.classList.add("was-validated");
-    }, false);
-  });
-})();
-</script>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/contratos_generar.js') }}"></script>
 {% endblock %}

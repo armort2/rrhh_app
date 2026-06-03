@@ -45,3 +45,6 @@ uploads/
 data/
 data/db/
 docker-compose.yml.bak_*
+
+# --- Variables de entorno / ejemplos sensibles ---
+.env.example

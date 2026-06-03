@@ -1,0 +1,84 @@
+{# web/app/templates/parametros_laborales/importar_previred.html #}
+{% extends "base.html" %}
+{% block title %}Importar PDF Previred{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+    <div class="section-header mb-0">
+      <div class="info-chip mb-2">Motor laboral</div>
+      <h1 class="section-title">Importar PDF Previred</h1>
+      <div class="section-subtitle">
+        Carga un PDF de indicadores previsionales para precargar automáticamente un período en Parámetros Laborales.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('parametros_laborales.listado') }}">
+        ⬅ Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-7">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" action="{{ url_for('parametros_laborales.importar_previred_post') }}">
+            <div class="mb-3">
+              <label class="form-label" for="archivo_pdf">Archivo PDF</label>
+              <input
+                class="form-control"
+                type="file"
+                id="archivo_pdf"
+                name="archivo_pdf"
+                accept=".pdf,application/pdf"
+                required>
+            </div>
+
+            <div class="text-muted small mb-3">
+              Recomendación: utiliza el PDF oficial de Previred del período correspondiente a las remuneraciones que quieres registrar.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <a class="btn btn-secondary" href="{{ url_for('parametros_laborales.listado') }}">
+                Cancelar
+              </a>
+              <button type="submit" class="btn btn-primary">
+                Procesar PDF
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="card border-info-subtle">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">¿Qué extrae esta importación?</div>
+          <div class="text-muted small mb-3">
+            La primera versión del importador detecta automáticamente:
+          </div>
+
+          <ul class="mb-0">
+            <li>Período</li>
+            <li>UF</li>
+            <li>UTM</li>
+            <li>UTA</li>
+            <li>Renta mínima dependiente</li>
+            <li>Renta mínima menor de 18 / mayor de 65</li>
+            <li>Renta mínima no remuneracional</li>
+            <li>Tope imponible AFP</li>
+            <li>Tope imponible INP</li>
+            <li>Tope imponible seguro de cesantía</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

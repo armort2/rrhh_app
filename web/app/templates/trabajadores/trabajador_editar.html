@@ -4,7 +4,7 @@
 {% block title %}Editar trabajador · {{ trabajador.nombres }} {{ trabajador.ap_paterno }}{% endblock %}
 
 {% block content %}
-<div class="container py-3">
+<div class="container py-3 cs-form-page">
 
   <div class="card shadow-sm">
 
@@ -560,58 +560,10 @@
   </div>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const rutInput      = document.getElementById("rut");
-    const tipoCuentaSel = document.getElementById("tipo_cuenta");
-    const cuentaNumInp  = document.getElementById("cuenta_numero");
-
-    if (!rutInput || !tipoCuentaSel || !cuentaNumInp) return;
-
-    function actualizarCuentaRut() {
-        if (tipoCuentaSel.value === "CTA_RUT") {
-            const rut = rutInput.value || "";
-            const soloDigitos = rut.replace(/[^0-9]/g, "");
-            if (soloDigitos.length >= 2) {
-                const base = soloDigitos.slice(0, -1);
-                cuentaNumInp.value = base;
-            }
-            cuentaNumInp.readOnly = true;
-        } else {
-            cuentaNumInp.readOnly = false;
-        }
-    }
-
-    tipoCuentaSel.addEventListener("change", actualizarCuentaRut);
-    rutInput.addEventListener("blur", function () {
-        if (tipoCuentaSel.value === "CTA_RUT") actualizarCuentaRut();
-    });
-
-    actualizarCuentaRut();
-});
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const chkTercero    = document.getElementById("pago_tercero_activo");
-    const bloqueTercero = document.getElementById("bloque_pago_tercero");
-
-    if (!chkTercero || !bloqueTercero) return;
-
-    const inputsTercero = bloqueTercero.querySelectorAll("input, select");
-
-    function actualizarBloqueTercero() {
-        if (chkTercero.checked) {
-            bloqueTercero.style.display = "";
-        } else {
-            bloqueTercero.style.display = "none";
-            inputsTercero.forEach(el => { el.value = ""; });
-        }
-    }
-
-    chkTercero.addEventListener("change", actualizarBloqueTercero);
-    actualizarBloqueTercero();
-});
-</script>
-
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/trabajadores_form.js') }}"></script>
+{% endblock %}
+

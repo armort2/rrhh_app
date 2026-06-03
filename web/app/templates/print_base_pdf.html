@@ -12,7 +12,7 @@
 
     @page {
       size: Letter;
-      margin: 24mm 18mm 24mm 18mm;
+      margin: 28mm 18mm 24mm 18mm;
 
       /* Header repetible (margin box) */
       @top-left {
@@ -40,6 +40,7 @@
     /* Running elements: lo que @page reutiliza */
     .header {
       position: running(header);
+      padding-top: 2.5mm;
       padding-bottom: 6px;
       border-bottom: 1px solid #e6cdbd;
     }

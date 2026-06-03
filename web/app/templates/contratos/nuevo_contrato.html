@@ -9,7 +9,7 @@
   or request.form.get('next')
   or '' %}
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-form-page">
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Nuevo contrato</h1>
@@ -247,72 +247,10 @@
 
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const selHorario = document.getElementById("horario_id");
-    const wrap = document.getElementById("horario_preview_wrap");
-    const box = document.getElementById("horario_preview");
-
-    const selTipo = document.getElementById("tipo_contrato");
-    const inpHoras = document.getElementById("horas_semanales");
-
-    if (selHorario && wrap && box) {
-        function refreshHorarioPreview() {
-            const opt = selHorario.options[selHorario.selectedIndex];
-            const desc = (opt && opt.dataset) ? (opt.dataset.desc || "") : "";
-            if (desc.trim()) {
-                box.textContent = desc;
-                wrap.style.display = "block";
-            } else {
-                box.textContent = "";
-                wrap.style.display = "none";
-            }
-        }
-        selHorario.addEventListener("change", refreshHorarioPreview);
-        refreshHorarioPreview();
-    }
-
-    function defaultHorasPorTipo(tipo) {
-        const map = {
-            "PART_TIME": 18,
-            "INDEFINIDO": 44,
-            "PLAZO_FIJO": 44,
-            "FAENA": 44
-        };
-        return map[tipo] || "";
-    }
-
-    function refreshHoras() {
-        if (!selTipo || !inpHoras) return;
-
-        const tipo = (selTipo.value || "").trim();
-        const current = (inpHoras.value || "").trim();
-
-        if (!current) {
-            const def = defaultHorasPorTipo(tipo);
-            if (def) inpHoras.value = String(def);
-        }
-    }
-
-    if (selTipo && inpHoras) {
-        selTipo.addEventListener("change", refreshHoras);
-        refreshHoras();
-    }
-});
-</script>
-
-<script>
-(function () {
-  const forms = document.querySelectorAll(".needs-validation");
-  Array.from(forms).forEach(form => {
-    form.addEventListener("submit", event => {
-      if (!form.checkValidity()) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      form.classList.add("was-validated");
-    }, false);
-  });
-})();
-</script>
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/contratos_form.js') }}"></script>
+{% endblock %}
+

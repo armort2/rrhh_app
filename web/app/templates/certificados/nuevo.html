@@ -1,0 +1,109 @@
+{# web/app/templates/certificados/nuevo.html #}
+{% extends "base.html" %}
+{% block title %}Nuevo certificado{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-form-page">
+
+  <div class="section-header mb-3">
+    <h1 class="section-title">Nuevo certificado</h1>
+    <div class="section-subtitle">Busca un trabajador, selecciónalo y crea el certificado en estado BORRADOR.</div>
+    <div class="section-divider"></div>
+  </div>
+
+  {# =======================
+     PASO 1: Buscar + seleccionar
+     ======================= #}
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-8 position-relative">
+          <label class="form-label">Buscar trabajador</label>
+          <input
+            id="workerSearch"
+            class="form-control"
+            data-api-url="{{ url_for('certificados.api_trabajadores') }}"
+            placeholder="Escribe RUT o nombre…"
+            autocomplete="off"
+          >
+          <div class="form-text">Tip: puedes escribir solo números del RUT y también funciona.</div>
+
+          <div id="workerSuggest"
+               class="list-group position-absolute w-100 shadow-sm d-none"
+               style="z-index: 30; max-height: 280px; overflow:auto;">
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4 d-grid">
+          <button id="btnSelectWorker" type="button" class="btn btn-primary" disabled>
+            Seleccionar trabajador
+          </button>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-light border mb-0">
+            <div class="small text-muted">Trabajador seleccionado</div>
+            <div id="selectedWorkerLabel" class="fw-semibold">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# =======================
+     PASO 2: Crear certificado
+     ======================= #}
+  <div id="step2Card" class="card d-none">
+    <div class="card-body">
+      <form id="createCertForm" class="row g-2" method="post" action="{{ url_for('certificados.crear') }}">
+        <input type="hidden" id="trabajador_id" name="trabajador_id" value="">
+        <input type="hidden" id="objetivo_final" name="objetivo" value="">
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Tipo</label>
+          <select id="tipo_cert" class="form-select" name="tipo">
+            {% for t in TIPOS_CERT %}
+              <option value="{{ t }}" {% if t=="ANTIGUEDAD" %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Fecha emisión</label>
+          <input class="form-control" type="date" name="fecha_emision" value="{{ hoy }}">
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Objetivo (preset)</label>
+          <select id="objetivo_preset" class="form-select">
+            <option value="">— Seleccionar —</option>
+            <option value="fines personales">Fines personales</option>
+            <option value="trámites bancarios">Trámites bancarios</option>
+            <option value="presentar en la CCAF Los Andes">Presentar en la CCAF Los Andes</option>
+            <option value="los fines que estime convenientes">Los fines que estime convenientes</option>
+          </select>
+          <div class="form-text">Puedes escoger un preset o escribir uno personalizado.</div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Objetivo (personalizado)</label>
+          <input id="objetivo_custom" class="form-control" placeholder="Ej: presentar en banco / arriendo / trámite...">
+        </div>
+
+        <div class="col-12 d-grid mt-2">
+          <button id="btnCreate" class="btn btn-success" type="submit">
+            Crear certificado (BORRADOR)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/certificados_nuevo.js') }}"></script>
+{% endblock %}
+

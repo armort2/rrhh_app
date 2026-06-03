@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Reportería · Sistema Grupo CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page reporteria-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Reportería</h1>
+      <div class="section-subtitle">
+        Listados de trabajadores y contratos por obra, cargo, empleador, estado, vigencia y fechas contractuales.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="cs-page-actions d-flex gap-2 flex-wrap">
+      <a class="btn btn-primary" href="{{ url_for('reporteria.panel', **request.args) }}">
+        📈 Panel ejecutivo
+      </a>
+      <a class="btn btn-outline-primary" href="{{ url_for('reporteria.control_contractual', **request.args) }}">
+        🧭 Control contractual
+      </a>
+      <a class="btn btn-outline-info" href="{{ url_for('reporteria.seguimiento_contractual', **request.args) }}">
+        ✅ Seguimiento gestión
+      </a>
+      <a class="btn btn-outline-warning" href="{{ url_for('reporteria.auditoria_datos', **request.args) }}">
+        🧹 Auditoría datos
+      </a>
+      <a class="btn btn-outline-success" href="{{ url_for('reporteria.trabajadores_xlsx', **request.args) }}">
+        📊 Exportar detalle Excel
+      </a>
+      <a class="btn btn-outline-danger" href="{{ url_for('reporteria.trabajadores_pdf', **request.args) }}" target="_blank" rel="noopener">
+        📄 Exportar detalle PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-body">
+          <div class="text-muted small">Contratos encontrados</div>
+          <div class="display-6 fw-bold">{{ metricas.total_contratos }}</div>
+          <div class="small text-muted">Según filtros aplicados</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-body">
+          <div class="text-muted small">Trabajadores únicos</div>
+          <div class="display-6 fw-bold">{{ metricas.trabajadores_unicos }}</div>
+          <div class="small text-muted">Evita duplicidad por múltiples contratos</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-body">
+          <div class="text-muted small">Vigentes / vencidos</div>
+          <div class="h2 fw-bold mb-0">{{ metricas.vigentes }} / {{ metricas.vencidos }}</div>
+          <div class="small text-muted">Control operativo laboral</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-body">
+          <div class="text-muted small">Por vencer en 30 / 60 días</div>
+          <div class="display-6 fw-bold">{{ metricas.por_vencer_30 }} / {{ metricas.por_vencer_60 }}</div>
+          <div class="small text-muted">Para anticiparse al “se nos pasó” 😄</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3 cs-filter-card">
+    <div class="card-body">
+      <form method="get" class="cs-filter-form">
+        <div class="row g-3">
+          <div class="col-12 col-xl-3">
+            <label for="q" class="form-label">Búsqueda general</label>
+            <input type="text" id="q" name="q" class="form-control"
+                   value="{{ filtros.q }}"
+                   placeholder="Nombre, RUT, cargo, obra, CC...">
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-3">
+            <label for="obra_id" class="form-label">Obras</label>
+            <select id="obra_id" name="obra_id" class="form-select" multiple size="5">
+              {% for o in obras %}
+                <option value="{{ o.id }}" {% if o.id in filtros.obra_ids %}selected{% endif %}>
+                  {{ o.nombre }}{% if o.centro_costo %} · {{ o.centro_costo }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Puedes seleccionar varias con Ctrl/⌘.</div>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-3">
+            <label for="cargo_id" class="form-label">Cargos</label>
+            <select id="cargo_id" name="cargo_id" class="form-select" multiple size="5">
+              {% for c in cargos %}
+                <option value="{{ c.id }}" {% if c.id in filtros.cargo_ids %}selected{% endif %}>{{ c.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-3">
+            <label for="empleador_id" class="form-label">Empleadores</label>
+            <select id="empleador_id" name="empleador_id" class="form-select" multiple size="5">
+              {% for e in empleadores %}
+                <option value="{{ e.id }}" {% if e.id in filtros.empleador_ids %}selected{% endif %}>{{ e.razon_social }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-2">
+            <label for="estado" class="form-label">Estado contractual</label>
+            <select id="estado" name="estado" class="form-select">
+              <option value="">Todos</option>
+              <option value="VIGENTE" {% if filtros.estado == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+              <option value="TERMINADO" {% if filtros.estado == 'TERMINADO' %}selected{% endif %}>Terminado</option>
+              <option value="VENCIDO" {% if filtros.estado == 'VENCIDO' %}selected{% endif %}>Vencido</option>
+              <option value="FINIQUITADO" {% if filtros.estado == 'FINIQUITADO' %}selected{% endif %}>Finiquitado</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-3">
+            <label for="estado_rapido" class="form-label">Vista rápida</label>
+            <select id="estado_rapido" name="estado_rapido" class="form-select">
+              <option value="">Sin vista rápida</option>
+              {% for key, label in estados_rapidos.items() %}
+                <option value="{{ key }}" {% if filtros.estado_rapido == key %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-3">
+            <label for="tipo_contrato" class="form-label">Tipo de contrato</label>
+            <select id="tipo_contrato" name="tipo_contrato" class="form-select">
+              <option value="">Todos</option>
+              {% for tipo in tipos_contrato %}
+                <option value="{{ tipo }}" {% if filtros.tipo_contrato == tipo %}selected{% endif %}>{{ tipo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-6 col-md-3 col-xl-2">
+            <label for="inicio_desde" class="form-label">Inicio desde</label>
+            <input type="date" id="inicio_desde" name="inicio_desde" class="form-control" value="{{ filtros.inicio_desde_raw }}">
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label for="inicio_hasta" class="form-label">Inicio hasta</label>
+            <input type="date" id="inicio_hasta" name="inicio_hasta" class="form-control" value="{{ filtros.inicio_hasta_raw }}">
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label for="termino_desde" class="form-label">Término desde</label>
+            <input type="date" id="termino_desde" name="termino_desde" class="form-control" value="{{ filtros.termino_desde_raw }}">
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label for="termino_hasta" class="form-label">Término hasta</label>
+            <input type="date" id="termino_hasta" name="termino_hasta" class="form-control" value="{{ filtros.termino_hasta_raw }}">
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mt-3">
+          <div class="text-muted small">
+            Vista en pantalla limitada a 500 filas para mantener rendimiento. Excel/PDF exportan el resultado completo.
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-secondary" href="{{ url_for('reporteria.index') }}">Limpiar</a>
+            <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if is_limited %}
+    <div class="alert alert-info">
+      Se muestran las primeras 500 filas de {{ total_rows }}. Para análisis completo, usa la exportación a Excel.
+    </div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Contrato</th>
+              <th>Trabajador</th>
+              <th>Obra / CC</th>
+              <th>Cargo</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Inicio</th>
+              <th>Término</th>
+              <th class="text-end">Sueldo base</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              <tr>
+                <td class="text-muted">#{{ r.contrato_id }}</td>
+                <td>
+                  <div class="fw-semibold">{{ r.trabajador }}</div>
+                  <div class="small text-muted">{{ r.rut }}{% if r.telefono %} · {{ r.telefono }}{% endif %}</div>
+                </td>
+                <td>
+                  <div>{{ r.obra }}</div>
+                  <div class="small text-muted">{{ r.centro_costo or 'Sin centro de costo' }}</div>
+                </td>
+                <td>{{ r.cargo }}</td>
+                <td>{{ r.tipo_contrato }}</td>
+                <td>
+                  {% if r.estado_calculado == 'Vigente' %}
+                    <span class="badge text-bg-success">Vigente</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">{{ r.estado_calculado }}</span>
+                  {% endif %}
+                  {% if r.dias_para_vencer is not none and r.dias_para_vencer >= 0 and r.dias_para_vencer <= 30 %}
+                    <div class="small text-warning-emphasis">Vence en {{ r.dias_para_vencer }} día(s)</div>
+                  {% endif %}
+                </td>
+                <td>{{ r.fecha_inicio.strftime('%d-%m-%Y') if r.fecha_inicio else '' }}</td>
+                <td>{{ r.fecha_termino.strftime('%d-%m-%Y') if r.fecha_termino else 'Indefinido' }}</td>
+                <td class="text-end">
+                  {% if r.sueldo_base is not none %}${{ "{:,.0f}".format(r.sueldo_base|int).replace(',', '.') }}{% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="9" class="text-center text-muted py-4">
+                  No hay registros para los filtros seleccionados.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

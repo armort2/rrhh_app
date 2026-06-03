@@ -1,0 +1,407 @@
+{# web/app/templates/dashboard/personal_mes.html #}
+{% extends "base.html" %}
+
+{% block title %}Dashboard · Dotación Mensual{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header">
+    <div class="section-title">Dashboard · Dotación Mensual</div>
+    <div class="section-subtitle">
+      Período: <span class="fw-semibold">{{ "%02d"|format(month) }}/{{ year }}</span>
+      · Rango: {{ inicio_mes }} → {{ fin_mes }}
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-sm-3 col-md-2">
+      <label class="form-label">Año</label>
+      <input type="number" class="form-control" name="year" value="{{ year }}" min="2020" max="2100">
+    </div>
+    <div class="col-12 col-sm-3 col-md-2">
+      <label class="form-label">Mes</label>
+      <select class="form-select" name="month">
+        {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-sm-6 col-md-4">
+      <button class="btn btn-primary">
+        <i class="bi bi-bar-chart"></i> Ver Dashboard
+      </button>
+    </div>
+  </form>
+
+  {# ===================== KPIs ===================== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Dotación total (mes)</div>
+          <div class="fs-3 fw-bold">{{ kpi.total }}</div>
+          <div class="text-muted small">
+            vs {{ "%02d"|format(prev.month) }}/{{ prev.year }}:
+            {% set d = delta.total %}
+            <span class="fw-semibold {% if d > 0 %}text-success{% elif d < 0 %}text-danger{% else %}text-muted{% endif %}">
+              {% if d > 0 %}+{% endif %}{{ d }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Directos</div>
+          <div class="fs-3 fw-bold">{{ kpi.directos }}</div>
+          <div class="text-muted small">
+            vs mes anterior:
+            {% set d = delta.directos %}
+            <span class="fw-semibold {% if d > 0 %}text-success{% elif d < 0 %}text-danger{% else %}text-muted{% endif %}">
+              {% if d > 0 %}+{% endif %}{{ d }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Indirectos</div>
+          <div class="fs-3 fw-bold">{{ kpi.indirectos }}</div>
+          <div class="text-muted small">
+            vs mes anterior:
+            {% set d = delta.indirectos %}
+            <span class="fw-semibold {% if d > 0 %}text-success{% elif d < 0 %}text-danger{% else %}text-muted{% endif %}">
+              {% if d > 0 %}+{% endif %}{{ d }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Movimientos del mes</div>
+          <div class="d-flex gap-3 align-items-baseline mb-2">
+            <div><span class="badge bg-success">Ingresos</span> <span class="fw-bold">{{ kpi.ingresos }}</span></div>
+            <div><span class="badge bg-danger">Egresos</span> <span class="fw-bold">{{ kpi.egresos }}</span></div>
+          </div>
+          <div class="text-muted small">
+            Rotación:
+            <span class="badge bg-secondary">{{ "%.1f"|format(rotacion_pct) }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===================== Tendencia + Ranking Empresas ===================== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Tendencia · Últimos 12 meses</div>
+            <div class="text-muted small">Contratos activos por mes</div>
+          </div>
+          <div style="height: 260px;">
+            <canvas id="trendChart"></canvas>
+          </div>
+
+          <div class="text-muted small mt-2">
+            * La serie considera contratos con al menos 1 día activo dentro de cada mes.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Ranking Empresas (mes)</div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">%</th>
+                  <th class="text-end">Δ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in top_empresas %}
+                  {% set d = r.delta_total %}
+                  <tr>
+                    <td class="text-truncate" style="max-width: 200px;" title="{{ r.empresa }}">{{ r.empresa }}</td>
+                    <td class="text-end fw-semibold">{{ r.total }}</td>
+                    <td class="text-end">{{ "%.1f"|format(r.pct) }}%</td>
+                    <td class="text-end">
+                      {% if d > 0 %}
+                        <span class="text-success fw-semibold"><i class="bi bi-arrow-up-right"></i> +{{ d }}</span>
+                      {% elif d < 0 %}
+                        <span class="text-danger fw-semibold"><i class="bi bi-arrow-down-right"></i> {{ d }}</span>
+                      {% else %}
+                        <span class="text-muted">0</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr class="table-light">
+                    <td colspan="4" class="py-1">
+                      <div class="progress" style="height: 6px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ r.pct }}%;" aria-valuenow="{{ r.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+                {% if not top_empresas %}
+                  <tr><td colspan="4" class="text-muted">Sin datos</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="text-muted small mt-2">
+            * Comparación contra {{ "%02d"|format(prev.month) }}/{{ prev.year }} · Total mes: {{ kpi.total }} contratos.
+          </div>
+
+          <div class="mt-3" style="height: 170px;">
+            <canvas id="empresasChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===================== Preparación QUINTERO colapsable ===================== #}
+  {% set quintero_rows = [] %}
+  {% set otros_rows = [] %}
+  {% for r in por_obra %}
+    {% set cc = (r.centro_costo or "")|upper|trim %}
+    {% if cc == "QUINTERO" %}
+      {% set _ = quintero_rows.append(r) %}
+    {% else %}
+      {% set _ = otros_rows.append(r) %}
+    {% endif %}
+  {% endfor %}
+
+  {% set q_dir = (quintero_rows | sum(attribute='directos')) if quintero_rows else 0 %}
+  {% set q_ind = (quintero_rows | sum(attribute='indirectos')) if quintero_rows else 0 %}
+  {% set q_tot = (quintero_rows | sum(attribute='total')) if quintero_rows else 0 %}
+
+  {# Dataset para "Copiar Tabla 1" (SIN fila agregada QUINTERO; respeta orden actual) #}
+  {% set copiar_rows = [] %}
+  {% for r in quintero_rows %}
+    {% set _ = copiar_rows.append({
+      "obra": r.obra,
+      "directos": (r.directos or 0),
+      "indirectos": (r.indirectos or 0),
+      "total": (r.total or 0)
+    }) %}
+  {% endfor %}
+  {% for r in otros_rows %}
+    {% set _ = copiar_rows.append({
+      "obra": r.obra,
+      "directos": (r.directos or 0),
+      "indirectos": (r.indirectos or 0),
+      "total": (r.total or 0)
+    }) %}
+  {% endfor %}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Tabla 1: Personal por obra (mes)</div>
+
+            <button type="button"
+                    id="btnCopyTabla1"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="tooltip"
+                    data-bs-title="Copia en formato Excel (TSV)">
+              <i class="bi bi-clipboard"></i> Copiar
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>Obra</th>
+                  <th class="text-end">Directos</th>
+                  <th class="text-end">Indirectos</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {# --- Grupo QUINTERO colapsable --- #}
+                {% if quintero_rows %}
+                  <tr class="table-light">
+                    <td>
+                      <button class="btn btn-link p-0 text-decoration-none fw-semibold"
+                              type="button"
+                              data-bs-toggle="collapse"
+                              data-bs-target="#grp-quintero"
+                              aria-expanded="false"
+                              aria-controls="grp-quintero">
+                        <i class="bi bi-caret-right-fill me-1"></i>
+                        QUINTERO
+                        <span class="text-muted small ms-2">({{ quintero_rows|length }} obras)</span>
+                      </button>
+                    </td>
+                    <td class="text-end">{{ q_dir or 0 }}</td>
+                    <td class="text-end">{{ q_ind or 0 }}</td>
+                    <td class="text-end fw-semibold">{{ q_tot or 0 }}</td>
+                  </tr>
+
+                  <tbody id="grp-quintero" class="collapse">
+                    {% for r in quintero_rows %}
+                      <tr>
+                        <td class="ps-4">
+                          <span class="text-muted">↳</span> {{ r.obra }}
+                        </td>
+                        <td class="text-end">{{ r.directos or 0 }}</td>
+                        <td class="text-end">{{ r.indirectos or 0 }}</td>
+                        <td class="text-end fw-semibold">{{ r.total or 0 }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                {% endif %}
+
+                {# --- Otras obras (normal) --- #}
+                {% for r in otros_rows %}
+                  <tr>
+                    <td>{{ r.obra }}</td>
+                    <td class="text-end">{{ r.directos or 0 }}</td>
+                    <td class="text-end">{{ r.indirectos or 0 }}</td>
+                    <td class="text-end fw-semibold">{{ r.total or 0 }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+
+              <tfoot>
+                <tr class="table-light">
+                  <th>Total</th>
+                  <th class="text-end">{{ kpi.directos }}</th>
+                  <th class="text-end">{{ kpi.indirectos }}</th>
+                  <th class="text-end">{{ kpi.total }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="text-muted small">
+            * Criterio: contratos que se cruzan con el rango del mes (al menos 1 día activo).
+            · Copiar: sin la fila “QUINTERO” agregada (solo obras).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Tabla 2: Personal por empresa (mes)</div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th class="text-end">Directos</th>
+                  <th class="text-end">Indirectos</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in por_empresa %}
+                  <tr>
+                    <td>
+                      {{ r.empresa }}
+                      <div class="text-muted small">
+                        Participación: {{ "%.1f"|format(r.pct) }}%
+                        · Δ Total:
+                        {% set d = r.delta_total %}
+                        {% if d > 0 %}
+                          <span class="text-success fw-semibold"><i class="bi bi-arrow-up-right"></i> +{{ d }}</span>
+                        {% elif d < 0 %}
+                          <span class="text-danger fw-semibold"><i class="bi bi-arrow-down-right"></i> {{ d }}</span>
+                        {% else %}
+                          <span class="text-muted">0</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td class="text-end">
+                      {{ r.directos or 0 }}
+                      {% if r.delta_directos %}
+                        <div class="small {% if r.delta_directos > 0 %}text-success{% else %}text-danger{% endif %}">
+                          {% if r.delta_directos > 0 %}+{% endif %}{{ r.delta_directos }}
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      {{ r.indirectos or 0 }}
+                      {% if r.delta_indirectos %}
+                        <div class="small {% if r.delta_indirectos > 0 %}text-success{% else %}text-danger{% endif %}">
+                          {% if r.delta_indirectos > 0 %}+{% endif %}{{ r.delta_indirectos }}
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td class="text-end fw-semibold">{{ r.total or 0 }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="table-light">
+                  <th>Total</th>
+                  <th class="text-end">{{ kpi.directos }}</th>
+                  <th class="text-end">{{ kpi.indirectos }}</th>
+                  <th class="text-end">{{ kpi.total }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="text-muted small">
+            * Comparación contra {{ "%02d"|format(prev.month) }}/{{ prev.year }} · Empleador desde Contrato.empleador.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script id="personal-mes-copiar-rows" type="application/json">{{ copiar_rows | tojson }}</script>
+<script id="personal-mes-meta" type="application/json">
+  {{ {
+    "year": year,
+    "month": month,
+    "inicio": inicio_mes|string,
+    "fin": fin_mes|string,
+    "total_directos": kpi.directos,
+    "total_indirectos": kpi.indirectos,
+    "total_total": kpi.total
+  } | tojson }}
+</script>
+<script id="personal-mes-trend-12m" type="application/json">{{ trend_12m | tojson }}</script>
+<script id="personal-mes-top-empresas" type="application/json">{{ top_empresas | tojson }}</script>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/dashboard_personal_mes.js') }}"></script>
+{% endblock %}

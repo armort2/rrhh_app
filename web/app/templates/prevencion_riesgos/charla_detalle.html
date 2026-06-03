@@ -1,0 +1,106 @@
+{# web/app/templates/prevencion_riesgos/charla_detalle.html #}
+{% extends "base.html" %}
+
+{% block title %}Detalle charla de seguridad{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">Detalle charla de seguridad</h1>
+      <p class="text-muted mb-0">Registro N° {{ charla.id }}</p>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap cs-detail-actions">
+      <a href="{{ url_for('prevencion_riesgos.charla_imprimir', charla_id=charla.id) }}" target="_blank" class="btn btn-outline-primary">
+        Imprimir acta
+      </a>
+      <a href="{{ url_for('prevencion_riesgos.charla_editar', charla_id=charla.id) }}" class="btn btn-warning">
+        Editar
+      </a>
+      <a href="{{ url_for('prevencion_riesgos.charlas_listado') }}" class="btn btn-outline-secondary">Volver al listado</a>
+      <a href="{{ url_for('prevencion_riesgos.charla_nueva') }}" class="btn btn-primary">Nueva charla</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Datos principales</h2>
+          <div><strong>Título:</strong> {{ charla.titulo }}</div>
+          <div><strong>Tipo:</strong> {{ charla.tipo }}</div>
+          <div><strong>Obra:</strong> {{ charla.obra.nombre if charla.obra else 'Sin obra' }}</div>
+          <div><strong>Fecha:</strong> {{ charla.fecha.strftime('%d-%m-%Y') }}</div>
+          <div><strong>Relator:</strong> {{ charla.relator or '-' }}</div>
+          <div><strong>Duración:</strong> {{ charla.duracion_minutos or '-' }} min.</div>
+          <div><strong>Registrado por:</strong> {{ charla.registrado_por.username if charla.registrado_por else '-' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Contenido y observaciones</h2>
+          <div class="mb-3">
+            <strong>Tema:</strong>
+            <p class="mb-0">{{ charla.tema or 'Sin tema registrado.' }}</p>
+          </div>
+          <div>
+            <strong>Observación:</strong>
+            <p class="mb-0">{{ charla.observacion or 'Sin observaciones.' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white">
+      <h2 class="h5 mb-0">Asistentes</h2>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Trabajador</th>
+            <th>RUT</th>
+            <th>Obra actual</th>
+            <th>Asistió</th>
+            <th>Observación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for asistente in charla.asistentes %}
+            {% set t = asistente.trabajador %}
+            <tr>
+              <td class="fw-semibold">{{ t.ap_paterno }} {{ t.ap_materno or '' }}, {{ t.nombres }}</td>
+              <td>{{ t|rut_trabajador }}</td>
+              <td>{{ t.obra.nombre if t.obra else '-' }}</td>
+              <td>
+                {% if asistente.asistio %}
+                  <span class="badge bg-success">Sí</span>
+                {% else %}
+                  <span class="badge bg-secondary">No</span>
+                {% endif %}
+              </td>
+              <td>{{ asistente.observacion or '-' }}</td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">
+                No hay asistentes registrados.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

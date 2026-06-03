@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Panel ejecutivo · Reportería{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page reporteria-panel-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Panel ejecutivo de reportería</h1>
+      <div class="section-subtitle">
+        Vista resumida de dotación, contratos vigentes, vencimientos y distribución por obra/cargo.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+    <div class="cs-page-actions d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('reporteria.index', **request.args) }}">← Volver al detalle</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('reporteria.control_contractual', **request.args) }}">🧭 Control contractual</a>
+      <a class="btn btn-outline-info" href="{{ url_for('reporteria.seguimiento_contractual', **request.args) }}">✅ Seguimiento gestión</a>
+      <a class="btn btn-outline-warning" href="{{ url_for('reporteria.auditoria_datos', **request.args) }}">🧹 Auditoría datos</a>
+      <a class="btn btn-outline-success" href="{{ url_for('reporteria.resumen_xlsx', **request.args) }}">📊 Exportar resumen Excel</a>
+      <a class="btn btn-outline-danger" href="{{ url_for('reporteria.resumen_pdf', **request.args) }}" target="_blank" rel="noopener">📄 Exportar resumen PDF</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 border-0"><div class="card-body">
+        <div class="text-muted small">Contratos</div>
+        <div class="display-6 fw-bold">{{ metricas.total_contratos }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 border-0"><div class="card-body">
+        <div class="text-muted small">Trabajadores únicos</div>
+        <div class="display-6 fw-bold">{{ metricas.trabajadores_unicos }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 border-0"><div class="card-body">
+        <div class="text-muted small">Vigentes</div>
+        <div class="display-6 fw-bold text-success">{{ metricas.vigentes }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 border-0"><div class="card-body">
+        <div class="text-muted small">Por vencer 30 días</div>
+        <div class="display-6 fw-bold text-warning">{{ metricas.por_vencer_30 }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 border-0"><div class="card-body">
+        <div class="text-muted small">Indefinidos</div>
+        <div class="display-6 fw-bold">{{ metricas.indefinidos }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 border-0"><div class="card-body">
+        <div class="text-muted small">Iniciados 30 días</div>
+        <div class="display-6 fw-bold">{{ metricas.iniciados_30 }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <strong>Dotación por obra</strong>
+          <span class="text-muted small">Ordenado por contratos vigentes</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Obra</th>
+                  <th>CC</th>
+                  <th class="text-end">Contratos</th>
+                  <th class="text-end">Trab. únicos</th>
+                  <th class="text-end">Vigentes</th>
+                  <th class="text-end">Vencidos</th>
+                  <th class="text-end">Vencen 30</th>
+                  <th class="text-end">Sueldo base total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in resumen.obras %}
+                  <tr>
+                    <td class="fw-semibold">{{ item.obra }}</td>
+                    <td class="text-muted">{{ item.centro_costo or '-' }}</td>
+                    <td class="text-end">{{ item.contratos }}</td>
+                    <td class="text-end">{{ item.trabajadores_unicos }}</td>
+                    <td class="text-end text-success fw-semibold">{{ item.vigentes }}</td>
+                    <td class="text-end">{{ item.vencidos }}</td>
+                    <td class="text-end {% if item.por_vencer_30 %}text-warning fw-semibold{% endif %}">{{ item.por_vencer_30 }}</td>
+                    <td class="text-end">{{ fmt_money(item.sueldo_base_total) }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="8" class="text-center text-muted py-4">No hay información para los filtros seleccionados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white"><strong>Top cargos</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <tbody>
+              {% for cargo, total in resumen.cargos_top[:10] %}
+                <tr><td>{{ cargo }}</td><td class="text-end fw-semibold">{{ total }}</td></tr>
+              {% else %}
+                <tr><td class="text-muted text-center py-4">Sin datos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-white"><strong>Tipos de contrato</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <tbody>
+              {% for tipo, total in resumen.tipos_contrato %}
+                <tr><td>{{ tipo }}</td><td class="text-end fw-semibold">{{ total }}</td></tr>
+              {% else %}
+                <tr><td class="text-muted text-center py-4">Sin datos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <strong>Contratos por vencer en 60 días</strong>
+          <span class="badge text-bg-warning">{{ resumen.vencimientos_60|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr><th>Días</th><th>Término</th><th>Trabajador</th><th>Obra</th><th>Cargo</th></tr>
+              </thead>
+              <tbody>
+                {% for r in resumen.vencimientos_60[:25] %}
+                  <tr>
+                    <td class="fw-bold text-warning">{{ r.dias_para_vencer }}</td>
+                    <td>{{ fmt_date(r.fecha_termino) }}</td>
+                    <td><div class="fw-semibold">{{ r.trabajador }}</div><div class="small text-muted">{{ r.rut }}</div></td>
+                    <td>{{ r.obra }}</td>
+                    <td>{{ r.cargo }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">No hay contratos por vencer en los próximos 60 días. Milagro administrativo digno de enmarcar 😄</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white"><strong>Contratos iniciados en últimos 30 días</strong></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light"><tr><th>Inicio</th><th>Trabajador</th><th>Obra</th></tr></thead>
+              <tbody>
+                {% for r in resumen.iniciados_30[:25] %}
+                  <tr>
+                    <td>{{ fmt_date(r.fecha_inicio) }}</td>
+                    <td><div class="fw-semibold">{{ r.trabajador }}</div><div class="small text-muted">{{ r.cargo }}</div></td>
+                    <td>{{ r.obra }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="3" class="text-center text-muted py-4">Sin ingresos recientes según los filtros aplicados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

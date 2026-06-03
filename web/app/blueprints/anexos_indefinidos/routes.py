@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date, timedelta, datetime
 from pathlib import Path
 
+import re
+
 from flask import current_app, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError
@@ -127,6 +129,42 @@ def _require_obra_y_centro_costo(contrato: Contrato) -> str:
         raise RuntimeError(f"La obra '{getattr(obra, 'nombre', 'SIN_NOMBRE')}' no tiene centro de costo definido.")
 
     return centro_costo
+
+def _safe_filename(name: str) -> str:
+    """
+    Sanitiza nombres de archivo para compatibilidad Windows/Nextcloud.
+    - Remueve caracteres inválidos: \\ / : * ? " < > |
+    - Colapsa espacios
+    - Recorta espacios y puntos finales
+    """
+    name = (name or "").strip()
+
+    # caracteres inválidos en Windows
+    name = re.sub(r'[\\\/:\*\?"<>\|]+', " ", name)
+
+    # colapsar espacios
+    name = re.sub(r"\s+", " ", name).strip()
+
+    # evitar nombres que terminen en punto o espacio (Windows)
+    name = name.rstrip(" .")
+
+    return name
+
+
+def _nombre_anexo_indefinido(trabajador, fecha_ref: date, extension: str) -> str:
+    """
+    <AAAA-MM-DD> Anexo indefinido - <Ap. Paterno Ap. Materno Nombres>.<ext>
+    """
+    ap_paterno = (getattr(trabajador, "ap_paterno", "") or "").strip() or "SIN_APELLIDO"
+    ap_materno = (getattr(trabajador, "ap_materno", "") or "").strip()
+    nombres = (getattr(trabajador, "nombres", "") or "").strip()
+
+    nombre_persona = " ".join([x for x in [ap_paterno, ap_materno, nombres] if x]).strip()
+    base = f"{fecha_ref.strftime('%Y-%m-%d')} Anexo indefinido - {nombre_persona}"
+
+    base = _safe_filename(base)
+    ext = (extension or "").lstrip(".").lower()
+    return f"{base}.{ext}"
 
 
 # ==========================
@@ -258,12 +296,8 @@ def _generar_archivos_anexo_indefinido_nextcloud(
     # Nombres finales (regeneración sobreescribe)
     fecha_ref = anexo.fecha_anexo or date.today()
 
-    nombre_docx = generar_nombre_documento(
-        tipo="ANEXO_INDEFINIDO_CONTRATO",
-        ap_paterno=trabajador.ap_paterno or "SIN_APELLIDO",
-        fecha_ref=fecha_ref,
-        extension="docx",
-    )
+    nombre_docx = _nombre_anexo_indefinido(trabajador=trabajador, fecha_ref=fecha_ref, extension="docx")
+
     docx_final = dest_dir / nombre_docx
     docx_final.write_bytes(docx_tmp.read_bytes())
 
@@ -273,12 +307,8 @@ def _generar_archivos_anexo_indefinido_nextcloud(
     pdf_final = None
 
     if formato in ("PDF", "AMBOS"):
-        nombre_pdf = generar_nombre_documento(
-            tipo="ANEXO_INDEFINIDO_CONTRATO",
-            ap_paterno=trabajador.ap_paterno or "SIN_APELLIDO",
-            fecha_ref=fecha_ref,
-            extension="pdf",
-        )
+        nombre_pdf = _nombre_anexo_indefinido(trabajador=trabajador, fecha_ref=fecha_ref, extension="pdf")
+
         pdf_final = dest_dir / nombre_pdf
         pdf_tmp = convert_docx_to_pdf(docx_tmp, pdf_tmp_dir)
         pdf_final.write_bytes(pdf_tmp.read_bytes())

@@ -35,8 +35,16 @@
     margin: 10px 0 6px;
   }
 
+  .section-title {
+    font-size: 16px;
+    font-weight: 900;
+    margin: 0 0 6px 0;
+    color: #7a1f16;
+  }
+
   .col-rut { width: 95px; white-space: nowrap; }
   .col-obra { width: 160px; }
+  .col-obs { width: 48px; text-align: center; }
   .money { text-align: right; white-space: nowrap; }
 
   .subtotal {
@@ -55,22 +63,49 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .total .big { font-size: 13px; font-weight: 900; }
 
-  .push-soft { height: 6mm; }
-
-  .signatures {
-    margin-top: 6mm;
-    break-inside: avoid;
-    page-break-inside: avoid;
+  .total .big {
+    font-size: 13px;
+    font-weight: 900;
   }
 
-  .sign-title {
-    font-weight: 800;
-    margin-bottom: 20mm;
+  .obs-table {
+    table-layout: fixed;
+    width: 100%;
   }
 
-  .sign-col { padding: 0 10px; }
+  .obs-table th,
+  .obs-table td {
+    font-size: 9px;
+    vertical-align: top;
+    padding: 4px 6px;
+    line-height: 1.15;
+  }
+
+  .obs-table .obs-n {
+    width: 34px;
+    text-align: center;
+  }
+
+  .obs-table .obs-rut {
+    width: 92px;
+    white-space: nowrap;
+  }
+
+  .obs-table .obs-trabajador {
+    width: 220px;
+    white-space: nowrap;
+  }
+
+  .obs-table .obs-monto {
+    width: 82px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .obs-table .obs-texto {
+    width: auto;
+  }
 </style>
 {% endblock %}
 
@@ -89,7 +124,7 @@
         <div>Referencia mes anterior: {{ periodo_prev_str }}</div>
       {% endif %}
 
-      <div>Origen: {{ nomina.origen|default(nomina.origen_archivo)|default("-") }} · Estado: {{ nomina.estado }}</div>
+      <div>Origen: {{ nomina.origen or nomina.origen_archivo or "Sistema Interno" }} · Estado: {{ nomina.estado }}</div>
     </div>
   </div>
 {% endblock %}
@@ -104,7 +139,6 @@
 
     <div class="hr"></div>
 
-    {# --- Preconteo de grupos para page-break inteligente --- #}
     {% set c = namespace(curr=None, grupos=0) %}
     {% for item in detalles %}
       {% set k = ((item.tipo_trabajador or "SIN TIPO")|trim|upper) %}
@@ -115,7 +149,6 @@
       {% endif %}
     {% endfor %}
 
-    {# --- Render real --- #}
     {% set ns = namespace(
       current_tipo=None,
       subtotal_prev=0,
@@ -166,6 +199,7 @@
               <th class="col-obra">Obra</th>
               <th class="money">Mes anterior</th>
               <th class="money">Mes actual</th>
+              <th class="col-obs">Obs.</th>
             </tr>
           </thead>
           <tbody>
@@ -183,6 +217,11 @@
         <td class="col-obra">{{ d.nombre_obra or "-" }}</td>
         <td class="money">${{ "{:,.0f}".format(item.monto_prev|float).replace(",", ".") }}</td>
         <td class="money">${{ "{:,.0f}".format(d.monto|float).replace(",", ".") }}</td>
+        <td class="col-obs">
+          {% if item.obs_ref %}
+            ({{ item.obs_ref }})
+          {% endif %}
+        </td>
       </tr>
 
       {% if loop.last %}
@@ -209,33 +248,41 @@
             ${{ "{:,.0f}".format(ns.total_act|float).replace(",", ".") }}
           </div>
         </div>
-
-        <div class="push-soft"></div>
-
-        <div class="signatures">
-          <div class="signatures-grid">
-            <div class="sign-col">
-              <div class="sign-title">V°B° Jefe Administración</div>
-              <div class="sign-line"></div>
-              <div class="sign-foot">Nombre / Firma / Fecha</div>
-            </div>
-
-            <div class="sign-col" style="text-align:center;">
-              <div class="sign-title">V°B° Administrador C. Costo</div>
-              <div class="sign-line"></div>
-              <div class="sign-foot">Nombre / Firma / Fecha</div>
-            </div>
-
-            <div class="sign-col" style="text-align:right;">
-              <div class="sign-title">V°B° Gerencia de Proyectos</div>
-              <div class="sign-line"></div>
-              <div class="sign-foot">Nombre / Firma / Fecha</div>
-            </div>
-          </div>
-        </div>
       {% endif %}
 
     {% endfor %}
+
+    {% if observaciones_list and observaciones_list|length > 0 %}
+      <div style="page-break-before: always;"></div>
+
+      <div class="section-title">Observaciones</div>
+      <div class="header-meta" style="margin-bottom: 8px;">
+        Referencias utilizadas en la nómina de anticipos.
+      </div>
+
+      <table class="obs-table">
+        <thead>
+          <tr>
+            <th class="obs-n">#</th>
+            <th class="obs-rut">RUT</th>
+            <th class="obs-trabajador">Trabajador</th>
+            <th class="obs-monto">Monto</th>
+            <th class="obs-texto">Observación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for obs in observaciones_list %}
+            <tr>
+              <td class="obs-n">{{ obs.n }}</td>
+              <td class="obs-rut">{{ obs.rut }}</td>
+              <td class="obs-trabajador">{{ obs.nombre }}</td>
+              <td class="obs-monto">${{ "{:,.0f}".format(obs.monto|float).replace(",", ".") }}</td>
+              <td class="obs-texto">{{ obs.observacion }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
 
   {% else %}
     <div class="small">Sin resultados.</div>

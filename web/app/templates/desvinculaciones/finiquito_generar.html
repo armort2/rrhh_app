@@ -1,0 +1,521 @@
+{# web/app/templates/desvinculaciones/finiquito_generar.html #}
+{% extends "base.html" %}
+{% block title %}Generar finiquito · #{{ desv.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Generar finiquito</h1>
+      <div class="section-subtitle">
+        Desvinculación <strong>#{{ desv.id }}</strong> ·
+        {{ desv.trabajador.nombres }} {{ desv.trabajador.ap_paterno }} {{ desv.trabajador.ap_materno }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">⬅ Volver</a>
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#modalAsistenteFiniquito">
+        🧮 Asistente de cálculo de finiquito
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('desvinculaciones.generar_finiquito', desvinculacion_id=desv.id) }}">
+        <input type="hidden" name="next_url" value="{{ next_url or '' }}">
+        <input
+          type="hidden"
+          id="CALCULO_FINIQUITO_JSON"
+          name="CALCULO_FINIQUITO_JSON"
+          value='{{ (calculo_finiquito_meta or {})|tojson|forceescape }}'>
+
+        <div class="row g-3">
+
+          <!-- INFO CONTRATO -->
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">📌 Info contrato</div>
+
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Contrato</div>
+                    <div class="fw-semibold">#{{ desv.contrato_id }}</div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Fecha inicio</div>
+                    <div class="fw-semibold">{{ contrato_fecha_inicio_fmt or "-" }}</div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Fecha término</div>
+                    <div class="fw-semibold">
+                      {{ desv.fecha_termino.strftime("%d-%m-%Y") if desv.fecha_termino else "-" }}
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Tiempo servido</div>
+                    <div class="fw-semibold">{{ tiempo_servido_fmt or "-" }}</div>
+                  </div>
+                </div>
+
+                {% if tiempo_servido_hint %}
+                  <div class="text-muted small mt-2">
+                    {{ tiempo_servido_hint }}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- FORMATO -->
+          <div class="col-12 col-lg-4">
+            <label class="form-label" for="formato">Formato de salida</label>
+            <select class="form-select" id="formato" name="formato" required>
+              <option value="DOCX" {% if formato == "DOCX" %}selected{% endif %}>Word (DOCX)</option>
+              <option value="PDF" {% if formato == "PDF" %}selected{% endif %}>PDF</option>
+              <option value="AMBOS" {% if formato == "AMBOS" %}selected{% endif %}>DOCX + PDF</option>
+            </select>
+            <div class="text-muted small mt-1">
+              Recomendación: PDF para entrega/firmas; DOCX si lo editarás.
+            </div>
+          </div>
+
+          <div class="col-12">
+            <hr class="my-2">
+            <div class="fw-semibold">Valores del finiquito</div>
+            <div class="text-muted small">
+              Ingresa montos tal como quieres que aparezcan (ej: 1500000 o 1.500.000).
+            </div>
+          </div>
+
+          <!-- DOS COLUMNAS -->
+          <div class="col-12">
+            <div class="row g-4">
+
+              <!-- SUMAN -->
+              <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                      <div class="fw-semibold">➕ Ítems que suman</div>
+                      <div class="text-muted small">Haberes / indemnizaciones</div>
+                    </div>
+
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="FINIQUITO_DIAS_FERIADO_A_PAGO">Días de feriado a pago (hábiles)</label>
+                        <input class="form-control" id="FINIQUITO_DIAS_FERIADO_A_PAGO" name="FINIQUITO_DIAS_FERIADO_A_PAGO"
+                              value="{{ vals.get('FINIQUITO_DIAS_FERIADO_A_PAGO','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="FINIQUITO_FERIADO_PROPORCIONAL">Feriado proporcional</label>
+                        <input class="form-control" id="FINIQUITO_FERIADO_PROPORCIONAL" name="FINIQUITO_FERIADO_PROPORCIONAL"
+                               value="{{ vals.get('FINIQUITO_FERIADO_PROPORCIONAL','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="FINIQUITO_AVISO_PREVIO">Aviso previo</label>
+                        <input class="form-control" id="FINIQUITO_AVISO_PREVIO" name="FINIQUITO_AVISO_PREVIO"
+                               value="{{ vals.get('FINIQUITO_AVISO_PREVIO','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="FINIQUITO_ANIOS_SERVICIOS">Años de servicio</label>
+                        <input class="form-control" id="FINIQUITO_ANIOS_SERVICIOS" name="FINIQUITO_ANIOS_SERVICIOS"
+                               value="{{ vals.get('FINIQUITO_ANIOS_SERVICIOS','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="FINIQUITO_INDEM_VOLUNTARIA">Indemnización voluntaria</label>
+                        <input class="form-control" id="FINIQUITO_INDEM_VOLUNTARIA" name="FINIQUITO_INDEM_VOLUNTARIA"
+                               value="{{ vals.get('FINIQUITO_INDEM_VOLUNTARIA','') }}">
+                      </div>
+
+                      <div class="col-12">
+                        <div class="fw-semibold small text-muted">Otros (personalizado)</div>
+                      </div>
+
+                      <div class="col-12 col-md-7">
+                        <label class="form-label" for="FINIQUITO_OTROS">Nombre del ítem</label>
+                        <input class="form-control" id="FINIQUITO_OTROS" name="FINIQUITO_OTROS"
+                               placeholder="Ej: Bono término de contrato"
+                               value="{{ vals.get('FINIQUITO_OTROS','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-5">
+                        <label class="form-label" for="FINIQUITO_MONTO_OTROS">Monto</label>
+                        <input class="form-control" id="FINIQUITO_MONTO_OTROS" name="FINIQUITO_MONTO_OTROS"
+                               value="{{ vals.get('FINIQUITO_MONTO_OTROS','') }}">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- RESTAN -->
+              <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                      <div class="fw-semibold">➖ Ítems que restan</div>
+                      <div class="text-muted small">Descuentos</div>
+                    </div>
+
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label" for="FINIQUITO_APORTE_EMP_SEG_CES">Aporte empleador seguro cesantía</label>
+                        <input class="form-control" id="FINIQUITO_APORTE_EMP_SEG_CES" name="FINIQUITO_APORTE_EMP_SEG_CES"
+                               value="{{ vals.get('FINIQUITO_APORTE_EMP_SEG_CES','') }}">
+                      </div>
+
+                      <div class="col-12">
+                        <div class="fw-semibold small text-muted">Descuento 1 (personalizado)</div>
+                      </div>
+
+                      <div class="col-12 col-md-7">
+                        <label class="form-label" for="FINIQUITO_DESCTO_1">Nombre del descuento</label>
+                        <input class="form-control" id="FINIQUITO_DESCTO_1" name="FINIQUITO_DESCTO_1"
+                               placeholder="Ej: Anticipo / Préstamo empresa"
+                               value="{{ vals.get('FINIQUITO_DESCTO_1','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-5">
+                        <label class="form-label" for="FINIQUITO_MONTO_DESCTO_1">Monto</label>
+                        <input class="form-control" id="FINIQUITO_MONTO_DESCTO_1" name="FINIQUITO_MONTO_DESCTO_1"
+                               value="{{ vals.get('FINIQUITO_MONTO_DESCTO_1','') }}">
+                      </div>
+
+                      <div class="col-12">
+                        <div class="fw-semibold small text-muted">Descuento 2 (personalizado)</div>
+                      </div>
+
+                      <div class="col-12 col-md-7">
+                        <label class="form-label" for="FINIQUITO_DESCTO_2">Nombre del descuento</label>
+                        <input class="form-control" id="FINIQUITO_DESCTO_2" name="FINIQUITO_DESCTO_2"
+                               placeholder="Ej: Herramientas / EPP / Daños"
+                               value="{{ vals.get('FINIQUITO_DESCTO_2','') }}">
+                      </div>
+
+                      <div class="col-12 col-md-5">
+                        <label class="form-label" for="FINIQUITO_MONTO_DESCTO_2">Monto</label>
+                        <input class="form-control" id="FINIQUITO_MONTO_DESCTO_2" name="FINIQUITO_MONTO_DESCTO_2"
+                               value="{{ vals.get('FINIQUITO_MONTO_DESCTO_2','') }}">
+                      </div>
+
+                      <div class="col-12">
+                        <div class="text-muted small">
+                          Tip: si no aplica, deja el nombre y/o monto en blanco (no hace falta poner 0).
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- RESUMEN -->
+          <div class="col-12">
+            <div class="card mt-1">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">📊 Resumen (calculado)</div>
+
+                <div class="row g-3 align-items-end">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="FINIQUITO_SUBTOTAL">Sub total</label>
+                    <input class="form-control" id="FINIQUITO_SUBTOTAL" name="FINIQUITO_SUBTOTAL" value="{{ vals.get('FINIQUITO_SUBTOTAL','') }}" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="FINIQUITO_TOTAL_DESCTOS">Total descuentos</label>
+                    <input class="form-control" id="FINIQUITO_TOTAL_DESCTOS" name="FINIQUITO_TOTAL_DESCTOS" value="{{ vals.get('FINIQUITO_TOTAL_DESCTOS','') }}" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold" for="FINIQUITO_TOTAL_PAGO">Total a pagar</label>
+                    <input class="form-control fw-semibold" id="FINIQUITO_TOTAL_PAGO" name="FINIQUITO_TOTAL_PAGO" value="{{ vals.get('FINIQUITO_TOTAL_PAGO','') }}" readonly>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+          <a class="btn btn-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Generar finiquito</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal fade" id="modalAsistenteFiniquito" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Asistente de cálculo de finiquito</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="asis_tipo_remuneracion">Tipo de remuneración</label>
+            <select class="form-select" id="asis_tipo_remuneracion">
+              <option value="FIJA" selected>Fija</option>
+              <option value="VARIABLE">Variable</option>
+              <option value="MIXTA">Mixta</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4 d-flex align-items-end">
+            <div class="form-check me-3">
+              <input class="form-check-input" type="checkbox" id="asis_aplicar_aviso_previo" checked>
+              <label class="form-check-label" for="asis_aplicar_aviso_previo">Calcular aviso previo</label>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="asis_aplicar_anios_servicio" checked>
+              <label class="form-check-label" for="asis_aplicar_anios_servicio">Calcular años de servicio</label>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Base de cálculo</div>
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="asis_incluir_colacion_base">
+                      <label class="form-check-label" for="asis_incluir_colacion_base">Incluir colación</label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="asis_incluir_movilizacion_base">
+                      <label class="form-check-label" for="asis_incluir_movilizacion_base">Incluir movilización</label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="asis_incluir_gratificacion_base">
+                      <label class="form-check-label" for="asis_incluir_gratificacion_base">Incluir gratificación</label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label" for="asis_gratificacion_mensual">Gratificación mensual</label>
+                    <input class="form-control" id="asis_gratificacion_mensual" placeholder="Ej: 134750">
+                  </div>
+                </div>
+
+                <div class="row g-3 mt-1 d-none" id="asis_variables_wrap">
+                  <div class="col-12">
+                    <div class="text-muted small">
+                      Informa variables computables de los últimos 3 meses.
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="asis_var_mes_1">Variable mes 1</label>
+                    <input class="form-control" id="asis_var_mes_1">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="asis_var_mes_2">Variable mes 2</label>
+                    <input class="form-control" id="asis_var_mes_2">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="asis_var_mes_3">Variable mes 3</label>
+                    <input class="form-control" id="asis_var_mes_3">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RESULTADO SUGERIDO -->
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Resultado sugerido</div>
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Base cálculo</label>
+                    <input class="form-control" id="asis_out_base" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Días feriado a pago</label>
+                    <input class="form-control" id="asis_out_dias_feriado" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Días corridos equivalentes</label>
+                    <input class="form-control" id="asis_out_dias_corridos" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Feriado proporcional</label>
+                    <input class="form-control" id="asis_out_feriado" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Aviso previo</label>
+                    <input class="form-control" id="asis_out_aviso" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Años de servicio</label>
+                    <input class="form-control" id="asis_out_anios" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Meses indemnizables</label>
+                    <input class="form-control" id="asis_out_meses_indemnizables" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Inicio corridos</label>
+                    <input class="form-control" id="asis_out_inicio_corridos" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Fin corridos</label>
+                    <input class="form-control" id="asis_out_fin_corridos" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Fin hábiles ref.</label>
+                    <input class="form-control" id="asis_out_fin_habiles_ref" readonly>
+                  </div>
+                </div>
+
+                <div class="alert alert-light border mt-3 mb-0">
+                  <div class="small text-muted" id="asis_estado">
+                    Aún no se ha ejecutado el cálculo.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DETALLE TÉCNICO -->
+          <div class="col-12">
+            <div class="card border-info-subtle">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Detalle técnico del feriado proporcional</div>
+                <div class="text-muted small mb-3">
+                  Respaldo del cálculo usado por el asistente.
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Fecha base proporcional</label>
+                    <input class="form-control" id="asis_out_fecha_base_prop" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Días corridos del tramo</label>
+                    <input class="form-control" id="asis_out_dias_tramo_prop" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Devengo teórico hábil</label>
+                    <input class="form-control" id="asis_out_devengo_teorico" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Días usados</label>
+                    <input class="form-control" id="asis_out_dias_usados" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Ajuste</label>
+                    <input class="form-control" id="asis_out_dias_ajuste" readonly>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BASE INDEMNIZATORIA -->
+          <div class="col-12">
+            <div class="card border-warning-subtle">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Base indemnizatoria</div>
+                <div class="text-muted small mb-3">
+                  Respaldo de los componentes usados para aviso previo y años de servicio.
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Sueldo base</label>
+                    <input class="form-control" id="asis_out_indem_sueldo_base" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Gratificación</label>
+                    <input class="form-control" id="asis_out_indem_gratificacion" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Colación</label>
+                    <input class="form-control" id="asis_out_indem_colacion" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Movilización</label>
+                    <input class="form-control" id="asis_out_indem_movilizacion" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Variable promedio</label>
+                    <input class="form-control" id="asis_out_indem_variable" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Base indemnización</label>
+                    <input class="form-control fw-semibold" id="asis_out_base_indemnizacion" readonly>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="btnCalcularAsistente">Calcular</button>
+        <button type="button" class="btn btn-primary" id="btnUsarValoresAsistente">Usar estos valores</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="finiquito-generar-config"
+     data-desvinculacion-id="{{ desv.id }}"
+     data-contrato-id="{{ desv.contrato_id }}"
+     data-calcular-url="{{ url_for('desvinculaciones.calcular_finiquito_ajax', desvinculacion_id=desv.id) }}"></div>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/desvinculaciones_finiquito_generar.js') }}"></script>
+{% endblock %}

@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
-from docx import Document
+if TYPE_CHECKING:
+    from docx.document import Document  # solo para type hints (no se ejecuta)
+
+from docx import Document as DocxDocument
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+
+import re
+from docx.text.paragraph import Paragraph
 
 
 # ============================================================
@@ -147,18 +153,6 @@ def _replace_in_textboxes_via_xml(doc: Document, mapping: Dict[str, str]) -> Non
                 new = new.replace(k, v)
         if new != txt:
             t.text = new
-
-
-def replace_placeholders(doc: Document, mapping: Dict[str, str]) -> None:
-    for _, part in _iter_all_story_parts(doc):
-        for p in getattr(part, "paragraphs", []):
-            _replace_in_paragraph_runs(p, mapping)
-
-        for table in getattr(part, "tables", []):
-            _replace_in_table(table, mapping)
-
-    _replace_in_textboxes_via_xml(doc, mapping)
-
 
 # ============================================================
 # Opción C: Merge de numeración (listas) entre docs
@@ -617,8 +611,8 @@ def build_contract_docx(
     cargo_bookmark_template: str = "CARGO_{id}__DESCRIPCION",
     cargo_placeholder: str = "{{DESCRIPCION_CARGO}}",
 ) -> Path:
-    base_doc = Document(str(base_template_path))
-    cargos_doc = Document(str(cargos_library_path))
+    base_doc = DocxDocument(str(base_template_path))
+    cargos_doc = DocxDocument(str(cargos_library_path))
 
     bookmark_name = cargo_bookmark_template.format(id=cargo_id)
 
@@ -637,3 +631,97 @@ def build_contract_docx(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     base_doc.save(str(output_path))
     return output_path
+
+_PLACEHOLDER_TOKEN_RE = re.compile(r"{{\s*([^{}]{1,120}?)\s*}}")
+
+def _fallback_replace_placeholders_in_paragraph(paragraph: Paragraph, mapping: Dict[str, str]) -> bool:
+    full = paragraph.text or ""
+    if "{{" not in full:
+        return False
+
+    replaced_any = False
+
+    def repl(m: re.Match) -> str:
+        nonlocal replaced_any
+        key = (m.group(1) or "").strip()
+        if not key:
+            return m.group(0)
+
+        # probamos ambas formas del token
+        t1 = f"{{{{{key}}}}}"
+        t2 = f"{{{{ {key} }}}}"
+
+        if t1 in mapping:
+            replaced_any = True
+            return mapping.get(t1, "") or ""
+        if t2 in mapping:
+            replaced_any = True
+            return mapping.get(t2, "") or ""
+        return m.group(0)
+
+    new_text = _PLACEHOLDER_TOKEN_RE.sub(repl, full)
+
+    if replaced_any and new_text != full:
+        paragraph.text = new_text
+
+    return replaced_any
+
+
+def _normalize_placeholder_mapping(mapping: Dict[str, str]) -> Dict[str, str]:
+    """
+    Recibe mapping tipo:
+      {"CARGO_NOMBRE": "Maestro ...", "TRABAJADOR_NOMBRES": "Juan ..."}
+    y devuelve mapping con tokens completos:
+      {"{{CARGO_NOMBRE}}": "...", "{{ CARGO_NOMBRE }}": "...", ...}
+
+    Si ya viene con llaves, lo respeta.
+    """
+    out: Dict[str, str] = {}
+
+    for k, v in (mapping or {}).items():
+        key = (k or "").strip()
+        val = "" if v is None else str(v)
+
+        if not key:
+            continue
+
+        # Si ya viene como {{...}}
+        if key.startswith("{{") and key.endswith("}}"):
+            out[key] = val
+            inner = key[2:-2].strip()
+            if inner:
+                out[f"{{{{ {inner} }}}}"] = val
+            continue
+
+        # Normal: clave sin llaves
+        out[f"{{{{{key}}}}}"] = val
+        out[f"{{{{ {key} }}}}"] = val
+
+    return out
+
+
+def replace_placeholders(doc: Document, mapping: Dict[str, str]) -> None:
+    token_mapping = _normalize_placeholder_mapping(mapping)
+
+    for _, part in _iter_all_story_parts(doc):
+        # Párrafos
+        for p in getattr(part, "paragraphs", []):
+            _replace_in_paragraph_runs(p, token_mapping)
+
+        # Tablas
+        for table in getattr(part, "tables", []):
+            _replace_in_table(table, token_mapping)
+
+        # Fallback (solo donde aún hay llaves)
+        for p in getattr(part, "paragraphs", []):
+            if "{{" in (p.text or ""):
+                _fallback_replace_placeholders_in_paragraph(p, token_mapping)
+
+        for table in getattr(part, "tables", []):
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        if "{{" in (p.text or ""):
+                            _fallback_replace_placeholders_in_paragraph(p, token_mapping)
+
+    _replace_in_textboxes_via_xml(doc, token_mapping)

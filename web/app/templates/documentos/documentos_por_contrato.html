@@ -3,99 +3,215 @@
 {% block title %}Documentos contrato #{{ contrato.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <div>
-            <h1 class="card-title">Documentos del contrato #{{ contrato.id }}</h1>
-            <p class="card-subtitle">
-                Trabajador:
-                {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
-                · RUT: {{ contrato.trabajador.rut }}<br>
-                Empleador:
-                {% if contrato.empleador %}
-                    {{ contrato.empleador.razon_social }}
-                {% else %}
-                    — Sin empleador asociado —
-                {% endif %}<br>
-                Obra:
-                {% if contrato.obra %}
-                    {{ contrato.obra.nombre }}
-                    {% if contrato.obra.centro_costo %} ({{ contrato.obra.centro_costo }}){% endif %}
-                {% else %}
-                    — Sin obra —
-                {% endif %}
-            </p>
-        </div>
-        <div>
-            <a href="{{ url_for('documentos.nuevo_documento_contrato', contrato_id=contrato.id) }}"
-               class="btn btn-primary">
-                ➕ Registrar documento
-            </a>
-        </div>
-    </div>
+{% set trabajador = contrato.trabajador %}
+{% set nombre_trabajador = trabajador.nombres ~ ' ' ~ trabajador.ap_paterno ~ (' ' ~ trabajador.ap_materno if trabajador.ap_materno else '') %}
+{% set total_docs = contrato.documentos|length %}
+{% set ns = namespace(con_enlace=0, pdfs=0) %}
+{% for doc in contrato.documentos %}
+                    {% set nombre_mostrado = nombres_documentos.get(doc.id) if nombres_documentos is defined else doc.nombre_archivo %}
+    {% if doc.ruta_archivo %}{% set ns.con_enlace = ns.con_enlace + 1 %}{% endif %}
+    {% set doc_nombre_lower = (doc.nombre_archivo or '')|lower %}
+    {% if doc_nombre_lower.endswith('.pdf') %}{% set ns.pdfs = ns.pdfs + 1 %}{% endif %}
+{% endfor %}
 
-    <div class="card-body">
+<div class="docs-contract-page cs-detail-page" data-docs-contract-page>
+    <section class="docs-hero cs-detail-hero reveal-on-scroll">
+        <div class="docs-hero-main">
+            <div class="docs-eyebrow">Expediente documental</div>
+            <h1>Documentos del contrato #{{ contrato.id }}</h1>
+            <p>Centraliza contratos, anexos, liquidaciones y respaldos laborales asociados al trabajador.</p>
+
+            <div class="docs-person-card">
+                <div class="docs-avatar" aria-hidden="true">{{ trabajador.nombres[:1] }}{{ trabajador.ap_paterno[:1] }}</div>
+                <div>
+                    <strong>{{ nombre_trabajador }}</strong>
+                    <span>RUT {{ trabajador.rut_completo or trabajador.rut }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="docs-hero-side">
+            <div class="docs-status-pill">
+                <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                Expediente activo
+            </div>
+            <div class="docs-hero-actions">
+                <a href="{{ url_for('documentos.nuevo_documento_contrato', contrato_id=contrato.id) }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Registrar documento
+                </a>
+                <button type="button" class="btn btn-outline-secondary" disabled title="Próxima etapa: sincronización controlada con Nextcloud">
+                    <i class="bi bi-cloud-arrow-down" aria-hidden="true"></i> Sincronizar Nextcloud
+                </button>
+                <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}" class="btn btn-light">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a ficha
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="docs-summary-grid reveal-on-scroll" aria-label="Resumen del expediente">
+        <article class="docs-summary-card">
+            <span class="docs-summary-icon">📄</span>
+            <div><small>Documentos registrados</small><strong>{{ total_docs }}</strong></div>
+        </article>
+        <article class="docs-summary-card">
+            <span class="docs-summary-icon">🔗</span>
+            <div><small>Con enlace disponible</small><strong>{{ ns.con_enlace }}</strong></div>
+        </article>
+        <article class="docs-summary-card">
+            <span class="docs-summary-icon">🧾</span>
+            <div><small>PDF detectados</small><strong>{{ ns.pdfs }}</strong></div>
+        </article>
+        <article class="docs-summary-card docs-summary-card-muted">
+            <span class="docs-summary-icon">☁️</span>
+            <div><small>Origen Nextcloud</small><strong>Manual</strong></div>
+        </article>
+    </section>
+
+    <section class="docs-context-grid reveal-on-scroll">
+        <article class="docs-context-card">
+            <div class="docs-card-title"><i class="bi bi-person-badge" aria-hidden="true"></i> Datos laborales</div>
+            <dl class="docs-dl">
+                <div>
+                    <dt>Empleador</dt>
+                    <dd>{{ contrato.empleador.razon_social if contrato.empleador else 'Sin empleador asociado' }}</dd>
+                </div>
+                <div>
+                    <dt>Obra</dt>
+                    <dd>
+                        {% if contrato.obra %}
+                            {{ contrato.obra.nombre }}{% if contrato.obra.centro_costo %} · {{ contrato.obra.centro_costo }}{% endif %}
+                        {% else %}
+                            Sin obra asociada
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Inicio contrato</dt>
+                    <dd>{{ contrato.fecha_inicio.strftime('%d-%m-%Y') if contrato.fecha_inicio else 'Sin fecha registrada' }}</dd>
+                </div>
+                <div>
+                    <dt>Término contrato</dt>
+                    <dd>{{ contrato.fecha_termino.strftime('%d-%m-%Y') if contrato.fecha_termino else 'Sin fecha de término' }}</dd>
+                </div>
+            </dl>
+        </article>
+
+        <article class="docs-context-card docs-nextcloud-card">
+            <div class="docs-card-title"><i class="bi bi-shield-check" aria-hidden="true"></i> Gestión de registros</div>
+            <p>
+                Puedes editar la clasificación, estado, nombre lógico o enlace de cada documento. Al eliminar un registro,
+                solo se borra del Sistema Grupo CS; el archivo original en Nextcloud no se elimina.
+            </p>
+            <div class="docs-folder-chips" aria-label="Carpetas sugeridas para sincronización">
+                <span>LIQUIDACIONES</span><span>CONTRATOS</span><span>ANEXOS</span><span>FINIQUITOS</span><span>PREVENCIÓN</span>
+            </div>
+        </article>
+    </section>
+
+    <section class="docs-main-card reveal-on-scroll">
+        <div class="docs-section-header">
+            <div>
+                <span class="docs-eyebrow">Biblioteca laboral</span>
+                <h2>Documentos registrados</h2>
+                <p>Filtra por tipo, busca por nombre, edita metadatos o elimina registros duplicados.</p>
+            </div>
+            <div class="docs-toolbar">
+                <div class="docs-search-wrap">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search" class="form-control" placeholder="Buscar documento..." data-doc-search>
+                </div>
+            </div>
+        </div>
+
+        <div class="docs-filter-pills" role="group" aria-label="Filtrar documentos por tipo">
+            <button type="button" class="docs-filter-pill active" data-doc-filter="all">Todos</button>
+            {% for value, label in tipos_dict.items() %}
+                <button type="button" class="docs-filter-pill" data-doc-filter="{{ value|lower }}">{{ label }}</button>
+            {% endfor %}
+        </div>
+
         {% if contrato.documentos %}
-            <div class="table-wrapper">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Tipo</th>
-                            <th>Nombre archivo</th>
-                            <th>Ruta lógica</th>
-                            <th>Estado</th>
-                            <th>Creado en</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for doc in contrato.documentos %}
-                            <tr>
-                                <td>
-                                    {{ tipos_dict.get(doc.tipo, doc.tipo) }}
-                                </td>
-                                <td>{{ doc.nombre_archivo }}</td>
-                                <td>
-                                    {% if doc.ruta_completa %}
-                                        <span class="text-muted">{{ doc.ruta_completa }}</span>
-                                    {% else %}
-                                        <span class="text-muted">No se pudo determinar ruta lógica</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ doc.estado }}</td>
-                                <td>
-                                    {% if doc.fecha_creacion %}
-                                        {{ doc.fecha_creacion.strftime('%d-%m-%Y %H:%M') }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if doc.ruta_archivo %}
-                                        <a href="{{ doc.ruta_archivo }}" target="_blank" class="btn btn-secondary">
-                                            🔗 Abrir en Nextcloud
-                                        </a>
-                                    {% else %}
-                                        <span class="text-muted">Sin enlace</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="docs-grid" data-docs-grid>
+                {% for doc in contrato.documentos %}
+                    {% set tipo_label = tipos_dict.get(doc.tipo, doc.tipo) %}
+                    {% set extension = (doc.nombre_archivo.rsplit('.', 1)[-1] if doc.nombre_archivo and '.' in doc.nombre_archivo else 'archivo') %}
+                    <article class="docs-file-card" data-doc-item data-doc-type="{{ doc.tipo|lower }}" data-doc-name="{{ (tipo_label ~ ' ' ~ (nombre_mostrado or doc.nombre_archivo or '') ~ ' ' ~ (doc.ruta_archivo or ''))|lower }}">
+                        <div class="docs-file-icon" aria-hidden="true">{% if extension|lower == 'pdf' %}PDF{% elif extension|lower == 'docx' %}DOC{% else %}DOC{% endif %}</div>
+                        <div class="docs-file-body">
+                            <div class="docs-file-topline">
+                                <span class="docs-type-badge">{{ tipo_label }}</span>
+                                <span class="docs-state-badge docs-state-{{ doc.estado|lower }}">{{ doc.estado }}</span>
+                            </div>
+                            <h3>{{ nombre_mostrado or doc.nombre_archivo }}</h3>
+                            <p class="docs-file-summary">Documento laboral asociado al contrato #{{ contrato.id }}.</p>
+                            <div class="docs-file-meta">
+                                <span><i class="bi bi-calendar3" aria-hidden="true"></i> {{ doc.fecha_creacion.strftime('%d-%m-%Y %H:%M') if doc.fecha_creacion else 'Sin fecha' }}</span>
+                                <span><i class="bi bi-file-earmark" aria-hidden="true"></i> {{ extension|upper }}</span>
+                            </div>
+                        </div>
+                        <div class="docs-file-actions docs-file-actions-stack">
+                            {% if doc.ruta_archivo %}
+                                <a href="{{ doc.ruta_archivo }}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Abrir
+                                </a>
+                            {% else %}
+                                <span class="docs-no-link">Sin enlace</span>
+                            {% endif %}
+                            <a href="{{ url_for('documentos.editar_documento_contrato', contrato_id=contrato.id, documento_id=doc.id) }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-pencil-square" aria-hidden="true"></i> Editar
+                            </a>
+                            <form method="post" action="{{ url_for('documentos.eliminar_documento_contrato', contrato_id=contrato.id, documento_id=doc.id) }}" class="docs-delete-form" data-confirm-message="¿Eliminar este registro documental? El archivo original en Nextcloud no será eliminado.">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash" aria-hidden="true"></i> Eliminar
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="docs-empty-filter d-none" data-doc-empty-filter>
+                <div class="cs-empty-state compact">
+                    <div class="cs-empty-icon">🔎</div>
+                    <h3 class="cs-empty-title">No hay documentos para este filtro</h3>
+                    <p class="cs-empty-text">Prueba con otro tipo documental o limpia la búsqueda.</p>
+                    <button type="button" class="btn btn-light" data-doc-clear-filters>Limpiar filtros</button>
+                </div>
             </div>
         {% else %}
-            <p class="text-muted">
-                Aún no hay documentos registrados para este contrato.
-            </p>
+            <div class="cs-empty-state docs-empty-state">
+                <div class="cs-empty-icon">📁</div>
+                <h3 class="cs-empty-title">Este contrato aún no tiene documentos registrados</h3>
+                <p class="cs-empty-text">
+                    Puedes comenzar registrando manualmente el enlace de Nextcloud del contrato, anexos o liquidaciones.
+                    Luego automatizamos la sincronización de PDFs desde carpetas del trabajador.
+                </p>
+                <div class="cs-empty-actions">
+                    <a href="{{ url_for('documentos.nuevo_documento_contrato', contrato_id=contrato.id) }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i> Registrar primer documento
+                    </a>
+                </div>
+            </div>
         {% endif %}
-    </div>
+    </section>
 
-    <div class="card-footer form-actions">
-        <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id) }}"
-           class="btn btn-secondary">
-            ⬅ Volver a ficha del trabajador
-        </a>
-    </div>
+    <section class="docs-type-shortcuts reveal-on-scroll">
+        <div class="docs-section-header compact">
+            <div><span class="docs-eyebrow">Carga rápida</span><h2>Registrar por tipo documental</h2></div>
+        </div>
+        <div class="docs-shortcut-grid">
+            {% for value, label in tipos_dict.items() %}
+                <a href="{{ url_for('documentos.nuevo_documento_contrato', contrato_id=contrato.id, tipo_documento=value) }}" class="docs-shortcut-card">
+                    <span>{{ label[:1] }}</span><strong>{{ label }}</strong><small>Registrar enlace</small>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/documentos_contrato.js') }}"></script>
 {% endblock %}

@@ -1,0 +1,559 @@
+{# web/app/templates/rendiciones_gastos/detalle.html #}
+{% extends "base.html" %}
+{% block title %}Rendición #{{ r.numero }}{% endblock %}
+
+{% from "rendiciones_gastos/macros.html" import fmt_clp, badge_estado %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  {# ✅ Recalcular is_admin desde current_user (autoridad local) #}
+  {% set is_admin =
+      (current_user.is_authenticated)
+      and (current_user.has_role('ADMIN') if current_user.has_role is defined else false)
+  %}
+
+  {# ---------
+     Flags (robustos)
+     --------- #}
+  {% set items = items if items is defined and items is not none else [] %}
+  {% set n_items_safe = (n_items if n_items is defined and n_items is not none else (items|length if items is defined and items is not none else 0)) %}
+  {% set estado_up = (r.estado or '')|upper %}
+  {% set tiene_vinculo = (r.solicitud_fondos_id is not none) and (r.solicitud_fondos_id|string)|trim != '' %}
+  {% set esta_integrada = (estado_up == 'INTEGRADA') %}
+  {% set bloqueo_eliminar = tiene_vinculo or esta_integrada or (n_items_safe|int > 0) %}
+  {% set puede_eliminar = (is_admin|default(false)) and (not bloqueo_eliminar) %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Rendición #{{ r.numero }}</h1>
+
+      <div class="section-subtitle">
+        Centro de Costo: <span class="fw-semibold">{{ r.centro_costo }}</span>
+        · Fecha: {{ r.fecha_rendicion }}
+        {% if obra_data %}
+          · Ref: {{ obra_data.codigo }} · {{ obra_data.nombre }}
+        {% endif %}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap cs-detail-actions">
+      <span class="badge {{ badge_estado(r.estado) }}">{{ r.estado }}</span>
+
+      {% if is_admin and r.estado in ["ENVIADA", "RECHAZADA"] and (not tiene_vinculo) and (not esta_integrada) %}
+        <form method="post"
+              action="{{ url_for('rendiciones_gastos.cambiar_estado', rendicion_id=r.id) }}"
+              class="d-inline"
+              onsubmit="return confirm('¿Revertir a BORRADOR? Esto habilita edición nuevamente.');">
+          <input type="hidden" name="estado" value="BORRADOR">
+          <button type="submit" class="btn btn-outline-warning">
+            ↩️ Revertir a BORRADOR
+          </button>
+        </form>
+      {% endif %}
+
+      <div class="d-flex gap-2 flex-wrap cs-detail-actions">
+        {% if not solo_lectura %}
+
+          {% if r.estado in ["BORRADOR","RECHAZADA"] %}
+            <form method="post" action="{{ url_for('rendiciones_gastos.cambiar_estado', rendicion_id=r.id) }}" class="d-inline">
+              <input type="hidden" name="estado" value="ENVIADA">
+              <button type="submit" class="btn btn-primary">Enviar</button>
+            </form>
+          {% endif %}
+
+          {% if r.estado == "ENVIADA" %}
+            <form method="post" action="{{ url_for('rendiciones_gastos.cambiar_estado', rendicion_id=r.id) }}" class="d-inline">
+              <input type="hidden" name="estado" value="APROBADA">
+              <button type="submit" class="btn btn-success">Aprobar</button>
+            </form>
+
+            <form method="post" action="{{ url_for('rendiciones_gastos.cambiar_estado', rendicion_id=r.id) }}"
+                  class="d-inline"
+                  onsubmit="return confirm('¿Rechazar esta rendición?');">
+              <input type="hidden" name="estado" value="RECHAZADA">
+              <button type="submit" class="btn btn-outline-danger">Rechazar</button>
+            </form>
+          {% endif %}
+
+          <a class="btn btn-outline-primary" href="{{ url_for('rendiciones_gastos.editar', rendicion_id=r.id) }}">
+            Editar cabecera
+          </a>
+        {% endif %}
+
+        <a class="btn btn-outline-dark"
+           href="{{ url_for('rendiciones_gastos.imprimir_pdf', rendicion_id=r.id) }}?v={{ ((r.actualizado_en or r.creado_en).timestamp()|int) if (r.actualizado_en or r.creado_en) else r.id }}"
+           target="_blank" rel="noopener">
+          🖨️ Imprimir PDF
+        </a>
+
+        {% if is_admin %}
+          <form method="post"
+                action="{{ url_for('rendiciones_gastos.eliminar', rendicion_id=r.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('⚠️ ¿Eliminar definitivamente esta rendición? Esta acción no se puede deshacer.');">
+            <button type="submit"
+                    class="btn btn-outline-danger"
+                    {% if not puede_eliminar %}disabled{% endif %}
+                    title="{% if not puede_eliminar %}
+                            No se puede eliminar si está vinculada/integrada o tiene ítems
+                          {% else %}
+                            Eliminar rendición
+                          {% endif %}">
+              🗑️ Eliminar
+            </button>
+          </form>
+        {% endif %}
+
+        <a class="btn btn-outline-secondary" href="{{ url_for('rendiciones_gastos.listado') }}">Volver</a>
+      </div>
+    </div>
+  </div>
+
+  {% if is_admin and not puede_eliminar %}
+    <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+      <div class="fs-5">🔒</div>
+      <div>
+        <div class="fw-semibold">Eliminación bloqueada por reglas de control interno</div>
+        <div class="small">
+          Esta rendición no se puede eliminar mientras:
+          <ul class="mb-0">
+            {% if esta_integrada %}
+              <li>esté en estado <span class="fw-semibold">INTEGRADA</span>, o</li>
+            {% endif %}
+            {% if tiene_vinculo %}
+              <li>tenga una <span class="fw-semibold">Solicitud de Fondos vinculada</span>, o</li>
+            {% endif %}
+            {% if (n_items_safe|int > 0) %}
+              <li>tenga <span class="fw-semibold">ítems</span> (actualmente: {{ n_items_safe }}).</li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% set puede_editar_items = (not solo_lectura) and (r.estado in ["BORRADOR", "INTEGRADA"]) %}
+  {% set conceptos_rendicion = conceptos_rendicion if conceptos_rendicion is defined else [] %}
+  {% set tipos_documento_rendicion = tipos_documento_rendicion if tipos_documento_rendicion is defined else [] %}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+
+      <div class="card">
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-12 col-md-4">
+              <div class="text-muted small">Creado por</div>
+              <div class="fw-semibold">
+                {% if creador_data %}
+                  {{ creador_data.nombre or creador_data.username or creador_data.email or creador_data.id }}
+                {% else %}
+                  {{ r.creado_por_user_id or "-" }}
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Período</div>
+              <div class="fw-semibold">
+                {% if r.periodo_desde and r.periodo_hasta %}
+                  {{ r.periodo_desde }} → {{ r.periodo_hasta }}
+                {% elif r.periodo_desde %}
+                  Desde {{ r.periodo_desde }}
+                {% elif r.periodo_hasta %}
+                  Hasta {{ r.periodo_hasta }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Total</div>
+              <div class="fw-semibold">{{ fmt_clp(total or 0) }}</div>
+            </div>
+
+            <div class="col-12 mt-2">
+              <div class="text-muted small">Observaciones</div>
+              <div>{{ r.observaciones or "-" }}</div>
+            </div>
+
+            {% if solicitud_vinculada %}
+              <div class="col-12 mt-2">
+                <div class="text-muted small">Solicitud de Fondos vinculada</div>
+                <div class="fw-semibold">
+                  Folio Nro. {{ solicitud_vinculada.numero or solicitud_vinculada.id }}
+                  <span class="text-muted">(#{{ solicitud_vinculada.id }})</span>
+                  · {{ solicitud_vinculada.estado }} · {{ solicitud_vinculada.centro_costo }}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="fw-semibold fs-5">Ítems</div>
+          <div class="text-muted">
+            Total ítems: <span class="fw-semibold">{{ fmt_clp(total or 0) }}</span>
+          </div>
+        </div>
+
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th style="width:60px;" class="text-muted">#</th>
+                  <th style="width:120px;">Fecha</th>
+                  <th style="width:220px;">Concepto</th>
+                  <th>Descripción</th>
+                  <th style="width:240px;">Documento / Proveedor</th>
+                  <th style="width:140px;" class="text-end">Monto</th>
+                  {% if not solo_lectura %}
+                    <th style="width:220px;" class="text-end">Acción</th>
+                  {% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% if not items %}
+                  <tr>
+                    <td colspan="{% if solo_lectura %}6{% else %}7{% endif %}" class="text-center text-muted py-4">
+                      Sin ítems registrados.
+                    </td>
+                  </tr>
+                {% else %}
+                  {% for it in items %}
+                    <tr>
+                      <td class="small text-muted">{{ loop.index }}</td>
+                      <td class="small">{{ it.fecha or "-" }}</td>
+                      <td class="small fw-semibold">{{ it.detalle or "-" }}</td>
+                      <td class="small">{{ it.descripcion or "-" }}</td>
+                      <td class="small">
+                        {% if it.tipo_doc or it.nro_doc %}
+                          <span class="fw-semibold">{{ it.tipo_doc or "COMPROBANTE" }}</span>
+                          {% if it.nro_doc %} · {{ it.nro_doc }}{% endif %}
+                        {% else %}
+                          <span class="text-muted">Sin documento</span>
+                        {% endif %}
+                        {% if it.proveedor %}
+                          <div class="text-muted">Proveedor: {{ it.proveedor }}</div>
+                        {% endif %}
+                      </td>
+                      <td class="text-end fw-semibold">{{ fmt_clp(it.monto or 0) }}</td>
+
+                      {% if not solo_lectura %}
+                        <td class="text-end">
+                          <div class="d-inline-flex gap-2">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary js-btn-editar-item"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalEditItem"
+                                    data-item-id="{{ it.id }}"
+                                    data-item-fecha="{{ it.fecha.isoformat() if it.fecha else '' }}"
+                                    data-item-detalle="{{ it.detalle or '' }}"
+                                    data-item-descripcion="{{ it.descripcion or '' }}"
+                                    data-item-tipo-doc="{{ it.tipo_doc or '' }}"
+                                    data-item-nro-doc="{{ it.nro_doc or '' }}"
+                                    data-item-proveedor="{{ it.proveedor or '' }}"
+                                    data-item-monto="{{ it.monto|int if it.monto is not none else '' }}"
+                                    {% if not puede_editar_items %}disabled{% endif %}
+                                    title="{% if not puede_editar_items %}No editable en el estado actual{% else %}Editar ítem{% endif %}">
+                              Editar
+                            </button>
+
+                            <form method="post" action="{{ url_for('rendiciones_gastos.item_eliminar', item_id=it.id) }}"
+                                  onsubmit="return confirm('¿Eliminar ítem?');" class="d-inline">
+                              <button class="btn btn-sm btn-outline-danger" type="submit"
+                                      {% if not puede_editar_items %}disabled{% endif %}
+                                      title="{% if not puede_editar_items %}No eliminable en el estado actual{% else %}Eliminar ítem{% endif %}">
+                                Eliminar
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      {% endif %}
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {% if puede_editar_items %}
+          <div class="card-footer bg-light-subtle">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <div>
+                <div class="fw-semibold">Agregar nuevo ítem</div>
+                <div class="text-muted small">Selecciona un concepto estándar y usa la descripción para el detalle operativo.</div>
+              </div>
+            </div>
+
+            <form method="post" action="{{ url_for('rendiciones_gastos.item_agregar', rendicion_id=r.id) }}">
+              <div class="row g-3 align-items-start">
+                <div class="col-12 col-md-2">
+                  <label class="form-label">Fecha</label>
+                  <input type="date" class="form-control" name="fecha">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Concepto</label>
+                  <select class="form-select" name="detalle" required>
+                    <option value="">Seleccionar…</option>
+                    {% for concepto in conceptos_rendicion %}
+                      <option value="{{ concepto }}">{{ concepto }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-5">
+                  <label class="form-label">Descripción</label>
+                  <input type="text" class="form-control" name="descripcion" maxlength="500" placeholder="Ej: carga combustible Viña del Mar / Quintero">
+                </div>
+
+                <div class="col-12 col-md-2">
+                  <label class="form-label">Tipo doc</label>
+                  <select class="form-select" name="tipo_doc">
+                    <option value="">Seleccionar…</option>
+                    {% for tipo_doc in tipos_documento_rendicion %}
+                      <option value="{{ tipo_doc }}">{{ tipo_doc }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 align-items-end mt-1">
+                <div class="col-12 col-md-2">
+                  <label class="form-label">N° doc</label>
+                  <input type="text" class="form-control" name="nro_doc" maxlength="80">
+                </div>
+
+                <div class="col-12 col-md-5">
+                  <label class="form-label">Proveedor</label>
+                  <input type="text" class="form-control" name="proveedor" maxlength="240">
+                </div>
+
+                <div class="col-12 col-md-2">
+                  <label class="form-label">Monto</label>
+                  <input type="text" class="form-control" name="monto" placeholder="0" required>
+                </div>
+
+                <div class="col-12 col-md-3 d-flex justify-content-md-end">
+                  <button class="btn btn-primary w-100 w-md-auto px-4" type="submit">
+                    Agregar ítem
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Resumen</div>
+
+          <div class="d-flex justify-content-between">
+            <span>Centro de Costo</span>
+            <span class="fw-semibold">{{ r.centro_costo }}</span>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <span>Estado</span>
+            <span class="fw-semibold">{{ r.estado }}</span>
+          </div>
+
+          <hr>
+
+          <div class="d-flex justify-content-between">
+            <span class="fw-semibold">Total</span>
+            <span class="fw-semibold">{{ fmt_clp(total or 0) }}</span>
+          </div>
+        </div>
+      </div>
+
+      {% if solicitudes %}
+        <div class="card mt-3">
+          <div class="card-header fw-semibold">Integrar a Solicitud de Fondos</div>
+          <div class="card-body">
+            {% if solo_lectura %}
+              <div class="text-muted small">Sin permisos para integrar.</div>
+            {% else %}
+              <form method="post" action="{{ url_for('rendiciones_gastos.integrar', rendicion_id=r.id) }}" class="row g-2">
+                <div class="col-12">
+                  <label class="form-label">Solicitud (últimas 20)</label>
+                  <select class="form-select" name="solicitud_fondos_id" {% if not items %}disabled{% endif %}>
+                    <option value="">Seleccionar…</option>
+                    {% for s in solicitudes %}
+                      <option value="{{ s.id }}">
+                        Folio Nro. {{ s.numero or s.id }} · {{ s.estado }} · {{ s.centro_costo }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  {% if not items %}
+                    <div class="form-text text-muted">Debes agregar al menos un ítem para integrar.</div>
+                  {% endif %}
+                </div>
+
+                <div class="col-12 d-flex justify-content-end">
+                  <button class="btn btn-outline-primary" type="submit" {% if not items %}disabled{% endif %}>
+                    Integrar (REND)
+                  </button>
+                </div>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {% if not solo_lectura %}
+    <div class="modal fade" id="modalEditItem" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <div class="fw-semibold">Editar ítem</div>
+              <div class="text-muted small">Rendición #{{ r.numero }} · Ítem ID <span id="modalEditItemIdLabel">-</span></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+
+          <form method="post" id="modalEditItemForm" action="">
+            <div class="modal-body">
+              <div class="row g-2">
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Fecha</label>
+                  <input type="date"
+                         class="form-control"
+                         name="fecha"
+                         id="modalEditFecha">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Concepto</label>
+                  <select class="form-select" name="detalle" id="modalEditDetalle" required>
+                    <option value="">Seleccionar…</option>
+                    {% for concepto in conceptos_rendicion %}
+                      <option value="{{ concepto }}">{{ concepto }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-5">
+                  <label class="form-label">Descripción</label>
+                  <input type="text"
+                         class="form-control"
+                         name="descripcion"
+                         id="modalEditDescripcion"
+                         maxlength="500">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Tipo doc</label>
+                  <select class="form-select" name="tipo_doc" id="modalEditTipoDoc">
+                    <option value="">Seleccionar…</option>
+                    {% for tipo_doc in tipos_documento_rendicion %}
+                      <option value="{{ tipo_doc }}">{{ tipo_doc }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">N° doc</label>
+                  <input type="text"
+                         class="form-control"
+                         name="nro_doc"
+                         id="modalEditNroDoc"
+                         maxlength="80">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Proveedor</label>
+                  <input type="text"
+                         class="form-control"
+                         name="proveedor"
+                         id="modalEditProveedor"
+                         maxlength="240">
+                </div>
+
+                <div class="col-12 col-md-2">
+                  <label class="form-label">Monto</label>
+                  <input type="text"
+                         class="form-control"
+                         name="monto"
+                         id="modalEditMonto"
+                         required>
+                </div>
+
+                <div class="col-12">
+                  <div class="form-text">
+                    Reglas: concepto y tipo de documento usan catálogos controlados. El detalle operativo va en Descripción. Montos admiten separadores (ej: 12.345 o 12,345).
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-primary"
+                      {% if not puede_editar_items %}disabled{% endif %}>
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("modalEditItemForm");
+        const idLabel = document.getElementById("modalEditItemIdLabel");
+        const fecha = document.getElementById("modalEditFecha");
+        const detalle = document.getElementById("modalEditDetalle");
+        const descripcion = document.getElementById("modalEditDescripcion");
+        const tipoDoc = document.getElementById("modalEditTipoDoc");
+        const nroDoc = document.getElementById("modalEditNroDoc");
+        const proveedor = document.getElementById("modalEditProveedor");
+        const monto = document.getElementById("modalEditMonto");
+
+        const editUrlBase = "{{ url_for('rendiciones_gastos.item_editar', item_id=0) }}";
+
+        document.querySelectorAll(".js-btn-editar-item").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const itemId = this.getAttribute("data-item-id") || "";
+            const itemFecha = this.getAttribute("data-item-fecha") || "";
+            const itemDetalle = this.getAttribute("data-item-detalle") || "";
+            const itemDescripcion = this.getAttribute("data-item-descripcion") || "";
+            const itemTipoDoc = this.getAttribute("data-item-tipo-doc") || "";
+            const itemNroDoc = this.getAttribute("data-item-nro-doc") || "";
+            const itemProveedor = this.getAttribute("data-item-proveedor") || "";
+            const itemMonto = this.getAttribute("data-item-monto") || "";
+
+            form.action = editUrlBase.replace("/items/0/editar", "/items/" + itemId + "/editar");
+            idLabel.textContent = itemId;
+            fecha.value = itemFecha;
+            detalle.value = itemDetalle;
+            descripcion.value = itemDescripcion;
+            tipoDoc.value = itemTipoDoc;
+            nroDoc.value = itemNroDoc;
+            proveedor.value = itemProveedor;
+            monto.value = itemMonto;
+          });
+        });
+      });
+    </script>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,189 @@
+{# web/app/templates/sueldos/sueldos_listado.html #}
+{% extends "base.html" %}
+{% block title %}Sueldos · Nóminas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Sueldos</h1>
+      <div class="section-subtitle">Listado de nóminas por centro de costo, empleador y período.</div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('sueldos.importar') }}">📥 Importar nómina</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('sueldos.nominas_banco') }}">
+        🏦 Nóminas banco
+      </a>
+
+
+      {# ✅ Botón de impresión consolidada por CC + período #}
+      {% set cc_val = (q_cc|default('')|string)|trim %}
+      {% set per_val = (q_periodo|default('')|string)|trim %}
+      {% set can_print_cc = (cc_val|length > 0) and (per_val|length > 0) %}
+
+      {% if can_print_cc %}
+        <a
+          class="btn btn-outline-primary"
+          target="_blank"
+          href="{{ url_for('sueldos.imprimir_cc_pdf', centro_costo=cc_val, periodo=per_val) }}"
+          title="Imprime el consolidado por Centro de Costo y Período (incluye BORRADOR/ENVIADA/VISADA/CERRADA)"
+        >
+          🖨️ Imprimir CC (PDF)
+        </a>
+      {% else %}
+        <button
+          type="button"
+          class="btn btn-outline-primary"
+          disabled
+          title="Selecciona Centro de Costo y Período para habilitar la impresión consolidada"
+        >
+          🖨️ Imprimir CC (PDF)
+        </button>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <form method="get" class="row g-3 align-items-end mb-3">
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Centro de costo</label>
+          <select name="centro_costo" class="form-select">
+            <option value="">(Todos)</option>
+            {% for cc in centros %}
+              <option value="{{ cc }}" {% if q_cc == cc %}selected{% endif %}>{{ cc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Período (YYYY-MM)</label>
+          <input class="form-control" name="periodo" value="{{ q_periodo }}" placeholder="2026-01">
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Empleador</label>
+          <select name="empleador_id" class="form-select">
+            <option value="">(Todos)</option>
+            {% for e in empleadores %}
+              <option value="{{ e.id }}" {% if q_empleador_id == e.id %}selected{% endif %}>
+                {{ e.razon_social }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="">(Todos)</option>
+            {% for st in ["BORRADOR","ENVIADA_A_VISACION","VISADA","CERRADA"] %}
+              <option value="{{ st }}" {% if q_estado == st %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 d-flex gap-2 justify-content-end">
+          <button class="btn btn-outline-primary" type="submit">Filtrar</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('sueldos.listado') }}">Limpiar</a>
+
+          {# ✅ Segundo acceso rápido al PDF (al lado del filtro) #}
+          {% if can_print_cc %}
+            <a
+              class="btn btn-primary"
+              target="_blank"
+              href="{{ url_for('sueldos.imprimir_cc_pdf', centro_costo=q_cc, periodo=q_periodo) }}"
+              title="Imprime consolidado por CC y Período (todas las nóminas, cualquier estado)"
+            >
+              🖨️ PDF CC
+            </a>
+          {% else %}
+            <button
+              type="button"
+              class="btn btn-primary"
+              disabled
+              title="Selecciona Centro de Costo y Período para habilitar el PDF CC"
+            >
+              🖨️ PDF CC
+            </button>
+          {% endif %}
+        </div>
+      </form>
+
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Período</th>
+              <th>Centro de costo</th>
+              <th>Empleador</th>
+              <th>Estado</th>
+              <th>Origen</th>
+              <th>Importado</th>
+              <th class="text-end"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in nominas %}
+              <tr>
+                <td>{{ n.id }}</td>
+                <td>{{ "%04d-%02d"|format(n.anio, n.mes) }}</td>
+                <td>{{ n.centro_costo }}</td>
+                <td>{{ n.empleador.razon_social if n.empleador else (n.empleador_id or "-") }}</td>
+
+                <td>
+                  {% set estado = (n.estado or "") %}
+                  {% if estado == "VISADA" %}
+                    <span class="badge text-bg-success">VISADA</span>
+                  {% elif estado == "BORRADOR" %}
+                    <span class="badge text-bg-secondary">BORRADOR</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">{{ estado or "-" }}</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if n.origen is defined and n.origen %}
+                    {{ n.origen }}
+                  {% elif n.origen_archivo %}
+                    {{ n.origen_archivo }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if n.importado_en %}
+                    {{ n.importado_en.strftime("%Y-%m-%d %H:%M") if n.importado_en.strftime is defined else n.importado_en }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <a class="btn btn-sm btn-primary" href="{{ url_for('sueldos.detalle', nomina_id=n.id) }}">Ver</a>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="8" class="text-muted">Sin resultados.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

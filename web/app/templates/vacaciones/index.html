@@ -1,0 +1,191 @@
+{# web/app/templates/vacaciones/index.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid">
+  <div class="section-header">
+    <div class="section-title">Vacaciones</div>
+    <div class="section-subtitle">Control de saldos y emisión de comprobantes</div>
+    <div class="section-divider"></div>
+  </div>
+
+  {# ==========================
+     Filtros
+     ========================== #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+
+      <form method="get" novalidate>
+
+        <div class="row g-3 align-items-end">
+
+          <div class="col-12 col-md-3">
+            <div class="d-flex flex-column h-100">
+              <label class="form-label fw-semibold">Centro de costo</label>
+              <select name="cc" class="form-select">
+                <option value="">Todos</option>
+                {% for item in centros_costo %}
+                  <option value="{{ item }}" {% if filtros.cc == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text filter-help">Se toma Obra.centro_costo (o código si no existe).</div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <div class="d-flex flex-column h-100">
+              <label class="form-label fw-semibold">Empresa</label>
+              <select name="emp" class="form-select">
+                <option value="">Todas</option>
+                {% for e in empresas %}
+                  <option value="{{ e.id }}" {% if filtros.emp == (e.id|string) %}selected{% endif %}>
+                    {{ e.razon_social }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text filter-help">Filtra por empleador del contrato.</div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-2">
+            <div class="d-flex flex-column h-100">
+              <label class="form-label fw-semibold">Derecho</label>
+              <select name="derecho" class="form-select">
+                <option value="SI" {% if filtros.derecho == "SI" %}selected{% endif %}>SI (default)</option>
+                <option value="NO" {% if filtros.derecho == "NO" %}selected{% endif %}>NO</option>
+                <option value="TODOS" {% if filtros.derecho == "TODOS" %}selected{% endif %}>Todos</option>
+              </select>
+              <div class="form-text filter-help">12 meses completos (regla MVP).</div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-2">
+            <div class="d-flex flex-column h-100">
+              <label class="form-label fw-semibold">Orden</label>
+              <select name="orden" class="form-select">
+                <option value="saldo_desc" {% if filtros.orden == "saldo_desc" %}selected{% endif %}>Saldo ↓</option>
+                <option value="saldo_asc" {% if filtros.orden == "saldo_asc" %}selected{% endif %}>Saldo ↑</option>
+                <option value="antig_desc" {% if filtros.orden == "antig_desc" %}selected{% endif %}>Antigüedad ↓</option>
+                <option value="antig_asc" {% if filtros.orden == "antig_asc" %}selected{% endif %}>Antigüedad ↑</option>
+                <option value="contrato_desc" {% if filtros.orden == "contrato_desc" %}selected{% endif %}>Contrato ↓</option>
+                <option value="contrato_asc" {% if filtros.orden == "contrato_asc" %}selected{% endif %}>Contrato ↑</option>
+              </select>
+              {# importante: para igualar altura visual #}
+              <div class="form-text filter-help">&nbsp;</div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-2">
+            <div class="d-flex flex-column h-100">
+              <label class="form-label fw-semibold">Buscar</label>
+              <input type="text" name="q" class="form-control"
+                     value="{{ filtros.q or '' }}"
+                     placeholder="Apellido / nombre / RUT">
+              <div class="form-text filter-help">Búsqueda simple (case-insensitive).</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+          <button class="btn btn-primary" type="submit">Aplicar filtros</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('vacaciones.index') }}">Limpiar</a>
+
+          <div class="ms-auto text-muted small">
+            Mostrando <strong class="mx-1">{{ resumen.total }}</strong> contratos
+            · Derecho SI: <strong class="mx-1">{{ resumen.derecho_si }}</strong>
+            · Saldo total: <strong class="mx-1">{{ resumen.saldo_total }}</strong>
+          </div>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  {# ==========================
+     Tabla
+     ========================== #}
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Contrato</th>
+              <th>Trabajador</th>
+              <th>Empresa</th>
+              <th>Centro de costo</th>
+              <th>Obra</th>
+              <th>Antigüedad</th>
+              <th>Derecho</th>
+              <th class="text-end">Saldo</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for row in data %}
+              {% set c = row.contrato %}
+              <tr>
+                <td class="text-nowrap">#{{ c.id }}</td>
+
+                <td>
+                  {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno or '' }}, {{ c.trabajador.nombres }}
+                  <div class="text-muted small">{{ c.trabajador.rut_completo }}</div>
+                </td>
+
+                <td>
+                  {{ c.empleador.razon_social if c.empleador else '-' }}
+                  {% if c.empleador and c.empleador.rut %}
+                    <div class="text-muted small">{{ c.empleador.rut }}</div>
+                  {% endif %}
+                </td>
+
+                <td class="text-nowrap">
+                  {{ row.centro_costo or '-' }}
+                </td>
+
+                <td>
+                  {{ c.obra.nombre if c.obra else '-' }}
+                </td>
+
+                <td class="text-nowrap">{{ row.antiguedad }}</td>
+
+                <td>
+                  {% if row.tiene_derecho %}
+                    <span class="badge bg-success">SI</span>
+                  {% else %}
+                    <span class="badge bg-secondary">NO</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  <strong>{{ row.saldo }}</strong>
+                </td>
+
+                <td class="text-end">
+                  <a class="btn btn-sm btn-primary"
+                     href="{{ url_for('vacaciones.contrato_detalle', contrato_id=c.id) }}">
+                    Ver
+                  </a>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="9" class="text-center text-muted py-4">
+                  No hay resultados con los filtros actuales.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

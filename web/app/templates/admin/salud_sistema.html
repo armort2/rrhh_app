@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Administración · Salud del sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page cs-admin-health-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Salud del sistema</h1>
+      <div class="section-subtitle">
+        Tablero administrativo para revisar versión, base de datos, variables críticas, disco y montaje documental.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="cs-detail-actions d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('admin.users_list') }}" class="btn btn-outline-secondary">
+        ← Volver a usuarios
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm h-100 cs-health-hero-card">
+        <div class="card-body">
+          <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div>
+              <div class="cs-health-kicker">Estado general</div>
+              <div class="cs-health-summary {{ 'is-ok' if health.status == 'ok' else 'is-warning' if health.status == 'warning' else 'is-danger' }}">
+                {% if health.status == 'ok' %}
+                  ✅ Operativo
+                {% elif health.status == 'warning' %}
+                  🟠 Con advertencias
+                {% else %}
+                  🔴 Requiere atención
+                {% endif %}
+              </div>
+              <p class="text-muted mb-0">{{ health.resumen }}</p>
+            </div>
+
+            <div class="cs-version-pill">
+              <span>Versión en ejecución</span>
+              <strong>v{{ config.SYSTEM_VERSION }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 cs-health-metric-card">
+        <div class="card-body">
+          <div class="text-muted small text-uppercase fw-semibold">Controles</div>
+          <div class="display-6 fw-bold">{{ health.total }}</div>
+          <div class="small text-muted">Revisiones básicas</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="card shadow-sm h-100 cs-health-metric-card">
+        <div class="card-body">
+          <div class="text-muted small text-uppercase fw-semibold">Alertas</div>
+          <div class="display-6 fw-bold">{{ health.errors + health.warnings }}</div>
+          <div class="small text-muted">
+            {{ health.errors }} críticas · {{ health.warnings }} advertencias
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3 cs-health-checks-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+      <div>
+        <div class="small text-muted text-uppercase fw-semibold">Checklist operativo</div>
+        <h2 class="h5 mb-0">Componentes revisados</h2>
+      </div>
+      <span class="badge rounded-pill text-bg-light">Actualizado al cargar la página</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for check in health.checks %}
+          <div class="col-12 col-lg-6">
+            <div class="cs-health-check cs-health-{{ check.severidad }}">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <h3 class="h6 mb-1">{{ check.nombre }}</h3>
+                  <p class="text-muted mb-0">{{ check.detalle }}</p>
+                </div>
+                <span class="badge rounded-pill cs-health-badge cs-health-badge-{{ check.severidad }}">
+                  {{ check.estado }}
+                </span>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info border-0 shadow-sm mb-0 cs-health-note">
+    <strong>Nota operativa:</strong> este panel no reemplaza los logs de Docker, pero sirve como tablero ejecutivo para detectar problemas obvios antes de que el usuario los descubra por nosotros. Mejor prevenir que reiniciar con fe 😄.
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,241 @@
+{# web/app/templates/prevencion_riesgos/documento_imprimir.html #}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Acta entrega documentación preventiva N° {{ doc.id }}</title>
+  <style>
+    @page {
+      size: Letter;
+      margin: 15mm 14mm;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
+      font-size: 12px;
+      line-height: 1.35;
+      margin: 0;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 2px solid #111827;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .brand-subtitle {
+      color: #4b5563;
+      font-size: 12px;
+    }
+
+    .doc-box {
+      border: 1px solid #9ca3af;
+      padding: 8px 10px;
+      min-width: 185px;
+      text-align: right;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 17px;
+      margin: 14px 0 14px;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      font-size: 13px;
+      margin: 14px 0 7px;
+      border-bottom: 1px solid #d1d5db;
+      padding-bottom: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 18px;
+      margin-bottom: 8px;
+    }
+
+    .field-label {
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .box {
+      border: 1px solid #d1d5db;
+      padding: 8px;
+      min-height: 42px;
+      white-space: pre-wrap;
+    }
+
+    .statement {
+      margin-top: 10px;
+      text-align: justify;
+    }
+
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      margin-top: 60px;
+    }
+
+    .signature-box {
+      text-align: center;
+    }
+
+    .signature-line {
+      border-top: 1px solid #111827;
+      padding-top: 6px;
+      min-height: 32px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      color: #6b7280;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .no-print {
+      margin: 0 0 12px;
+      padding: 10px;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      border: 1px solid #1f2937;
+      color: #111827;
+      padding: 6px 10px;
+      text-decoration: none;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+    }
+
+    @media print {
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="no-print">
+    <div><strong>Vista de impresión:</strong> usa el botón para imprimir o guardar como PDF.</div>
+    <button class="btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+  </div>
+
+  <div class="header">
+    <div>
+      <div class="brand-title">Sistema Grupo CS</div>
+      <div class="brand-subtitle">Gestión de Recursos Humanos y Prevención de Riesgos</div>
+    </div>
+
+    <div class="doc-box">
+      <div><strong>Acta N°:</strong> {{ doc.id }}</div>
+      <div><strong>Fecha emisión:</strong> {{ doc.fecha_emision.strftime('%d-%m-%Y') }}</div>
+    </div>
+  </div>
+
+  <h1>Acta de Entrega de Documentación Preventiva</h1>
+
+  <h2>1. Antecedentes del trabajador</h2>
+  <div class="grid">
+    <div>
+      <span class="field-label">Trabajador:</span>
+      {{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}
+    </div>
+    <div>
+      <span class="field-label">RUT:</span>
+      {{ doc.trabajador|rut_trabajador }}
+    </div>
+    <div>
+      <span class="field-label">Obra:</span>
+      {{ doc.obra.nombre if doc.obra else 'Sin obra' }}
+    </div>
+    <div>
+      <span class="field-label">Registrado por:</span>
+      {{ doc.registrado_por.username if doc.registrado_por else '-' }}
+    </div>
+  </div>
+
+  <h2>2. Documento entregado</h2>
+  <div class="grid">
+    <div>
+      <span class="field-label">Tipo documento:</span>
+      {{ doc.tipo_documento }}
+    </div>
+    <div>
+      <span class="field-label">Estado:</span>
+      {{ doc.estado }}
+    </div>
+    <div>
+      <span class="field-label">Fecha emisión:</span>
+      {{ doc.fecha_emision.strftime('%d-%m-%Y') }}
+    </div>
+    <div>
+      <span class="field-label">Fecha vencimiento:</span>
+      {{ doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else 'No aplica' }}
+    </div>
+    <div>
+      <span class="field-label">Nombre archivo:</span>
+      {{ doc.archivo_nombre or 'Sin nombre registrado' }}
+    </div>
+    <div>
+      <span class="field-label">Ruta / enlace:</span>
+      {{ doc.archivo_path or 'Sin referencia registrada' }}
+    </div>
+  </div>
+
+  <h2>3. Observaciones</h2>
+  <div class="box">{{ doc.observacion or 'Sin observaciones.' }}</div>
+
+  <p class="statement">
+    Por medio de la presente, el trabajador individualizado deja constancia de haber recibido,
+    tomado conocimiento y/o firmado la documentación preventiva antes señalada, comprometiéndose
+    a cumplir las instrucciones, normas internas, procedimientos de trabajo seguro y medidas de
+    prevención de riesgos relacionadas con sus labores y con la obra a la cual se encuentra asignado.
+  </p>
+
+  <div class="signatures">
+    <div class="signature-box">
+      <div class="signature-line">
+        Firma trabajador<br>
+        {{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}<br>
+        {{ doc.trabajador|rut_trabajador }}
+      </div>
+    </div>
+
+    <div class="signature-box">
+      <div class="signature-line">
+        Firma empresa / responsable<br>
+        {{ doc.registrado_por.username if doc.registrado_por else 'Responsable empresa' }}
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Documento generado desde Sistema Grupo CS · Prevención de Riesgos.
+  </div>
+
+</body>
+</html>

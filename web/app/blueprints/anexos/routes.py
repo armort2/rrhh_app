@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from datetime import date, datetime
 from pathlib import Path
 
@@ -45,6 +47,45 @@ def _require_contrato_access(contrato: Contrato) -> None:
 
     if not current_user.can_access_obra(int(obra_id)):
         abort(403)
+
+def _safe_filename(name: str) -> str:
+    """
+    Sanitiza nombres de archivo para compatibilidad Windows/Nextcloud.
+    - Remueve caracteres inválidos: \\ / : * ? " < > |
+    - Colapsa espacios
+    - Recorta espacios y puntos finales
+    """
+    name = (name or "").strip()
+
+    # caracteres inválidos en Windows
+    name = re.sub(r'[\\\/:\*\?"<>\|]+', " ", name)
+
+    # colapsar espacios
+    name = re.sub(r"\s+", " ", name).strip()
+
+    # evitar nombres que terminen en punto o espacio (Windows)
+    name = name.rstrip(" .")
+
+    return name
+
+
+def _nombre_anexo_extension(trabajador, fecha_ref: date, extension: str) -> str:
+    """
+    <AAAA-MM-DD> Anexo extensión - <Ap. Paterno Ap. Materno Nombres>.<ext>
+    """
+    ap_paterno = (getattr(trabajador, "ap_paterno", "") or "").strip() or "SIN_APELLIDO"
+    ap_materno = (getattr(trabajador, "ap_materno", "") or "").strip()
+    nombres = (getattr(trabajador, "nombres", "") or "").strip()
+
+    # Formato solicitado: Ap. Paterno Ap. Materno Nombres
+    nombre_persona = " ".join([x for x in [ap_paterno, ap_materno, nombres] if x]).strip()
+    base = f"{fecha_ref.strftime('%Y-%m-%d')} Anexo extensión - {nombre_persona}"
+
+    base = _safe_filename(base)
+    ext = (extension or "").lstrip(".").lower()
+
+    return f"{base}.{ext}"
+
 
 
 # ==========================
@@ -174,12 +215,8 @@ def _generar_archivos_anexo_extension_nextcloud(
     # Nombres finales (estables por fecha_anexo; regenerar sobreescribe)
     fecha_ref = anexo.fecha_anexo or date.today()
 
-    nombre_docx = generar_nombre_documento(
-        tipo="ANEXO_EXTENSION_CONTRATO",
-        ap_paterno=trabajador.ap_paterno or "SIN_APELLIDO",
-        fecha_ref=fecha_ref,
-        extension="docx",
-    )
+    nombre_docx = _nombre_anexo_extension(trabajador=trabajador, fecha_ref=fecha_ref, extension="docx")
+
     docx_final = dest_dir / nombre_docx
     docx_final.write_bytes(docx_tmp.read_bytes())
 
@@ -189,12 +226,8 @@ def _generar_archivos_anexo_extension_nextcloud(
     pdf_final = None
 
     if formato in ("PDF", "AMBOS"):
-        nombre_pdf = generar_nombre_documento(
-            tipo="ANEXO_EXTENSION_CONTRATO",
-            ap_paterno=trabajador.ap_paterno or "SIN_APELLIDO",
-            fecha_ref=fecha_ref,
-            extension="pdf",
-        )
+        nombre_pdf = _nombre_anexo_extension(trabajador=trabajador, fecha_ref=fecha_ref, extension="pdf")
+
         pdf_final = dest_dir / nombre_pdf
         pdf_tmp = convert_docx_to_pdf(docx_tmp, pdf_tmp_dir)
         pdf_final.write_bytes(pdf_tmp.read_bytes())

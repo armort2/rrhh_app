@@ -1,0 +1,168 @@
+{# web/app/templates/anexos_masivos/form_sueldo_minimo.html #}
+{% extends "base.html" %}
+{% block title %}Nuevo proceso sueldo mínimo{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header mb-4">
+    <h1 class="section-title">Nuevo proceso · Sueldo mínimo</h1>
+    <div class="section-subtitle">
+      Crea una nómina de trabajadores vigentes con jornada igual o superior al mínimo definido y sueldo base inferior al ingreso mínimo mensual vigente.
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <form method="post" class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <label class="form-label">Nombre del proceso</label>
+          <input
+            type="text"
+            name="nombre"
+            class="form-control"
+            placeholder="Ej.: Ajuste sueldo mínimo marzo 2026"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha del anexo</label>
+          <input
+            type="date"
+            name="fecha_anexo"
+            class="form-control"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha de vigencia</label>
+          <input
+            type="date"
+            name="fecha_vigencia"
+            class="form-control"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Horas semanales mínimas</label>
+          <input
+            type="number"
+            name="horas_minimas"
+            class="form-control"
+            value="40"
+            min="1"
+            required
+          >
+          <div class="form-text">Por defecto: 40 horas.</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">N° ley sueldo mínimo</label>
+          <input
+            type="text"
+            name="ley_s_minimo_nro"
+            class="form-control"
+            placeholder="Ej.: 21.751"
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha publicación ley</label>
+          <input
+            type="date"
+            name="ley_s_minimo_fecha_publicacion"
+            class="form-control"
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Formato de generación</label>
+          <select name="formato_generacion" class="form-select">
+            <option value="AMBOS" selected>DOCX + PDF</option>
+            <option value="DOCX">Solo DOCX</option>
+            <option value="PDF">Solo PDF</option>
+          </select>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Filtrar por obras</label>
+          <select name="obra_ids" class="form-select" multiple size="8">
+            {% for obra in obras %}
+              <option value="{{ obra.id }}">
+                {{ obra.nombre }}{% if obra.centro_costo %} · {{ obra.centro_costo }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            Si no seleccionas obras, el sistema buscará en todas las obras visibles para tu usuario.
+          </div>
+        </div>
+
+        <div class="col-md-12">
+          <div class="form-check mt-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              name="usar_articulo_tercero"
+              id="usar_articulo_tercero"
+              value="1"
+            >
+            <label class="form-check-label" for="usar_articulo_tercero">
+              Incluir artículo tercero (retroactividad u otra cláusula adicional)
+            </label>
+          </div>
+          <div class="form-text">
+            Marca esta opción si el anexo incluirá una cláusula extra, por ejemplo para pagar diferencias retroactivas.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Texto artículo tercero</label>
+          <textarea
+            name="articulo_tercero_texto"
+            class="form-control"
+            rows="4"
+            placeholder="Ej.: Las diferencias de remuneración generadas entre la fecha de vigencia del nuevo sueldo base y la suscripción del presente anexo serán pagadas retroactivamente en la liquidación correspondiente..."
+          ></textarea>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea
+            name="observaciones"
+            class="form-control"
+            rows="3"
+            placeholder="Notas internas del proceso."
+          ></textarea>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-info mb-0">
+            <strong>Dato importante:</strong>
+            el sueldo objetivo se tomará automáticamente desde
+            <strong>Parámetros Laborales → renta mínima dependiente</strong>,
+            según la fecha de vigencia indicada.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card-footer bg-white d-flex justify-content-between">
+      <a href="{{ url_for('anexos_masivos.listado') }}" class="btn btn-outline-secondary">
+        Volver
+      </a>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-search me-1"></i> Crear proceso y buscar trabajadores
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

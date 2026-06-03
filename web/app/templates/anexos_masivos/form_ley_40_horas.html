@@ -1,0 +1,153 @@
+{# web/app/templates/anexos_masivos/form_ley_40_horas.html #}
+{% extends "base.html" %}
+{% block title %}Nuevo proceso ley 40 horas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header mb-4">
+    <h1 class="section-title">Nuevo proceso · Ley 40 horas</h1>
+    <div class="section-subtitle">
+      Crea una nómina de trabajadores vigentes con jornada susceptible de ajuste a 42 horas semanales y genera su anexo masivo.
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <form method="post" class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <label class="form-label">Nombre del proceso</label>
+          <input
+            type="text"
+            name="nombre"
+            class="form-control"
+            placeholder="Ej.: Adecuación jornada ley 40 horas abril 2026"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha del anexo</label>
+          <input
+            type="date"
+            name="fecha_anexo"
+            class="form-control"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha de vigencia</label>
+          <input
+            type="date"
+            name="fecha_vigencia"
+            class="form-control"
+            value="2026-04-26"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Horas actuales mínimas</label>
+          <input
+            type="number"
+            name="horas_actuales_minimas"
+            class="form-control"
+            value="44"
+            min="1"
+            required
+          >
+          <div class="form-text">Se incluirán contratos con esta jornada o superior.</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Nuevas horas semanales</label>
+          <input
+            type="number"
+            name="horas_nuevas"
+            class="form-control"
+            value="42"
+            min="1"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">N° ley</label>
+          <input
+            type="text"
+            name="ley_40_hrs_nro"
+            class="form-control"
+            placeholder="Ej.: 21.561"
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha publicación ley</label>
+          <input
+            type="date"
+            name="ley_40_hrs_fecha"
+            class="form-control"
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Formato de generación</label>
+          <select name="formato_generacion" class="form-select">
+            <option value="AMBOS" selected>DOCX + PDF</option>
+            <option value="DOCX">Solo DOCX</option>
+            <option value="PDF">Solo PDF</option>
+          </select>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Filtrar por obras</label>
+          <select name="obra_ids" class="form-select" multiple size="8">
+            {% for obra in obras %}
+              <option value="{{ obra.id }}">
+                {{ obra.nombre }}{% if obra.centro_costo %} · {{ obra.centro_costo }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            Si no seleccionas obras, el sistema buscará en todas las obras visibles para tu usuario.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea
+            name="observaciones"
+            class="form-control"
+            rows="3"
+            placeholder="Notas internas del proceso."
+          ></textarea>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-info mb-0">
+            <strong>Dato importante:</strong>
+            este proceso generará anexos utilizando la plantilla estándar
+            <strong>anexo_42_hrs.docx</strong> y podrá actualizar la jornada semanal del contrato a
+            <strong>42 horas</strong> al aplicar el proceso.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card-footer bg-white d-flex justify-content-between">
+      <a href="{{ url_for('anexos_masivos.listado') }}" class="btn btn-outline-secondary">
+        Volver
+      </a>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-search me-1"></i> Crear proceso y buscar trabajadores
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

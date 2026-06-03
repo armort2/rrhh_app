@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Control contractual · Reportería{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page reporteria-control-page">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Control contractual</h1>
+      <div class="section-subtitle">
+        Vencimientos, contratos vencidos, contratos sin fecha de término e indicadores de riesgo operativo.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+    <div class="cs-page-actions d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('reporteria.panel', **request.args) }}">← Panel ejecutivo</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('reporteria.index', **request.args) }}">Detalle trabajadores</a>
+      <a class="btn btn-primary" href="{{ url_for('reporteria.seguimiento_contractual', **request.args) }}">✅ Seguimiento gestión</a>
+      <a class="btn btn-outline-success" href="{{ url_for('reporteria.control_contractual_xlsx', **request.args) }}">📊 Exportar Excel</a>
+      <a class="btn btn-outline-danger" href="{{ url_for('reporteria.control_contractual_pdf', **request.args) }}" target="_blank" rel="noopener">📄 Exportar PDF</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Alertas totales</div><div class="display-6 fw-bold">{{ control.total_alertas }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Vencen 7 días</div><div class="display-6 fw-bold text-danger">{{ control.total_7 }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Vencen 15 días</div><div class="display-6 fw-bold text-warning">{{ control.total_15 }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Vencen 30 días</div><div class="display-6 fw-bold">{{ control.total_30 }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Vencidos</div><div class="display-6 fw-bold text-danger">{{ control.total_vencidos }}</div></div></div></div>
+    <div class="col-12 col-md-6 col-xl-2"><div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Sin término</div><div class="display-6 fw-bold">{{ control.total_sin_fecha_termino_no_indef }}</div></div></div></div>
+  </div>
+
+  <div class="alert alert-info shadow-sm">
+    Este reporte usa los filtros aplicados en reportería. Sirve para anticipar renovaciones, anexos, términos y revisión documental antes de que el contrato “haga abandono de sus funciones” 😄.
+  </div>
+
+  <div class="row g-3 mb-3">
+    {% for bucket in control.buckets %}
+      <div class="col-12 col-xl-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong>{{ bucket.label }}</strong>
+            <span class="badge text-bg-{{ bucket.color }}">{{ bucket.rows|length }}</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>Días</th><th>Inicio</th><th>Término</th><th>Antigüedad</th><th>Trabajador</th><th>Obra</th><th>Cargo</th></tr></thead>
+                <tbody>
+                  {% for r in bucket.rows[:20] %}
+                    <tr>
+                      <td class="fw-bold">{{ r.dias_para_vencer }}</td>
+                      <td>{{ fmt_date(r.fecha_inicio) }}</td>
+                      <td>{{ fmt_date(r.fecha_termino) }}</td>
+                      <td><span class="badge text-bg-light">{{ r.antiguedad or 'Sin dato' }}</span></td>
+                      <td><div class="fw-semibold">{{ r.trabajador }}</div><div class="small text-muted">{{ r.rut }}</div></td>
+                      <td>{{ r.obra }}</td>
+                      <td>{{ r.cargo }}</td>
+                    </tr>
+                  {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Sin contratos en este tramo.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <strong>Vencidos / requieren revisión</strong>
+          <span class="badge text-bg-danger">{{ control.vencidos|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light"><tr><th>Inicio</th><th>Término</th><th>Antigüedad</th><th>Trabajador</th><th>Obra</th><th>Estado</th></tr></thead>
+              <tbody>
+                {% for r in control.vencidos[:40] %}
+                  <tr>
+                    <td>{{ fmt_date(r.fecha_inicio) }}</td>
+                    <td>{{ fmt_date(r.fecha_termino) }}</td>
+                    <td><span class="badge text-bg-light">{{ r.antiguedad or 'Sin dato' }}</span></td>
+                    <td><div class="fw-semibold">{{ r.trabajador }}</div><div class="small text-muted">{{ r.rut }}</div></td>
+                    <td>{{ r.obra }}</td>
+                    <td><span class="badge text-bg-light">{{ r.estado_calculado }}</span></td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">Sin vencidos según los filtros. Orden y progreso, como mandan los clásicos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <strong>Sin fecha término y no indefinidos</strong>
+          <span class="badge text-bg-secondary">{{ control.sin_fecha_termino_no_indef|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light"><tr><th>Trabajador</th><th>Tipo</th><th>Obra</th></tr></thead>
+              <tbody>
+                {% for r in control.sin_fecha_termino_no_indef[:40] %}
+                  <tr>
+                    <td><div class="fw-semibold">{{ r.trabajador }}</div><div class="small text-muted">Contrato #{{ r.contrato_id }}</div></td>
+                    <td>{{ r.tipo_contrato }}</td>
+                    <td>{{ r.obra }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="3" class="text-center text-muted py-4">Sin observaciones en esta categoría.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

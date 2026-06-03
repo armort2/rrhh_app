@@ -3,11 +3,11 @@ services:
     image: postgres:16
     container_name: rrhh_db
     environment:
-      POSTGRES_DB: rrhh_db
-      POSTGRES_USER: rrhh_user
-      POSTGRES_PASSWORD: rrhh_super_segura
-      TZ: America/Santiago
-      PGTZ: America/Santiago
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-America/Santiago}
+      PGTZ: ${PGTZ:-America/Santiago}
     command: ["postgres", "-c", "timezone=America/Santiago"]
     volumes:
       - ./data/db:/var/lib/postgresql/data
@@ -19,12 +19,19 @@ services:
     build: ./web
     container_name: rrhh_web
     environment:
-      CSRF_TRUSTED_ORIGINS: https://sistema.grupo-cs.cl
-      ALLOWED_HOSTS: sistema.grupo-cs.cl,localhost,127.0.0.1
-      DATABASE_URL: postgresql+psycopg2://rrhh_user:rrhh_super_segura@db:5432/rrhh_db
-      FLASK_ENV: development
-      SECRET_KEY: cambia_esto_por_algo_mas_largo
-      TZ: America/Santiago
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      DATABASE_URL: ${DATABASE_URL}
+      FLASK_ENV: ${FLASK_ENV:-production}
+      SECRET_KEY: ${SECRET_KEY}
+      TZ: ${TZ:-America/Santiago}
+
+      NEXTCLOUD_MOUNT_ROOT: ${NEXTCLOUD_MOUNT_ROOT:-/mnt/GrupoCS-Nextcloud}
+      NEXTCLOUD_DOC_ROOT: ${NEXTCLOUD_DOC_ROOT:-DOCUMENTACION LABORAL}
+      NEXTCLOUD_ROOT: ${NEXTCLOUD_ROOT:-/mnt/GrupoCS-Nextcloud/DOCUMENTACION LABORAL}
+      NEXTCLOUD_WEBDAV_URL: ${NEXTCLOUD_WEBDAV_URL:-}
+      NEXTCLOUD_USERNAME: ${NEXTCLOUD_USERNAME:-}
+      NEXTCLOUD_PASSWORD: ${NEXTCLOUD_PASSWORD:-}
     depends_on:
       - db
     ports:

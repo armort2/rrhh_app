@@ -1,0 +1,127 @@
+{# web/app/templates/anexos_masivos/form_reemplazo_dia.html #}
+{% extends "base.html" %}
+{% block title %}Nuevo proceso reemplazo de día{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header mb-4">
+    <h1 class="section-title">Nuevo proceso · Reemplazo de día</h1>
+    <div class="section-subtitle">
+      Crea una nómina de trabajadores vigentes para documentar el acuerdo de trabajar un día específico y compensar un día interferiado.
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <form method="post" class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <label class="form-label">Nombre del proceso</label>
+          <input
+            type="text"
+            name="nombre"
+            class="form-control"
+            placeholder="Ej.: Reemplazo día interferiado 22 de mayo 2026"
+            required
+          >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha del anexo</label>
+          <input
+            type="date"
+            name="fecha_anexo"
+            class="form-control"
+            required
+          >
+          <div class="form-text">Fecha de suscripción del documento.</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Formato de generación</label>
+          <select name="formato_generacion" class="form-select">
+            <option value="AMBOS" selected>DOCX + PDF</option>
+            <option value="DOCX">Solo DOCX</option>
+            <option value="PDF">Solo PDF</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Día que se trabajará</label>
+          <input
+            type="date"
+            name="fecha_trabajar"
+            class="form-control"
+            required
+          >
+          <div class="form-text">Ej.: sábado 16-05-2026.</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Día que se compensará</label>
+          <input
+            type="date"
+            name="fecha_reemplazar"
+            class="form-control"
+            required
+          >
+          <div class="form-text">Ej.: viernes 22-05-2026.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Resumen del acuerdo</label>
+          <div class="alert alert-light border mb-0">
+            El sistema generará un anexo indicando que el trabajador prestará servicios el día seleccionado para compensar el día interferiado indicado, sin constituir jornada extraordinaria.
+          </div>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Filtrar por obras</label>
+          <select name="obra_ids" class="form-select" multiple size="8">
+            {% for obra in obras %}
+              <option value="{{ obra.id }}">
+                {{ obra.nombre }}{% if obra.centro_costo %} · {{ obra.centro_costo }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            Si no seleccionas obras, el sistema buscará en todas las obras visibles para tu usuario.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea
+            name="observaciones"
+            class="form-control"
+            rows="3"
+            placeholder="Notas internas del proceso. Ej.: Proceso por interferiado posterior al feriado del 21 de mayo."
+          ></textarea>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-info mb-0">
+            <strong>Dato importante:</strong>
+            este proceso utilizará la plantilla estándar
+            <strong>anexo_reemplazo_dia.docx</strong>. No modifica sueldo, jornada contractual ni obra del trabajador; solo genera el respaldo documental del acuerdo.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card-footer bg-white d-flex justify-content-between">
+      <a href="{{ url_for('anexos_masivos.listado') }}" class="btn btn-outline-secondary">
+        Volver
+      </a>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-search me-1"></i> Crear proceso y buscar trabajadores
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

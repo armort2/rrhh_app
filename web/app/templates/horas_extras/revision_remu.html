@@ -1,0 +1,338 @@
+{# web/app/templates/horas_extras/revision_remu.html #}
+{% extends "base.html" %}
+{% block title %}Revisión remuneraciones · Horas Extras{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Revisión remuneraciones · Horas extras</h1>
+      <div class="section-subtitle">Control previo al ingreso en remuneraciones (por trabajador).</div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('horas_extras.listado') }}">⬅ Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <form method="get">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label">Centro de costo</label>
+            <select name="cc" class="form-select">
+              <option value="">— Todos —</option>
+              {% for c in centros_costo %}
+                <option value="{{ c }}" {% if cc == c %}selected{% endif %}>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Mes</label>
+            <input type="month" name="mes" class="form-control" value="{{ mes }}">
+          </div>
+
+          <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-select">
+              <option value="APROBADA" {% if estado == "APROBADA" %}selected{% endif %}>APROBADA</option>
+              <option value="PENDIENTE" {% if estado == "PENDIENTE" %}selected{% endif %}>PENDIENTE</option>
+              <option value="RECHAZADA" {% if estado == "RECHAZADA" %}selected{% endif %}>RECHAZADA</option>
+              <option value="todas" {% if estado == "todas" %}selected{% endif %}>Todas</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4 col-lg-2">
+            <label class="form-label">Ingreso en remu</label>
+            <select name="ingreso" class="form-select">
+              <option value="pendientes" {% if ingreso == "pendientes" %}selected{% endif %}>Por ingresar</option>
+              <option value="procesadas" {% if ingreso == "procesadas" %}selected{% endif %}>Ingresadas</option>
+              <option value="todas" {% if ingreso == "todas" %}selected{% endif %}>Todas</option>
+            </select>
+          </div>
+
+          <div class="col-12 d-flex gap-2 flex-wrap justify-content-end">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-secondary" href="{{ url_for('horas_extras.revision_remu', mes=mes_default) }}">Limpiar</a>
+          </div>
+        </div>
+      </form>
+
+      <div class="mt-3">
+
+        {% if items and items|length > 0 %}
+
+          {% set ns_items = namespace(rows=[]) %}
+          {% for it in items %}
+            {% set t = it.trabajador %}
+            {% set ap = (t.ap_paterno or "")|trim %}
+            {% set am = (t.ap_materno or "")|trim %}
+            {% set no = (t.nombres or "")|trim %}
+            {% set sortkey = (ap|lower ~ "|" ~ am|lower ~ "|" ~ no|lower ~ "|" ~ (t.id|string)) %}
+            {% set _ = ns_items.rows.append({'it': it, 't': t, 'sortkey': sortkey}) %}
+          {% endfor %}
+          {% set rows_sorted = ns_items.rows|sort(attribute='sortkey') %}
+
+          <form method="post" id="form-revision-remu">
+            <input type="hidden" name="cc" value="{{ cc }}">
+            <input type="hidden" name="mes" value="{{ mes }}">
+            <input type="hidden" name="estado" value="{{ estado }}">
+            <input type="hidden" name="ingreso" value="{{ ingreso }}">
+
+            <div class="accordion" id="accordionRevisionRemu">
+
+              {% for g in rows_sorted|groupby('sortkey') %}
+                {% set regs = g.list | map(attribute='it') | list %}
+                {% set t = g.list[0].t if g.list and g.list[0].t else None %}
+
+                {% set idx = loop.index %}
+                {% set heading_id = "remu_heading_" ~ idx %}
+                {% set collapse_id = "remu_collapse_" ~ idx %}
+
+                {% set nombre = "Trabajador" %}
+                {% if t %}
+                  {% set nombre = (t.ap_paterno ~ " " ~ t.ap_materno ~ " " ~ t.nombres)|trim %}
+                {% endif %}
+
+                {% set rut_fmt = rut_fmt_map.get(t.id) if (rut_fmt_map is defined and t) else "" %}
+
+                {# ==========================================================
+                   ✅ Acumuladores robustos (namespace) - evita el “total=0”
+                   ========================================================== #}
+                {% set acc = namespace(
+                  total=0,
+                  min_aprob=0, min_pend=0, min_rech=0,
+                  remu_pend=0, remu_proc=0,
+                  n_remu_pend=0, n_remu_proc=0
+                ) %}
+
+                {% for r in regs %}
+                  {% set acc.total = acc.total + (r.minutos_totales or 0) %}
+
+                  {% if r.estado == "APROBADA" %}
+                    {% set acc.min_aprob = acc.min_aprob + (r.minutos_totales or 0) %}
+                  {% elif r.estado == "PENDIENTE" %}
+                    {% set acc.min_pend = acc.min_pend + (r.minutos_totales or 0) %}
+                  {% elif r.estado == "RECHAZADA" %}
+                    {% set acc.min_rech = acc.min_rech + (r.minutos_totales or 0) %}
+                  {% endif %}
+
+                  {% if r.remu_procesada %}
+                    {% set acc.remu_proc = acc.remu_proc + (r.minutos_totales or 0) %}
+                    {% set acc.n_remu_proc = acc.n_remu_proc + 1 %}
+                  {% else %}
+                    {% set acc.remu_pend = acc.remu_pend + (r.minutos_totales or 0) %}
+                    {% set acc.n_remu_pend = acc.n_remu_pend + 1 %}
+                  {% endif %}
+                {% endfor %}
+
+                <div class="accordion-item" data-worker-id="{{ t.id if t else '' }}">
+                  <h2 class="accordion-header" id="{{ heading_id }}" data-worker-header="{{ t.id if t else '' }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#{{ collapse_id }}"
+                            aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                            aria-controls="{{ collapse_id }}">
+
+                      <div class="d-flex align-items-center justify-content-between w-100 pe-3 flex-wrap gap-2">
+
+                        <div class="d-flex flex-column">
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <strong>{{ nombre }}</strong>
+
+                            {% if t and t.obra and t.obra.centro_costo %}
+                              <span class="badge text-bg-secondary">CC: {{ t.obra.centro_costo }}</span>
+                            {% endif %}
+
+                            <span class="text-muted">
+                              ({{ regs|length }} registro{% if regs|length != 1 %}s{% endif %})
+                            </span>
+                          </div>
+
+                          {% if rut_fmt %}
+                            <div class="text-muted small mt-1">
+                              RUT: <strong class="text-dark">{{ rut_fmt }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                          <span class="badge text-bg-secondary">Total: {{ fmt_minutes(acc.total) }} hrs</span>
+
+                          {% if acc.n_remu_pend > 0 %}
+                            <span class="badge bg-warning text-dark">Por ingresar: {{ acc.n_remu_pend }}</span>
+                          {% endif %}
+                          {% if acc.n_remu_proc > 0 %}
+                            <span class="badge bg-success">Ingresadas: {{ acc.n_remu_proc }}</span>
+                          {% endif %}
+                        </div>
+
+                      </div>
+
+                    </button>
+                  </h2>
+
+                  <div id="{{ collapse_id }}"
+                       class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                       aria-labelledby="{{ heading_id }}"
+                       data-bs-parent="#accordionRevisionRemu"
+                       data-worker-collapse="{{ t.id if t else '' }}">
+
+                    <div class="accordion-body p-0">
+
+                      {# ================================
+                         Resumen para remuneraciones (PRO)
+                         ================================ #}
+                      <div class="bg-light border-bottom px-3 py-2">
+                        <div class="row align-items-center g-2">
+                          <div class="col-12 col-md-8">
+                            <div class="small text-muted">Total horas extras del período (para remuneraciones)</div>
+                            <div class="fw-semibold fs-5">
+                              {{ fmt_minutes(acc.total) }} hrs
+                              <span class="text-muted small">({{ acc.total }} min)</span>
+                            </div>
+
+                            <div class="mt-1 d-flex flex-wrap gap-2">
+                              {% if acc.min_aprob > 0 %}
+                                <span class="badge text-bg-success">Aprobadas: {{ fmt_minutes(acc.min_aprob) }} hrs</span>
+                              {% endif %}
+                              {% if acc.min_pend > 0 %}
+                                <span class="badge text-bg-warning">Pendientes: {{ fmt_minutes(acc.min_pend) }} hrs</span>
+                              {% endif %}
+                              {% if acc.min_rech > 0 %}
+                                <span class="badge text-bg-danger">Rechazadas: {{ fmt_minutes(acc.min_rech) }} hrs</span>
+                              {% endif %}
+
+                              <span class="ms-2 text-muted small">
+                                · Por ingresar: <strong>{{ fmt_minutes(acc.remu_pend) }} hrs</strong>
+                                · Ingresadas: <strong>{{ fmt_minutes(acc.remu_proc) }} hrs</strong>
+                              </span>
+                            </div>
+                          </div>
+
+
+                        </div>
+                      </div>
+
+                      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap px-3 py-2 border-bottom">
+                        <div class="text-muted small">
+                          Marca como “Ingresadas” cuando ya las cargaste en remuneraciones.
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                          {% if acc.n_remu_pend > 0 %}
+                            <button type="submit"
+                                    class="btn btn-sm btn-outline-primary js-submit-loading js-open-worker"
+                                    name="trabajador_id"
+                                    value="{{ t.id if t else '' }}"
+                                    data-worker-id="{{ t.id if t else '' }}"
+                                    data-loading-text="Procesando…"
+                                    data-loading-icon="spinner"
+                                    title="Marca como ingresadas todas las pendientes de este trabajador (según filtros)">
+                              Marcar pendientes de este trabajador
+                            </button>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle mb-0">
+                          <thead>
+                            <tr>
+                              <th style="width:56px;">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       data-select-all="{{ idx }}"
+                                       {% if acc.n_remu_pend == 0 %}disabled{% endif %}
+                                       title="{% if acc.n_remu_pend == 0 %}Sin pendientes{% else %}Seleccionar todo lo pendiente{% endif %}">
+                              </th>
+                              <th>Fecha</th>
+                              <th>Tramo</th>
+                              <th>Minutos</th>
+                              <th>Estado</th>
+                              <th>Motivo</th>
+                              <th>Revisión</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {% for r in regs %}
+                              <tr {% if r.remu_procesada %}style="opacity:.55"{% endif %}>
+                                <td>
+                                  {% if not r.remu_procesada %}
+                                    <input type="checkbox"
+                                           class="form-check-input chk-item"
+                                           name="he_id"
+                                           value="{{ r.id }}"
+                                           data-group="{{ idx }}"
+                                           data-worker-id="{{ t.id if t else '' }}">
+                                  {% else %}
+                                    ✔
+                                  {% endif %}
+                                </td>
+
+                                <td>{{ r.fecha }}</td>
+                                <td>{{ fmt_time(r.hora_inicio) }} - {{ fmt_time(r.hora_termino) }}</td>
+                                <td>{{ r.minutos_totales }} ({{ fmt_minutes(r.minutos_totales) }} hrs)</td>
+
+                                <td>
+                                  {% if r.estado == 'PENDIENTE' %}
+                                    <span class="badge text-bg-warning">PENDIENTE</span>
+                                  {% elif r.estado == 'APROBADA' %}
+                                    <span class="badge text-bg-success">APROBADA</span>
+                                  {% else %}
+                                    <span class="badge text-bg-danger">RECHAZADA</span>
+                                  {% endif %}
+                                </td>
+
+                                <td>{{ r.motivo or "" }}</td>
+
+                                <td class="text-muted small">
+                                  {% if r.autorizado_por %}Por: {{ r.autorizado_por }}{% endif %}
+                                  {% if r.observacion_revision %}<br>Obs: {{ r.observacion_revision }}{% endif %}
+                                </td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+
+                        </table>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+              {% endfor %}
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+              <button class="btn btn-primary js-submit-loading js-open-from-selection"
+                      type="submit"
+                      data-loading-text="Procesando…"
+                      data-loading-icon="spinner">
+                Marcar seleccionadas como ingresadas
+              </button>
+            </div>
+
+          </form>
+
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            Sin registros para el filtro seleccionado.
+          </div>
+        {% endif %}
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+  <script src="{{ url_for('static', filename='js/horas_extras_revision_remu.js') }}"></script>
+{% endblock %}

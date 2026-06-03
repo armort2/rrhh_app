@@ -1,0 +1,192 @@
+{# web/app/templates/solicitudes_fondos/solicitudes_fondos_nominas_banco_historico.html #}
+{% extends "base.html" %}
+{% block title %}Histórico de Nóminas Bancarias{% endblock %}
+
+{% macro page_url(p) -%}
+  {{ url_for(
+      'solicitudes_fondos.nominas_banco_historico',
+      page=p,
+      periodo=periodo or None,
+      estado=estado or None
+  ) }}
+{%- endmacro %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Histórico de nóminas bancarias</h1>
+      <div class="section-subtitle">
+        Consulta de nóminas persistidas generadas desde Solicitudes de Fondos.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.nominas_banco') }}">
+        ⬅ Volver a preparación
+      </a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Período</label>
+          <input type="month" class="form-control" name="periodo" value="{{ periodo or '' }}">
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="estado">
+            <option value="" {% if not estado %}selected{% endif %}>Todos</option>
+            <option value="BORRADOR" {% if estado == "BORRADOR" %}selected{% endif %}>Borrador</option>
+            <option value="GENERADA" {% if estado == "GENERADA" %}selected{% endif %}>Generada</option>
+            <option value="PAGADA" {% if estado == "PAGADA" %}selected{% endif %}>Pagada</option>
+            <option value="ANULADA" {% if estado == "ANULADA" %}selected{% endif %}>Anulada</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4 d-flex align-items-end justify-content-md-end gap-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.nominas_banco_historico') }}">
+            🧹 Limpiar
+          </a>
+          <button class="btn btn-primary" type="submit">
+            Filtrar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <div class="text-muted small">
+      {% if pagination and pagination.total %}
+        Mostrando
+        <strong>{{ ((pagination.page - 1) * pagination.per_page) + 1 }}</strong>
+        a
+        <strong>{{ ((pagination.page - 1) * pagination.per_page) + (nominas|length) }}</strong>
+        de
+        <strong>{{ pagination.total }}</strong>
+        nóminas.
+      {% else %}
+        Sin registros.
+      {% endif %}
+    </div>
+
+    {% if pagination and pagination.pages > 1 %}
+      <div class="text-muted small">
+        Página <strong>{{ pagination.page }}</strong> de <strong>{{ pagination.pages }}</strong>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="fw-semibold">Nóminas registradas</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width:110px;">N°</th>
+              <th style="width:120px;">Fecha</th>
+              <th style="width:120px;">Período</th>
+              <th style="width:130px;">Corte</th>
+              <th style="width:130px;">Tipo pago</th>
+              <th style="width:120px;">Estado</th>
+              <th style="width:120px;" class="text-end">Registros</th>
+              <th style="width:160px;" class="text-end">Total</th>
+              <th>Creado por</th>
+              <th style="width:180px;" class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not nominas %}
+              <tr>
+                <td colspan="10" class="text-center text-muted py-4">
+                  No hay nóminas registradas con esos filtros.
+                </td>
+              </tr>
+            {% else %}
+              {% for n in nominas %}
+                <tr>
+                  <td class="fw-semibold">#{{ n.numero }}</td>
+                  <td>{{ n.fecha_generacion }}</td>
+                  <td>{{ n.periodo_ym }}</td>
+                  <td>{{ n.periodo_tipo_label }}</td>
+                  <td>{{ n.tipo_pago_label }}</td>
+                  <td>{{ n.estado_label }}</td>
+                  <td class="text-end">{{ n._detalles_count }}</td>
+                  <td class="text-end fw-semibold">$ {{ fmt_clp_text(n.total_monto) }}</td>
+                  <td>{{ n.creado_por_nombre or "-" }}</td>
+                  <td class="text-end">
+                    <div class="d-inline-flex gap-2">
+                      <a class="btn btn-sm btn-outline-primary"
+                         href="{{ url_for('solicitudes_fondos.nominas_banco_detalle', nomina_id=n.id) }}">
+                        Ver
+                      </a>
+                      <a class="btn btn-sm btn-outline-success"
+                         href="{{ url_for('solicitudes_fondos.nominas_banco_descargar_persistida', nomina_id=n.id) }}">
+                        XLSX
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if pagination and pagination.pages > 1 %}
+    <nav class="mt-3" aria-label="Paginación histórico nóminas bancarias">
+      <ul class="pagination pagination-sm flex-wrap mb-0">
+
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_prev %}{{ page_url(1) }}{% else %}#{% endif %}">
+            « Primera
+          </a>
+        </li>
+
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_prev %}{{ page_url(pagination.prev_num) }}{% else %}#{% endif %}">
+            ‹ Anterior
+          </a>
+        </li>
+
+        {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+          {% if p %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ page_url(p) }}">{{ p }}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">…</span>
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_next %}{{ page_url(pagination.next_num) }}{% else %}#{% endif %}">
+            Siguiente ›
+          </a>
+        </li>
+
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_next %}{{ page_url(pagination.pages) }}{% else %}#{% endif %}">
+            Última »
+          </a>
+        </li>
+
+      </ul>
+    </nav>
+  {% endif %}
+
+</div>
+{% endblock %}

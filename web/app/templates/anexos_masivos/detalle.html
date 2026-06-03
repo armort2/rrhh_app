@@ -1,0 +1,523 @@
+{# web/app/templates/anexos_masivos/detalle.html #}
+{% extends "base.html" %}
+{% block title %}Proceso #{{ proceso.id }} · Anexos masivos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  {% set es_sueldo_minimo = proceso.tipo_proceso == "SUELDO_MINIMO" %}
+  {% set es_ley_40_horas = proceso.tipo_proceso == "LEY_40_HORAS" %}
+  {% set es_reemplazo_dia = proceso.tipo_proceso == "REEMPLAZO_DIA" %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Proceso #{{ proceso.id }} · {{ proceso.nombre }}</h1>
+      <div class="section-subtitle">
+        {% if es_ley_40_horas %}
+          Revisión, selección y generación de anexos masivos para adecuación de jornada laboral.
+        {% elif es_reemplazo_dia %}
+          Revisión, selección y generación de anexos masivos para acuerdo de reemplazo de día interferiado.
+        {% else %}
+          Revisión, selección y generación de anexos masivos de remuneración.
+        {% endif %}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap" id="acciones-superiores-proceso">
+      <a href="{{ url_for('anexos_masivos.listado') }}" class="btn btn-outline-secondary">
+        Volver al listado
+      </a>
+
+      {% if current_user.has_role("ADMIN", "OPERADOR") %}
+        <form
+          method="post"
+          action="{{ url_for('anexos_masivos.generar', proceso_id=proceso.id) }}"
+          id="form-generar-anexos"
+        >
+          <input type="hidden" name="formato" value="{{ proceso.formato_generacion or 'AMBOS' }}">
+
+          <button type="submit" class="btn btn-primary" id="btn-generar-anexos">
+            <span class="label-normal">
+              <i class="bi bi-file-earmark-text me-1"></i>
+              {% if proceso.total_generados %}Regenerar anexos{% else %}Generar anexos{% endif %}
+            </span>
+            <span class="label-loading d-none">
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Generando...
+            </span>
+          </button>
+        </form>
+      {% endif %}
+
+      {% if current_user.has_role("ADMIN", "OPERADOR") and proceso.estado != "APLICADO" %}
+        <form
+          method="post"
+          action="{{ url_for('anexos_masivos.aplicar', proceso_id=proceso.id) }}"
+          id="form-aplicar-cambios"
+        >
+          <button
+            type="submit"
+            class="btn btn-success"
+            id="btn-aplicar-cambios"
+            onclick="return confirm('{% if es_ley_40_horas %}¿Seguro que deseas aplicar la nueva jornada semanal a los contratos seleccionados?{% elif es_reemplazo_dia %}¿Seguro que deseas cerrar documentalmente este acuerdo para los trabajadores seleccionados?{% else %}¿Seguro que deseas aplicar el nuevo sueldo base a los contratos seleccionados?{% endif %}');"
+          >
+            {% if es_ley_40_horas %}
+              <i class="bi bi-check2-circle me-1"></i> Aplicar cambios de jornada
+            {% elif es_reemplazo_dia %}
+              <i class="bi bi-check2-circle me-1"></i> Cerrar acuerdo documental
+            {% else %}
+              <i class="bi bi-check2-circle me-1"></i> Aplicar cambios a contratos
+            {% endif %}
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div id="msg-generando-anexos" class="alert alert-info d-none mb-3" role="alert">
+    <div class="fw-semibold mb-1">
+      {% if proceso.total_generados %}Regenerando anexos...{% else %}Generando anexos...{% endif %}
+    </div>
+    <div class="small">
+      Este proceso puede tardar algunos minutos. Por favor no cierres ni recargues esta ventana.
+    </div>
+  </div>
+
+  <div id="progreso-generacion-ui" class="d-none mb-4">
+    <div class="progress" style="height: 24px;">
+      <div
+        class="progress-bar progress-bar-striped progress-bar-animated"
+        role="progressbar"
+        style="width: 100%;"
+        aria-valuenow="100"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        Generando documentos...
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Tipo de proceso</div>
+          <div class="fw-semibold">
+            {% if es_sueldo_minimo %}
+              Sueldo mínimo
+            {% elif es_ley_40_horas %}
+              Ley 40 horas
+            {% elif es_reemplazo_dia %}
+              Reemplazo de día
+            {% else %}
+              {{ proceso.tipo_proceso }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Fecha anexo</div>
+          <div class="fw-semibold">{{ proceso.fecha_anexo.strftime("%d-%m-%Y") if proceso.fecha_anexo else "-" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          {% if es_reemplazo_dia %}
+            <div class="text-muted small">Día que se trabajará</div>
+          {% else %}
+            <div class="text-muted small">Fecha vigencia</div>
+          {% endif %}
+          <div class="fw-semibold">{{ proceso.fecha_vigencia.strftime("%d-%m-%Y") if proceso.fecha_vigencia else "-" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          {% if es_ley_40_horas %}
+            <div class="text-muted small">Jornada objetivo</div>
+            <div class="fw-semibold">42 hrs semanales</div>
+          {% elif es_reemplazo_dia %}
+            <div class="text-muted small">Día compensado</div>
+            <div class="fw-semibold">{{ proceso.ley_s_minimo_fecha_publicacion.strftime("%d-%m-%Y") if proceso.ley_s_minimo_fecha_publicacion else "-" }}</div>
+          {% else %}
+            <div class="text-muted small">Sueldo objetivo</div>
+            <div class="fw-semibold">${{ proceso.sueldo_base_objetivo|fmt_cl }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Total registros</div>
+          <div class="fw-semibold">{{ proceso.total_detalles }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Seleccionados</div>
+          <div class="fw-semibold">{{ proceso.total_seleccionados }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          {% if es_reemplazo_dia %}
+            <div class="text-muted small">Efecto contractual</div>
+            <div class="fw-semibold">Solo documental</div>
+          {% elif es_ley_40_horas %}
+            <div class="text-muted small">Horas actuales mínimas</div>
+            <div class="fw-semibold">{{ proceso.horas_semanales_minimas }} hrs</div>
+          {% else %}
+            <div class="text-muted small">Horas mínimas</div>
+            <div class="fw-semibold">{{ proceso.horas_semanales_minimas }} hrs</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Estado</div>
+          <div class="fw-semibold">
+            {% if proceso.estado == "BORRADOR" %}
+              <span class="badge text-bg-warning">Borrador</span>
+            {% elif proceso.estado == "GENERADO" %}
+              <span class="badge text-bg-primary">Generado</span>
+            {% elif proceso.estado == "APLICADO" %}
+              <span class="badge text-bg-success">Aplicado</span>
+            {% elif proceso.estado == "ANULADO" %}
+              <span class="badge text-bg-danger">Anulado</span>
+            {% elif proceso.estado == "CERRADO" %}
+              <span class="badge text-bg-dark">Cerrado</span>
+            {% else %}
+              <span class="badge text-bg-secondary">{{ proceso.estado }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if not es_reemplazo_dia %}
+      <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body">
+            {% if es_ley_40_horas %}
+              <div class="text-muted small">Ley 40 horas</div>
+            {% else %}
+              <div class="text-muted small">Ley sueldo mínimo</div>
+            {% endif %}
+            <div class="fw-semibold">{{ proceso.ley_s_minimo_nro or "-" }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body">
+            <div class="text-muted small">Fecha publicación ley</div>
+            <div class="fw-semibold">{{ proceso.ley_s_minimo_fecha_publicacion.strftime("%d-%m-%Y") if proceso.ley_s_minimo_fecha_publicacion else "-" }}</div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Formato generación</div>
+          <div class="fw-semibold">{{ proceso.formato_generacion or "AMBOS" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Documentos generados</div>
+          <div class="fw-semibold">{{ proceso.total_generados or 0 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if es_reemplazo_dia %}
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white d-flex align-items-center gap-2">
+        <i class="bi bi-calendar2-check text-primary"></i>
+        <div>
+          <strong>Resumen del acuerdo de reemplazo de día</strong>
+          <div class="text-muted small">Fechas principales que quedarán documentadas en los anexos generados.</div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-3 align-items-stretch">
+          <div class="col-md-4">
+            <div class="border rounded-3 p-3 h-100 bg-light">
+              <div class="text-muted small mb-1">Fecha del anexo</div>
+              <div class="fw-semibold fs-5">{{ proceso.fecha_anexo.strftime("%d-%m-%Y") if proceso.fecha_anexo else "-" }}</div>
+              <div class="small text-muted mt-1">Fecha de suscripción del acuerdo.</div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="border rounded-3 p-3 h-100 bg-light">
+              <div class="text-muted small mb-1">Día que se trabajará</div>
+              <div class="fw-semibold fs-5 text-primary">{{ proceso.fecha_vigencia.strftime("%d-%m-%Y") if proceso.fecha_vigencia else "-" }}</div>
+              <div class="small text-muted mt-1">Jornada excepcional acordada con los trabajadores seleccionados.</div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="border rounded-3 p-3 h-100 bg-light">
+              <div class="text-muted small mb-1">Día compensado / no trabajado</div>
+              <div class="fw-semibold fs-5 text-success">{{ proceso.ley_s_minimo_fecha_publicacion.strftime("%d-%m-%Y") if proceso.ley_s_minimo_fecha_publicacion else "-" }}</div>
+              <div class="small text-muted mt-1">Día interferiado que se compensa mediante este acuerdo.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-info border-0 mt-3 mb-0 small">
+          <i class="bi bi-info-circle me-1"></i>
+          Este proceso es únicamente documental: no modifica sueldo, cargo, jornada contractual permanente ni condiciones generales del contrato.
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if proceso.observaciones %}
+    <div class="alert alert-light border mb-3">
+      <strong>Observaciones:</strong><br>
+      {{ proceso.observaciones }}
+    </div>
+  {% endif %}
+
+  {% if proceso.usar_articulo_tercero and proceso.articulo_tercero_texto %}
+    <div class="alert alert-warning border mb-4">
+      <strong>Artículo tercero adicional:</strong><br>
+      {{ proceso.articulo_tercero_texto }}
+    </div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('anexos_masivos.guardar_seleccion', proceso_id=proceso.id) }}">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <strong>Trabajadores candidatos</strong>
+          <div class="text-muted small">
+            {% if es_ley_40_horas %}
+              Puedes desmarcar casos especiales antes de generar o aplicar el cambio de jornada.
+            {% elif es_reemplazo_dia %}
+              Puedes desmarcar trabajadores que no suscribirán este acuerdo de reemplazo de día.
+            {% else %}
+              Puedes desmarcar casos especiales antes de generar o aplicar el cambio.
+            {% endif %}
+          </div>
+        </div>
+
+        {% if current_user.has_role("ADMIN", "OPERADOR") and proceso.estado != "APLICADO" %}
+          <button type="submit" class="btn btn-primary btn-sm" id="btn-guardar-seleccion">
+            <i class="bi bi-save me-1"></i> Guardar selección
+          </button>
+        {% endif %}
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="text-center" style="width: 60px;">Sel.</th>
+                <th>RUT</th>
+                <th>Trabajador</th>
+                <th>Empleador</th>
+                <th>Obra</th>
+                <th>Cargo</th>
+
+                {% if es_ley_40_horas %}
+                  <th class="text-center">Horas actuales</th>
+                  <th class="text-center">Horas nuevas</th>
+                {% elif es_reemplazo_dia %}
+                  <th class="text-center">Horas contrato</th>
+                  <th class="text-center">Trabaja</th>
+                  <th class="text-center">Compensa</th>
+                {% else %}
+                  <th class="text-center">Horas</th>
+                  <th class="text-end">Sueldo actual</th>
+                  <th class="text-end">Sueldo nuevo</th>
+                {% endif %}
+
+                <th class="text-center">DOCX</th>
+                <th class="text-center">PDF</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in proceso.detalles %}
+                {% set horas_nuevas = d.meta.get("horas_nuevas") if d.meta is mapping else None %}
+                <tr>
+                  <td class="text-center">
+                    {% if current_user.has_role("ADMIN", "OPERADOR") and proceso.estado != "APLICADO" %}
+                      <input
+                        type="checkbox"
+                        class="form-check-input"
+                        name="detalle_ids"
+                        value="{{ d.id }}"
+                        {% if d.seleccionado %}checked{% endif %}
+                      >
+                    {% else %}
+                      {% if d.seleccionado %}
+                        <i class="bi bi-check-square-fill text-success"></i>
+                      {% else %}
+                        <i class="bi bi-square text-muted"></i>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+
+                  <td>{{ d.trabajador|rut_trabajador }}</td>
+
+                  <td>
+                    <div class="fw-semibold">
+                      {{ d.trabajador.ap_paterno }} {{ d.trabajador.ap_materno or "" }}, {{ d.trabajador.nombres }}
+                    </div>
+                  </td>
+
+                  <td>{{ d.contrato.empleador.razon_social if d.contrato and d.contrato.empleador else "" }}</td>
+                  <td>{{ d.contrato.obra.nombre if d.contrato and d.contrato.obra else "" }}</td>
+                  <td>{{ d.contrato.cargo.nombre if d.contrato and d.contrato.cargo else "" }}</td>
+
+                  {% if es_ley_40_horas %}
+                    <td class="text-center">{{ d.horas_semanales or "" }}</td>
+                    <td class="text-center">{{ horas_nuevas or "" }}</td>
+                  {% elif es_reemplazo_dia %}
+                    <td class="text-center">{{ d.horas_semanales or "" }}</td>
+                    <td class="text-center">{{ proceso.fecha_vigencia.strftime("%d-%m-%Y") if proceso.fecha_vigencia else "-" }}</td>
+                    <td class="text-center">{{ proceso.ley_s_minimo_fecha_publicacion.strftime("%d-%m-%Y") if proceso.ley_s_minimo_fecha_publicacion else "-" }}</td>
+                  {% else %}
+                    <td class="text-center">{{ d.horas_semanales or "" }}</td>
+                    <td class="text-end">${{ d.sueldo_base_actual|fmt_cl }}</td>
+                    <td class="text-end">${{ d.sueldo_base_nuevo|fmt_cl }}</td>
+                  {% endif %}
+
+                  <td class="text-center">
+                    {% if d.docx_ruta %}
+                      <span class="badge text-bg-light text-dark">Sí</span>
+                    {% else %}
+                      <span class="text-muted small">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-center">
+                    {% if d.pdf_ruta %}
+                      <span class="badge text-bg-light text-dark">Sí</span>
+                    {% else %}
+                      <span class="text-muted small">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if d.estado == "PENDIENTE" %}
+                      <span class="badge text-bg-warning">Pendiente</span>
+                    {% elif d.estado == "OMITIDO" %}
+                      <span class="badge text-bg-secondary">Omitido</span>
+                    {% elif d.estado == "GENERADO" %}
+                      <span class="badge text-bg-primary">Generado</span>
+                    {% elif d.estado == "APLICADO" %}
+                      <span class="badge text-bg-success">Aplicado</span>
+                    {% elif d.estado == "ERROR" %}
+                      <span class="badge text-bg-danger">Error</span>
+                    {% else %}
+                      <span class="badge text-bg-light text-dark">{{ d.estado }}</span>
+                    {% endif %}
+
+                    {% if d.observacion %}
+                      <div class="small text-danger mt-1">{{ d.observacion }}</div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="13" class="text-center text-muted py-4">
+                    Este proceso no tiene trabajadores candidatos.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {% if current_user.has_role("ADMIN", "OPERADOR") and proceso.estado != "APLICADO" and proceso.detalles %}
+        <div class="card-footer bg-white d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary" id="btn-guardar-seleccion-footer">
+            <i class="bi bi-save me-1"></i> Guardar selección
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  </form>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const formGenerar = document.getElementById("form-generar-anexos");
+  const btnGenerar = document.getElementById("btn-generar-anexos");
+  const msgGenerando = document.getElementById("msg-generando-anexos");
+  const progresoGeneracion = document.getElementById("progreso-generacion-ui");
+  const btnAplicar = document.getElementById("btn-aplicar-cambios");
+  const btnGuardarSeleccion = document.getElementById("btn-guardar-seleccion");
+  const btnGuardarSeleccionFooter = document.getElementById("btn-guardar-seleccion-footer");
+
+  if (formGenerar && btnGenerar) {
+    formGenerar.addEventListener("submit", function () {
+      btnGenerar.disabled = true;
+      btnGenerar.classList.add("disabled");
+
+      const normal = btnGenerar.querySelector(".label-normal");
+      const loading = btnGenerar.querySelector(".label-loading");
+
+      if (normal) normal.classList.add("d-none");
+      if (loading) loading.classList.remove("d-none");
+      if (msgGenerando) msgGenerando.classList.remove("d-none");
+      if (progresoGeneracion) progresoGeneracion.classList.remove("d-none");
+
+      if (btnAplicar) {
+        btnAplicar.disabled = true;
+        btnAplicar.classList.add("disabled", "d-none");
+      }
+
+      if (btnGuardarSeleccion) {
+        btnGuardarSeleccion.disabled = true;
+        btnGuardarSeleccion.classList.add("disabled");
+      }
+
+      if (btnGuardarSeleccionFooter) {
+        btnGuardarSeleccionFooter.disabled = true;
+        btnGuardarSeleccionFooter.classList.add("disabled");
+      }
+    });
+  }
+});
+</script>
+
+{% endblock %}

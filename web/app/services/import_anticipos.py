@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 
 from openpyxl import load_workbook
+from sqlalchemy import func
 
 from ..extensions import db
-from ..models import Trabajador, Obra, AnticipoNomina, AnticipoDetalle
+from ..models import Trabajador, Obra, Contrato, AnticipoNomina, AnticipoDetalle
 
 
 _RUT_CLEAN_RE = re.compile(r"[^0-9kK]")
@@ -131,6 +132,38 @@ def _find_obra_by_excel_name(obra_excel_name: str | None) -> Obra | None:
             return obra
 
     return None
+
+
+def _contratos_trabajador_periodo_cc(
+    trabajador_id: int,
+    *,
+    anio: int,
+    mes: int,
+    centro_costo: str,
+    obra_id: int | None = None,
+) -> list[Contrato]:
+    """
+    Contratos del trabajador vigentes/intersectados en el período de anticipos,
+    filtrados por centro de costo de la obra. Si Excel trae obra y esta se logró
+    resolver, se prefiere esa obra para evitar tomar contratos de otra obra.
+    """
+    periodo_inicio = date(int(anio), int(mes), 1)
+    periodo_fin = date(int(anio) + 1, 1, 1) if int(mes) == 12 else date(int(anio), int(mes) + 1, 1)
+
+    q = (
+        Contrato.query
+        .join(Obra, Obra.id == Contrato.obra_id)
+        .filter(Contrato.trabajador_id == trabajador_id)
+        .filter(func.upper(func.coalesce(Obra.centro_costo, "")) == (centro_costo or "").strip().upper())
+        .filter(Contrato.fecha_inicio.isnot(None))
+        .filter(Contrato.fecha_inicio < periodo_fin)
+        .filter(func.coalesce(Contrato.fecha_termino, date(2999, 12, 31)) >= periodo_inicio)
+    )
+
+    if obra_id:
+        q = q.filter(Contrato.obra_id == obra_id)
+
+    return q.order_by(Contrato.id.desc()).all()
 
 
 def import_anticipos_from_excel(
@@ -297,22 +330,61 @@ def import_anticipos_from_excel(
         # Snapshot rut legible
         rut_snapshot = f"{rut_digits}-{rut_dv}" if rut_digits and rut_dv else (str(rut_raw).strip() if rut_raw else None)
 
-        detalle = AnticipoDetalle(
-            nomina_id=nomina.id,
-            trabajador_id=trabajador.id if trabajador else None,
-            obra_id=obra.id if obra else None,
-            rut=rut_snapshot,
-            nombre_completo=nombre_snapshot,
-            nombre_obra=obra_nombre_excel,  # guardamos el texto original del Excel
-            centro_costo=cc,
-            monto=monto,
-            observacion=obs_text,
-            estado_linea=estado_linea,
-        )
-        db.session.add(detalle)
+        contratos = []
+        if trabajador:
+            contratos = _contratos_trabajador_periodo_cc(
+                trabajador.id,
+                anio=anio,
+                mes=mes,
+                centro_costo=cc,
+                obra_id=obra.id if obra else None,
+            )
 
-        if estado_linea == "OK":
-            stats["ok"] += 1
+            if not contratos:
+                if estado_linea == "OK":
+                    estado_linea = "SIN_CONTRATO_EN_PERIODO"
+                    obs_text = (obs_text + " | " if obs_text else "") + "Sin contrato vigente en período/CC"
+
+        # Regla conservadora:
+        # - Si hay 1 contrato, la línea queda contract-aware.
+        # - Si hay varios contratos para el mismo trabajador/obra/CC, se crea una línea por contrato.
+        #   El monto importado queda en el contrato más reciente y las demás líneas quedan en $0
+        #   para que RRHH distribuya el anticipo sin duplicar pago.
+        contratos_para_insertar = contratos or [None]
+
+        for idx, contrato in enumerate(contratos_para_insertar):
+            estado_insert = estado_linea
+            obs_insert = obs_text
+            monto_insert = monto
+
+            if trabajador and len(contratos_para_insertar) > 1:
+                estado_insert = "AMBIGUO_CONTRATO"
+                obs_insert = (obs_insert + " | " if obs_insert else "") + (
+                    f"Trabajador con {len(contratos_para_insertar)} contratos en período/CC; "
+                    "revisar distribución del anticipo por contrato"
+                )
+                if idx > 0:
+                    monto_insert = Decimal("0")
+
+            detalle = AnticipoDetalle(
+                nomina_id=nomina.id,
+                trabajador_id=trabajador.id if trabajador else None,
+                contrato_id=contrato.id if contrato else None,
+                obra_id=(contrato.obra_id if contrato and getattr(contrato, "obra_id", None) else (obra.id if obra else None)),
+                rut=rut_snapshot,
+                nombre_completo=nombre_snapshot,
+                nombre_obra=(getattr(getattr(contrato, "obra", None), "nombre", None) if contrato else obra_nombre_excel) or obra_nombre_excel,
+                centro_costo=cc,
+                monto=monto_insert,
+                observacion=obs_insert,
+                estado_linea=estado_insert,
+            )
+            db.session.add(detalle)
+
+            if estado_insert == "OK":
+                stats["ok"] += 1
+            elif estado_insert == "AMBIGUO_CONTRATO":
+                stats["observadas"] += 1
 
     db.session.commit()
     return {

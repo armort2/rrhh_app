@@ -11,3 +11,7 @@ openpyxl
 weasyprint
 Flask-WTF
 WTForms
+pandas
+pdfplumber
+unzip
+zip

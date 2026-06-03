@@ -1,0 +1,154 @@
+{# web/app/templates/vacaciones/form.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid cs-form-page">
+  <div class="section-header">
+    <div class="section-title">
+      {% if modo == "editar" %}Editar comprobante de vacaciones{% else %}Nuevo comprobante de vacaciones{% endif %}
+    </div>
+
+    <div class="section-subtitle">
+      Contrato #{{ contrato.id }}
+      · Saldo real a la fecha de emisión:
+      <strong class="{% if saldo < 0 %}text-danger{% endif %}">{{ saldo }}</strong>
+      · Próximo correlativo: <strong>{{ corr }}</strong>
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  {# ==========================
+     Resumen superior (ficha)
+     ========================== #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-lg-6">
+          <div class="fw-semibold" style="font-size: 1.05rem;">
+            🧑‍🏭 {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno or "" }}, {{ contrato.trabajador.nombres }}
+          </div>
+          <div class="text-muted">
+            RUT: <strong>{{ contrato.trabajador.rut_completo }}</strong>
+            {% if contrato.cargo and contrato.cargo.nombre %}
+              · Cargo: <strong>{{ contrato.cargo.nombre }}</strong>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="text-muted">
+            Empresa: <strong>{{ (contrato.empleador.razon_social if contrato.empleador else "-") }}</strong>
+            {% if contrato.empleador and contrato.empleador.rut %}
+              · RUT: <strong>{{ contrato.empleador.rut }}</strong>
+            {% endif %}
+          </div>
+          <div class="text-muted">
+            Obra: <strong>{{ (contrato.obra.nombre if contrato.obra else "-") }}</strong>
+            {% if contrato.obra and contrato.obra.codigo %}
+              · Código: <strong>{{ contrato.obra.codigo }}</strong>
+            {% endif %}
+          </div>
+          <div class="text-muted">
+            Inicio contrato:
+            <strong>{{ contrato.fecha_inicio.isoformat() if contrato.fecha_inicio else "-" }}</strong>
+            {% if antiguedad %}
+              · Antigüedad: <strong>{{ antiguedad }}</strong>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ==========================
+     Formulario
+     ========================== #}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" novalidate>
+        <div class="row g-3">
+
+        {# Fila superior: 4 campos en una línea #}
+        <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Fecha emisión comprobante</label>
+            <input id="fecha_emision" type="date" name="fecha_emision" class="form-control" required
+                value="{{ fecha_emision_default }}">
+            <div class="form-text">El saldo disponible se calcula con esta fecha (no con “hoy”).</div>
+        </div>
+
+        <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Fecha inicio</label>
+            <input id="fecha_inicio" type="date" name="fecha_inicio" class="form-control" required
+                value="{{ vac.fecha_inicio.isoformat() if vac and vac.fecha_inicio else '' }}">
+            <div class="form-text">Se consideran días hábiles (Lunes a Viernes).</div>
+        </div>
+
+        <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Días hábiles a tomar</label>
+            <input id="dias_habiles" type="number" name="dias_habiles" class="form-control"
+                min="1" step="1" inputmode="numeric"
+                placeholder="Ej: 5"
+                value="{{ vac.dias_habiles if vac and vac.dias_habiles else '' }}">
+            <div class="form-text">Si completas este campo, se calculará automáticamente la fecha de término.</div>
+        </div>
+
+        <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Fecha término</label>
+            <input id="fecha_termino" type="date" name="fecha_termino" class="form-control" required
+                value="{{ vac.fecha_termino.isoformat() if vac and vac.fecha_termino else '' }}">
+            <div class="form-text">Si cambias la fecha término, se recalcularán los días hábiles.</div>
+        </div>
+
+        {# ==========================
+           Vacaciones anticipadas
+           Visible para todos (según tu decisión)
+           ========================== #}
+        <div class="col-12">
+          <div class="form-check border rounded p-3 bg-light">
+            <input class="form-check-input"
+                   type="checkbox"
+                   id="anticipo"
+                   name="anticipo"
+                   value="1"
+                   {% if vac and vac.es_anticipo %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="anticipo">
+              Permitir vacaciones anticipadas
+            </label>
+            <div class="form-text">
+              Permite emitir aunque el saldo quede negativo. Esto afecta el “saldo real” hasta regularización por devengo.
+            </div>
+          </div>
+        </div>
+
+        {# Fila inferior: Observaciones full width #}
+        <div class="col-12">
+            <label class="form-label fw-semibold">Observaciones</label>
+            <input type="text" name="observaciones" class="form-control" placeholder="Opcional"
+                value="{{ vac.observaciones if vac and vac.observaciones else '' }}">
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Guardar BORRADOR</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('vacaciones.contrato_detalle', contrato_id=contrato.id) }}">Cancelar</a>
+        </div>
+
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ==========================
+   JS: cálculo bidireccional
+   ========================== #}
+<script type="application/json" id="feriados-data">
+  {{ (feriados or []) | tojson }}
+</script>
+
+
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/vacaciones_form.js') }}"></script>
+{% endblock %}

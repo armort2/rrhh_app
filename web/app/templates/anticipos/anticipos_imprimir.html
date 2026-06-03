@@ -18,7 +18,7 @@
       {% endif %}
 
       <div class="small">
-        Origen: {{ nomina.origen|default(nomina.origen_archivo)|default("-") }}
+        Origen: {{ nomina.origen or nomina.origen_archivo or "Sistema Interno" }}
         · Estado: {{ nomina.estado }}
       </div>
     </div>
@@ -129,29 +129,6 @@
             ${{ "{:,.0f}".format(ns.total_act|float).replace(",", ".") }}
           </div>
         </div>
-
-        <div class="signatures">
-          <div class="signatures-grid">
-            <div class="sign-col">
-              <div class="sign-title">V°B° Jefe Administración</div>
-              <div class="sign-line"></div>
-              <div class="sign-foot">Nombre / Firma / Fecha</div>
-            </div>
-
-            <div class="sign-col" style="text-align:center;">
-              <div class="sign-title">V°B° Administrador C. Costo</div>
-              <div class="sign-line"></div>
-              <div class="sign-foot">Nombre / Firma / Fecha</div>
-            </div>
-
-            <div class="sign-col" style="text-align:right;">
-              <div class="sign-title">V°B° Gerencia de Proyectos</div>
-              <div class="sign-line"></div>
-              <div class="sign-foot">Nombre / Firma / Fecha</div>
-            </div>
-          </div>
-        </div>
-
       {% endif %}
 
     {% endfor %}

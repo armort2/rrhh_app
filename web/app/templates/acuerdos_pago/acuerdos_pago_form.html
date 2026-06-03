@@ -1,0 +1,187 @@
+{# web/app/templates/acuerdos_pago/acuerdos_pago_form.html #}
+{% extends "base.html" %}
+
+{% block title %}
+  {% if modo == 'nuevo' %}Nuevo Acuerdo de Pago{% else %}Editar Acuerdo de Pago{% endif %} · GRUPO CS
+{% endblock %}
+
+{% block content %}
+<div class="container py-3 cs-form-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">
+        {% if modo == 'nuevo' %}Nuevo Acuerdo de Pago{% else %}Editar Acuerdo de Pago{% endif %}
+      </h1>
+      <div class="section-subtitle">Registro y control documental (BORRADOR)</div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('acuerdos_pago.listado') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+      {% if modo != 'nuevo' %}
+        <a href="{{ url_for('acuerdos_pago.detalle', acuerdo_id=acuerdo.id) }}" class="btn btn-outline-primary">
+          <i class="bi bi-eye me-1"></i> Ver detalle
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" id="form-acuerdo-pago"
+            data-api-contexto-url="{{ url_for('acuerdos_pago.api_contexto') }}"
+            data-api-trabajadores-url="{{ url_for('acuerdos_pago.api_trabajadores') }}"
+            data-empleador-actual-id="{{ acuerdo.empleador_id or '' }}"
+            data-obra-actual-id="{{ acuerdo.obra_id or '' }}">
+        <div class="row g-3">
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Fecha acuerdo</label>
+            <input type="date" class="form-control" name="fecha_acuerdo" value="{{ acuerdo.fecha_acuerdo }}">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" name="tipo" required>
+              {% for k,v in tipo_labels.items() %}
+                <option value="{{ k.value }}" {% if acuerdo.tipo and acuerdo.tipo.value == k.value %}selected{% endif %}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Concepto</label>
+            <input class="form-control" name="concepto" value="{{ acuerdo.concepto or '' }}"
+                   placeholder="Ej: Préstamo personal, compra herramientas, diferencia EPP" required>
+          </div>
+
+          <div class="col-12">
+            <div class="section-divider my-2"></div>
+          </div>
+
+          {# ============================
+             Trabajador + Empleador + Obra (misma fila)
+             ============================ #}
+
+          <div class="col-12 col-lg-6 position-relative">
+            <label class="form-label">Trabajador (buscar por RUT o nombre)</label>
+
+            <input type="hidden" id="trabajador_id" name="trabajador_id" value="{{ acuerdo.trabajador_id or '' }}">
+
+            {% set trabajador_label = "" %}
+            {% if acuerdo.trabajador %}
+              {% set trabajador_label = acuerdo.trabajador.ap_paterno ~ " " ~ (acuerdo.trabajador.ap_materno or "") ~ ", " ~ acuerdo.trabajador.nombres ~ " (" ~ acuerdo.trabajador.rut_completo ~ ")" %}
+            {% endif %}
+
+            <input class="form-control" id="trabajador_buscar" autocomplete="off"
+                   value="{{ trabajador_label }}"
+                   placeholder="Ej: 12.345.678-9 o Pérez o Juan" required>
+
+            <div class="form-text">Incluye trabajadores vigentes y no vigentes.</div>
+
+            <div id="trabajador_suggest" class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index: 50; display:none; max-height: 280px; overflow:auto; border-radius: 10px;">
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Empleador</label>
+            <select class="form-select" id="empleador_id" name="empleador_id">
+              <option value="">— Seleccionar —</option>
+            </select>
+            <div class="form-text">Se autocompleta al elegir trabajador (editable).</div>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Obra</label>
+            <select class="form-select" id="obra_id" name="obra_id">
+              <option value="">— Seleccionar —</option>
+            </select>
+            <div class="form-text">Se autocompleta al elegir trabajador (editable).</div>
+          </div>
+
+          <div class="col-12">
+            <div class="section-divider my-2"></div>
+          </div>
+
+          {# ============================
+             Montos
+             ============================ #}
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Monto total (CLP)</label>
+            <input class="form-control" id="monto_total" name="monto_total"
+                   value="{{ (acuerdo.monto_total or 0)|int }}"
+                   inputmode="numeric" placeholder="Ej: 250000" required>
+          </div>
+
+          <div class="col-12 col-lg-2">
+            <label class="form-label">Cuotas</label>
+            <input class="form-control" id="cuotas" name="cuotas"
+                   value="{{ acuerdo.cuotas or 1 }}" type="number" min="1" required>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Monto cuota (CLP)</label>
+            <input class="form-control" id="monto_cuota" name="monto_cuota"
+                   value="{{ (acuerdo.monto_cuota or 0)|int }}"
+                   readonly>
+            <div class="form-text">Se calcula automáticamente: Monto total ÷ Cuotas (sin decimales).</div>
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <label class="form-label">Mes inicio descuento</label>
+            <input class="form-control" name="mes_inicio_descuento"
+                   value="{{ acuerdo.mes_inicio_descuento or '' }}" placeholder="YYYY-MM">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Observaciones</label>
+            <textarea class="form-control" name="observaciones" rows="3"
+                      placeholder="Opcional">{{ acuerdo.observaciones or '' }}</textarea>
+          </div>
+
+          <div class="col-12">
+            <div class="form-check">
+              {% set epp_vol = (acuerdo.meta and acuerdo.meta.get('epp_mejora_voluntaria')) %}
+              <input class="form-check-input" type="checkbox" name="epp_mejora_voluntaria"
+                     id="epp_mejora_voluntaria" {% if epp_vol %}checked{% endif %}>
+              <label class="form-check-label" for="epp_mejora_voluntaria">
+                (Solo EPP) Dejo constancia que esta mejora fue solicitada voluntariamente por el trabajador.
+              </label>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary" type="submit">
+                <i class="bi bi-save me-1"></i> Guardar
+            </button>
+
+            <a class="btn btn-outline-secondary" href="{{ url_for('acuerdos_pago.listado') }}">Cancelar</a>
+
+            {% if modo != 'nuevo' and acuerdo.id and acuerdo.estado not in ['ANULADO','PAGADO'] %}
+                <form method="post"
+                    action="{{ url_for('acuerdos_pago.regenerar', acuerdo_id=acuerdo.id) }}"
+                    onsubmit="return confirm('¿Regenerar DOCX + PDF con los datos actuales del acuerdo? Asegúrate de haber guardado antes.');">
+                <button class="btn btn-outline-success" type="submit">
+                    <i class="bi bi-arrow-repeat me-1"></i> Regenerar DOCX/PDF
+                </button>
+                </form>
+            {% endif %}
+          </div>
+
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/acuerdos_pago_form.js') }}"></script>
+{% endblock %}

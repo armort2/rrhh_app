@@ -107,10 +107,14 @@
                 </div>
               </div>
               <div class="card-body">
-                <div class="border rounded-3 p-2" style="max-height: 260px; overflow:auto;">
+                <div class="border rounded-3 p-2 overflow-auto" style="max-height: 260px;">
                   {% for r in roles %}
-                    <div class="form-check px-2 py-1 m-0">
-                      <input class="form-check-input" type="checkbox" name="roles" id="role_{{ r.id }}" value="{{ r.id }}"
+                    <div class="form-check d-flex align-items-center gap-2 m-0 py-1 ps-0">
+                      <input class="form-check-input m-0 mt-0 ms-0"
+                             type="checkbox"
+                             name="roles"
+                             id="role_{{ r.id }}"
+                             value="{{ r.id }}"
                              {% if (r.id|string) in selected_role_ids %}checked{% endif %}>
                       <label class="form-check-label" for="role_{{ r.id }}">
                         {{ r.name }}
@@ -131,10 +135,14 @@
                 </div>
               </div>
               <div class="card-body">
-                <div class="border rounded-3 p-2" style="max-height: 260px; overflow:auto;">
+                <div class="border rounded-3 p-2 overflow-auto" style="max-height: 260px;">
                   {% for o in obras %}
-                    <div class="form-check px-2 py-1 m-0">
-                      <input class="form-check-input" type="checkbox" name="obras" id="obra_{{ o.id }}" value="{{ o.id }}"
+                    <div class="form-check d-flex align-items-center gap-2 m-0 py-1 ps-0">
+                      <input class="form-check-input m-0 mt-0 ms-0"
+                             type="checkbox"
+                             name="obras"
+                             id="obra_{{ o.id }}"
+                             value="{{ o.id }}"
                              {% if (o.id|string) in selected_obra_ids %}checked{% endif %}>
                       <label class="form-check-label" for="obra_{{ o.id }}">
                         {{ o.nombre }}

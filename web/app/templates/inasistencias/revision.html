@@ -90,6 +90,28 @@
               {# Agrupar por clave alfabética #}
               {% for g in rows_sorted|groupby('sortkey') %}
                 {% set regs_list = g.list | map(attribute='it') | list %}
+                {# ---------------------------
+                  Orden y resumen por tipo (robusto)
+                  - Normaliza it.tipo con |upper|trim
+                  --------------------------- #}
+                {% set ns_tipo = namespace(dias=[], horas=[], min_horas=0) %}
+
+                {% for r in regs_list %}
+                  {% set tipo_norm = (r.tipo or "")|upper|trim %}
+                  {% if tipo_norm == "DIA" %}
+                    {% set _ = ns_tipo.dias.append(r) %}
+                  {% else %}
+                    {# cualquier variante cae como HORAS: "HORAS", "Horas", etc. #}
+                    {% set _ = ns_tipo.horas.append(r) %}
+                    {% set ns_tipo.min_horas = ns_tipo.min_horas + (r.minutos_ausentes or 0) %}
+                  {% endif %}
+                {% endfor %}
+
+                {% set regs_dia = ns_tipo.dias %}
+                {% set regs_horas = ns_tipo.horas %}
+                {% set regs_ordered = regs_dia + regs_horas %}
+
+
                 {% set t = g.list[0].t if g.list and g.list[0].t else None %}
 
                 {% set idx = loop.index %}
@@ -147,6 +169,17 @@
                         </div>
 
                         <div class="d-flex align-items-center gap-2 flex-wrap">
+
+                          {# Resumen por tipo #}
+                          {% if regs_dia|length > 0 %}
+                            <span class="badge text-bg-secondary">Días: {{ regs_dia|length }}</span>
+                          {% endif %}
+
+                          {% if regs_horas|length > 0 %}
+                            <span class="badge text-bg-secondary">Horas: {{ fmt_hhmm(ns_tipo.min_horas) }}</span>
+                          {% endif %}
+
+                          {# Estado #}
                           {% if ns.pend > 0 %}
                             <span class="badge bg-warning text-dark">Pendientes: {{ ns.pend }}</span>
                           {% endif %}
@@ -154,6 +187,7 @@
                             <span class="badge bg-success">Procesadas: {{ ns.proc }}</span>
                           {% endif %}
                         </div>
+
                       </div>
 
                     </button>
@@ -215,7 +249,7 @@
                           </thead>
 
                           <tbody>
-                            {% for it in regs_list %}
+                            {% for it in regs_ordered %}
                               {% set codigo = (it.motivo or "") %}
                               {% set meta = motivo_meta.get(codigo) if motivo_meta else None %}
                               {% set label = meta.label if meta else codigo %}
@@ -291,114 +325,10 @@
 
 </div>
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // -----------------------
-    // Seleccionar todo por trabajador (solo lo pendiente)
-    // -----------------------
-    document.querySelectorAll('[data-select-all]').forEach(master => {
-      master.addEventListener('change', () => {
-        const group = master.getAttribute('data-select-all');
-        const checks = document.querySelectorAll(`.chk-item[data-group="${group}"]`);
-        checks.forEach(chk => { chk.checked = master.checked; });
-      });
-    });
-
-    // -----------------------
-    // Recordar qué trabajador abrir tras POST
-    // -----------------------
-    const KEY = 'inasistencias_revision_open_worker';
-
-    // Botón por trabajador: guarda worker_id
-    document.querySelectorAll('.js-open-worker').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const wid = btn.getAttribute('data-worker-id') || '';
-        if (wid) sessionStorage.setItem(KEY, wid);
-      });
-    });
-
-    // Botón final: guarda worker_id del primer checkbox seleccionado (si existe)
-    const btnSelection = document.querySelector('.js-open-from-selection');
-    if (btnSelection) {
-      btnSelection.addEventListener('click', () => {
-        const firstChecked = document.querySelector('.chk-item:checked');
-        if (firstChecked) {
-          const wid = firstChecked.getAttribute('data-worker-id') || '';
-          if (wid) sessionStorage.setItem(KEY, wid);
-        } else {
-          // Si no hay selección, limpiamos para no abrir algo “viejo”
-          sessionStorage.removeItem(KEY);
-        }
-      });
-    }
-
-    // Al cargar, abrir el trabajador recordado (si existe)
-    const widToOpen = sessionStorage.getItem(KEY);
-    if (widToOpen) {
-      const collapseEl = document.querySelector(`[data-worker-collapse="${widToOpen}"]`);
-      const headerEl = document.querySelector(`[data-worker-header="${widToOpen}"]`);
-      if (collapseEl && window.bootstrap && window.bootstrap.Collapse) {
-        // Cerrar otros abiertos (por prolijidad)
-        document.querySelectorAll('#accordionRevision .accordion-collapse.show').forEach(openEl => {
-          if (openEl !== collapseEl) {
-            const inst = window.bootstrap.Collapse.getOrCreateInstance(openEl, { toggle: false });
-            inst.hide();
-          }
-        });
-
-        const inst = window.bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
-        inst.show();
-
-        // Scroll suave al encabezado (si existe)
-        if (headerEl) {
-          headerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-
-      // Importante: limpiamos la “intención” para que no quede pegada en la próxima visita
-      sessionStorage.removeItem(KEY);
-    }
-
-    // -----------------------
-    // UX: feedback inmediato al enviar (evita doble click + muestra "Procesando…")
-    // -----------------------
-    const form = document.getElementById('form-revision');
-    if (!form) return;
-
-    let locked = false;
-
-    form.addEventListener('submit', (e) => {
-      if (locked) {
-        e.preventDefault();
-        return;
-      }
-
-      locked = true;
-
-      const submits = form.querySelectorAll('button[type="submit"], input[type="submit"]');
-      submits.forEach(btn => {
-        btn.disabled = true;
-        btn.setAttribute('aria-disabled', 'true');
-      });
-
-      const submitter = e.submitter;
-      if (submitter && submitter.classList && submitter.classList.contains('js-submit-loading')) {
-        const txt = submitter.getAttribute('data-loading-text') || 'Procesando…';
-        const icon = submitter.getAttribute('data-loading-icon');
-
-        if (!submitter.dataset.originalHtml) {
-          submitter.dataset.originalHtml = submitter.innerHTML;
-        }
-
-        let html = '';
-        if (icon === 'spinner') {
-          html += '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>';
-        }
-        html += txt;
-
-        submitter.innerHTML = html;
-      }
-    });
-  });
-</script>
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/inasistencias_revision.js') }}"></script>
+{% endblock %}
+

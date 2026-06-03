@@ -1,0 +1,287 @@
+{# web/app/templates/prevencion_riesgos/dashboard.html #}
+{% extends "base.html" %}
+
+{% block title %}Prevención de Riesgos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page prevencion-dashboard">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4 card cs-list-hero p-3">
+    <div>
+      <div class="cs-module-eyebrow">🦺 Sistema Grupo CS</div>
+      <h1 class="section-title">Prevención de Riesgos</h1><div class="section-divider"></div>
+      <p class="text-muted mb-0">
+        Panel de control preventivo: documentación, EPP, charlas y vencimientos críticos.
+      </p>
+    </div>
+
+    <div class="cs-page-actions">
+      <a href="{{ url_for('prevencion_riesgos.matriz') }}" class="btn btn-primary">Matriz preventiva</a>
+      <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-outline-primary">Entregas de EPP</a>
+      <a href="{{ url_for('prevencion_riesgos.charlas_listado') }}" class="btn btn-outline-primary">Charlas</a>
+      <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-primary">Documentos</a>
+      <form method="post" action="{{ url_for('prevencion_riesgos.seed_epp') }}">
+        <button type="submit" class="btn btn-outline-secondary">Inicializar EPP</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-body">
+          <div class="text-muted small">Trabajadores vigentes</div>
+          <div class="display-6 fw-semibold">{{ stats.total_trabajadores }}</div>
+          <div class="small text-muted">Base activa para control preventivo.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card border-danger-subtle">
+        <div class="card-body">
+          <div class="text-muted small">Documentos vencidos</div>
+          <div class="display-6 fw-semibold text-danger">{{ stats.documentos_vencidos }}</div>
+          <div class="small text-muted">Requieren revisión prioritaria.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card border-warning-subtle">
+        <div class="card-body">
+          <div class="text-muted small">Documentos por vencer</div>
+          <div class="display-6 fw-semibold text-warning">{{ stats.documentos_por_vencer }}</div>
+          <div class="small text-muted">Dentro de los próximos 30 días.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-body">
+          <div class="text-muted small">Charlas del mes</div>
+          <div class="display-6 fw-semibold">{{ stats.charlas_mes }}</div>
+          <div class="small text-muted">Charlas registradas en el mes actual.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-body">
+          <div class="text-muted small">Entregas de EPP</div>
+          <div class="display-6 fw-semibold">{{ stats.entregas_epp }}</div>
+          <div class="small text-muted">Actas y registros emitidos.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card border-danger-subtle">
+        <div class="card-body">
+          <div class="text-muted small">Reposiciones EPP vencidas</div>
+          <div class="display-6 fw-semibold text-danger">{{ stats.reposiciones_epp_vencidas }}</div>
+          <div class="small text-muted">Según fecha sugerida de reposición.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card border-warning-subtle">
+        <div class="card-body">
+          <div class="text-muted small">Reposiciones EPP por vencer</div>
+          <div class="display-6 fw-semibold text-warning">{{ stats.reposiciones_epp_por_vencer }}</div>
+          <div class="small text-muted">Dentro de los próximos 30 días.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-body">
+          <div class="text-muted small">Ventana de alerta</div>
+          <div class="h4 fw-semibold mb-1">30 días</div>
+          <div class="small text-muted">
+            Desde {{ stats.today.strftime('%d-%m-%Y') }} hasta {{ stats.in_30.strftime('%d-%m-%Y') }}.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h2 class="h5 mb-0">Documentos vencidos</h2>
+          <a href="{{ url_for('prevencion_riesgos.documentos_listado', estado='VENCIDO') }}" class="btn btn-sm btn-outline-danger">Ver todos</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for doc in stats.documentos_vencidos_lista %}
+            <a href="{{ url_for('prevencion_riesgos.documento_detalle', documento_id=doc.id) }}" class="list-group-item list-group-item-action">
+              <div class="d-flex justify-content-between gap-3">
+                <div>
+                  <div class="fw-semibold">{{ doc.tipo_documento }}</div>
+                  <div class="small text-muted">
+                    {{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}
+                    · {{ doc.obra.nombre if doc.obra else 'Sin obra' }}
+                  </div>
+                </div>
+                <div class="text-danger small text-nowrap">
+                  {{ doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else '-' }}
+                </div>
+              </div>
+            </a>
+          {% else %}
+            <div class="list-group-item text-muted py-4 text-center">Sin documentos vencidos registrados.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h2 class="h5 mb-0">Documentos por vencer</h2>
+          <a href="{{ url_for('prevencion_riesgos.documentos_listado', estado='POR_VENCER') }}" class="btn btn-sm btn-outline-warning">Ver todos</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for doc in stats.documentos_por_vencer_lista %}
+            <a href="{{ url_for('prevencion_riesgos.documento_detalle', documento_id=doc.id) }}" class="list-group-item list-group-item-action">
+              <div class="d-flex justify-content-between gap-3">
+                <div>
+                  <div class="fw-semibold">{{ doc.tipo_documento }}</div>
+                  <div class="small text-muted">
+                    {{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}
+                    · {{ doc.obra.nombre if doc.obra else 'Sin obra' }}
+                  </div>
+                </div>
+                <div class="text-warning small text-nowrap">
+                  {{ doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else '-' }}
+                </div>
+              </div>
+            </a>
+          {% else %}
+            <div class="list-group-item text-muted py-4 text-center">Sin documentos próximos a vencer.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h2 class="h5 mb-0">Reposiciones EPP vencidas</h2>
+          <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-sm btn-outline-danger">Ver EPP</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for item in stats.reposiciones_vencidas_lista %}
+            <a href="{{ url_for('prevencion_riesgos.epp_detalle', entrega_id=item.entrega_id) }}" class="list-group-item list-group-item-action">
+              <div class="d-flex justify-content-between gap-3">
+                <div>
+                  <div class="fw-semibold">{{ item.tipo_epp.nombre if item.tipo_epp else 'EPP' }}</div>
+                  <div class="small text-muted">
+                    {{ item.entrega.trabajador.ap_paterno }} {{ item.entrega.trabajador.ap_materno or '' }},
+                    {{ item.entrega.trabajador.nombres }}
+                    · {{ item.entrega.obra.nombre if item.entrega.obra else 'Sin obra' }}
+                  </div>
+                </div>
+                <div class="text-danger small text-nowrap">
+                  {{ item.fecha_reposicion_sugerida.strftime('%d-%m-%Y') }}
+                </div>
+              </div>
+            </a>
+          {% else %}
+            <div class="list-group-item text-muted py-4 text-center">Sin reposiciones vencidas.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cs-kpi-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h2 class="h5 mb-0">Reposiciones EPP por vencer</h2>
+          <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-sm btn-outline-warning">Ver EPP</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for item in stats.reposiciones_por_vencer_lista %}
+            <a href="{{ url_for('prevencion_riesgos.epp_detalle', entrega_id=item.entrega_id) }}" class="list-group-item list-group-item-action">
+              <div class="d-flex justify-content-between gap-3">
+                <div>
+                  <div class="fw-semibold">{{ item.tipo_epp.nombre if item.tipo_epp else 'EPP' }}</div>
+                  <div class="small text-muted">
+                    {{ item.entrega.trabajador.ap_paterno }} {{ item.entrega.trabajador.ap_materno or '' }},
+                    {{ item.entrega.trabajador.nombres }}
+                    · {{ item.entrega.obra.nombre if item.entrega.obra else 'Sin obra' }}
+                  </div>
+                </div>
+                <div class="text-warning small text-nowrap">
+                  {{ item.fecha_reposicion_sugerida.strftime('%d-%m-%Y') }}
+                </div>
+              </div>
+            </a>
+          {% else %}
+            <div class="list-group-item text-muted py-4 text-center">Sin reposiciones próximas a vencer.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Módulos operativos</h2>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="border rounded-3 p-3 h-100">
+                <div class="fw-semibold mb-1">Matriz preventiva</div>
+                <div class="text-muted small">Semáforo por trabajador, obra, ODI, EPP y charlas.</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="border rounded-3 p-3 h-100">
+                <div class="fw-semibold mb-1">Entrega de EPP</div>
+                <div class="text-muted small">Registro de elementos entregados y acta imprimible.</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="border rounded-3 p-3 h-100">
+                <div class="fw-semibold mb-1">Charlas de seguridad</div>
+                <div class="text-muted small">Registro de charlas, asistentes y acta con firmas.</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="border rounded-3 p-3 h-100">
+                <div class="fw-semibold mb-1">Documentos preventivos</div>
+                <div class="text-muted small">Control de vencimientos y actas de recepción.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Accesos rápidos</h2>
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('prevencion_riesgos.matriz') }}" class="btn btn-outline-primary">Ver matriz preventiva</a>
+            <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-outline-primary">Entregas de EPP</a>
+            <a href="{{ url_for('prevencion_riesgos.charlas_listado') }}" class="btn btn-outline-primary">Charlas de seguridad</a>
+            <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-primary">Documentos preventivos</a>
+            <a href="{{ url_for('prevencion_riesgos.tipos_epp') }}" class="btn btn-outline-secondary">Tipos de EPP</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

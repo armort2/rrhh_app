@@ -1,0 +1,84 @@
+{# web/app/templates/extras_remuneracion/lote_nuevo.html #}
+{% extends "base.html" %}
+{% block title %}Nuevo lote · Extras Remuneración{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header">
+    <div class="section-title">Nuevo lote · Extras Remuneración</div>
+    <div class="section-subtitle">Crea un lote mensual por centro de costo</div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('extras_remuneracion.crear') }}" class="row g-3">
+
+        {# ===================== Centro de costo (únicos, SOLO reales) ===================== #}
+        <div class="col-12 col-md-6">
+          <label class="form-label">Centro de costo</label>
+
+          {% set ns = namespace(seen_cc=[]) %}
+          <select id="cc_select" name="centro_costo" class="form-select" required>
+            <option value="">— Selecciona —</option>
+            {% for o in obras %}
+              {% set cc = (o.centro_costo or "")|trim %}
+              {% set cc_u = cc|upper %}
+              {% if cc_u and cc_u not in ns.seen_cc %}
+                {% set _ = ns.seen_cc.append(cc_u) %}
+                <option value="{{ cc_u }}">{{ cc_u }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+
+          <div class="form-text">
+            Selecciona el Centro de Costo. Luego se habilita la lista de obras asociadas a ese CC.
+          </div>
+        </div>
+
+        {# ===================== Obra (filtrada por CC) ===================== #}
+        <div class="col-12 col-md-6">
+          <label class="form-label">Obra</label>
+
+          <select id="obra_select" name="obra_id" class="form-select" required disabled>
+            <option value="">— Selecciona un Centro de Costo primero —</option>
+
+            {# Todas las obras vienen, pero las filtramos por data-cc (solo si tienen centro_costo) #}
+            {% for o in obras %}
+              {% set cc = (o.centro_costo or "")|trim %}
+              {% set cc_u = cc|upper %}
+              <option value="{{ o.id }}" data-cc="{{ cc_u }}">
+                {{ o.codigo }} · {{ o.nombre }}{% if o.centro_costo %} · {{ o.centro_costo|upper }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+
+          <div class="form-text">
+            Solo verás obras asociadas al Centro de Costo seleccionado.
+          </div>
+        </div>
+
+        {# ===================== Periodo ===================== #}
+        <div class="col-6 col-md-2">
+          <label class="form-label">Año</label>
+          <input type="number" name="anio" class="form-control" value="{{ anio }}" min="2020" max="2100" required>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Mes</label>
+          <input type="number" name="mes" class="form-control" value="{{ mes }}" min="1" max="12" required>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-success" type="submit">Crear lote</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('extras_remuneracion.listado') }}">Volver</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+  <script src="{{ url_for('static', filename='js/extras_remuneracion_lote_nuevo.js') }}"></script>
+{% endblock %}

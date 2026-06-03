@@ -1,0 +1,99 @@
+{# web/app/templates/prevencion_riesgos/epp_detalle.html #}
+{% extends "base.html" %}
+
+{% block title %}Detalle entrega EPP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">Detalle entrega de EPP</h1>
+      <p class="text-muted mb-0">Registro N° {{ entrega.id }}</p>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap cs-detail-actions">
+      <a href="{{ url_for('prevencion_riesgos.epp_imprimir', entrega_id=entrega.id) }}" target="_blank" class="btn btn-outline-primary">
+        Imprimir acta
+      </a>
+      <a href="{{ url_for('prevencion_riesgos.epp_editar', entrega_id=entrega.id) }}" class="btn btn-warning">
+        Editar
+      </a>
+      <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-outline-secondary">Volver al listado</a>
+      <a href="{{ url_for('prevencion_riesgos.epp_nueva') }}" class="btn btn-primary">Nueva entrega</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Trabajador</h2>
+          <div class="fw-semibold">
+            {{ entrega.trabajador.ap_paterno }} {{ entrega.trabajador.ap_materno or '' }}, {{ entrega.trabajador.nombres }}
+          </div>
+          <div class="text-muted">{{ entrega.trabajador|rut_trabajador }}</div>
+          <hr>
+          <div><strong>Obra:</strong> {{ entrega.obra.nombre if entrega.obra else 'Sin obra' }}</div>
+          <div><strong>Fecha entrega:</strong> {{ entrega.fecha_entrega.strftime('%d-%m-%Y') }}</div>
+          <div><strong>Registrado por:</strong> {{ entrega.registrado_por.username if entrega.registrado_por else '-' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Observación</h2>
+          {% if entrega.observacion %}
+            <p class="mb-0">{{ entrega.observacion }}</p>
+          {% else %}
+            <p class="text-muted mb-0">Sin observaciones generales.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white">
+      <h2 class="h5 mb-0">Elementos entregados</h2>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tipo EPP</th>
+            <th>Cantidad</th>
+            <th>Talla</th>
+            <th>Marca/modelo</th>
+            <th>Reposición sugerida</th>
+            <th>Observación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in entrega.items %}
+            <tr>
+              <td class="fw-semibold">{{ item.tipo_epp.nombre if item.tipo_epp else '-' }}</td>
+              <td>{{ item.cantidad }}</td>
+              <td>{{ item.talla or '-' }}</td>
+              <td>{{ item.marca_modelo or '-' }}</td>
+              <td>{{ item.fecha_reposicion_sugerida.strftime('%d-%m-%Y') if item.fecha_reposicion_sugerida else '-' }}</td>
+              <td>{{ item.observacion or '-' }}</td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                Esta entrega no tiene items registrados.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,212 @@
+{# web/app/templates/egresos/egreso_form.html #}
+{% extends "base.html" %}
+{% block title %}{{ 'Nuevo egreso' if modo=='nuevo' else 'Editar egreso' }} · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <div class="section-header mb-3">
+    <h1 class="section-title">{{ 'Nuevo egreso' if modo=='nuevo' else 'Editar egreso' }}</h1>
+    <div class="section-subtitle">
+      {% if egreso.numero %}Egreso N° {{ egreso.numero }}{% else %}Se asignará correlativo al guardar{% endif %}
+    </div>
+  </div>
+
+  <form method="post"
+        action="{{ url_for('egresos.crear') if modo=='nuevo' else url_for('egresos.guardar', egreso_id=egreso.id) }}"
+        id="egreso-form"
+        data-contexto-url="{{ url_for('egresos.api_contexto') }}"
+        data-trabajadores-url="{{ url_for('egresos.api_trabajadores') }}"
+        data-egreso-empleador-id="{{ egreso.empleador_id or '' }}"
+        data-egreso-obra-id="{{ egreso.obra_id or '' }}">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+
+        {# =========================
+           CABECERA (admin)
+           ========================= #}
+        <div class="row g-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Fecha egreso</label>
+            <input type="date" class="form-control" name="fecha_egreso" value="{{ egreso.fecha_egreso }}">
+          </div>
+
+          <div class="col-12 col-md-9">
+            <label class="form-label">Motivo</label>
+            <input class="form-control" name="motivo" value="{{ egreso.motivo or '' }}" placeholder="Ej: Pago extraordinario / Saldo pendiente / Servicio">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Solicitante</label>
+            <input class="form-control" name="solicitante" value="{{ egreso.solicitante or '' }}" placeholder="Ej: Juan Pérez">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Cargo solicitante</label>
+            <input class="form-control" name="solicitante_cargo" value="{{ egreso.solicitante_cargo or '' }}" placeholder="Ej: Adm. de Obra">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        {# =========================
+           BENEFICIARIO (pills)
+           ========================= #}
+        {% set modo_b = 'EXTERNO' if (egreso.trabajador_id is none and egreso.pagado_a_nombre) else 'TRABAJADOR' %}
+
+        <div class="row g-3 align-items-end mb-1">
+          <div class="col-12 col-md-6">
+            <label class="form-label mb-2">Beneficiario</label>
+
+            {# Pills (UI) #}
+            <ul class="nav nav-pills gap-2" id="benef_pills" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link px-3 py-2 {{ 'active' if modo_b=='TRABAJADOR' else '' }}"
+                  id="pill_trab"
+                  type="button"
+                  role="tab"
+                  aria-selected="{{ 'true' if modo_b=='TRABAJADOR' else 'false' }}"
+                  data-modo="TRABAJADOR">
+                  <i class="bi bi-person-badge"></i> Trabajador
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link px-3 py-2 {{ 'active' if modo_b=='EXTERNO' else '' }}"
+                  id="pill_ext"
+                  type="button"
+                  role="tab"
+                  aria-selected="{{ 'true' if modo_b=='EXTERNO' else 'false' }}"
+                  data-modo="EXTERNO">
+                  <i class="bi bi-building"></i> Externo
+                </button>
+              </li>
+            </ul>
+
+            <div class="form-text mt-2">
+              Selecciona el tipo de beneficiario para habilitar el bloque correspondiente.
+            </div>
+
+            {# Campo real (POST) — lo ocultamos, pero se sigue enviando #}
+            <select class="form-select d-none" id="modo_beneficiario" name="modo_beneficiario">
+              <option value="TRABAJADOR" {{ 'selected' if modo_b=='TRABAJADOR' else '' }}>Trabajador</option>
+              <option value="EXTERNO" {{ 'selected' if modo_b=='EXTERNO' else '' }}>Externo</option>
+            </select>
+          </div>
+        </div>
+
+        {# =========================
+           SECCIÓN TRABAJADOR
+           ========================= #}
+        <div id="bloque_trabajador" class="row g-3 mt-0">
+
+          <div class="col-12 col-md-6 position-relative">
+            <label class="form-label">Trabajador (buscar por RUT o nombre)</label>
+
+            <input type="hidden" id="trabajador_id" name="trabajador_id" value="{{ egreso.trabajador_id or '' }}">
+
+            <input class="form-control" id="trabajador_buscar" autocomplete="off"
+                   value=""
+                   placeholder="Ej: 12.345.678-9 o Pérez o Juan">
+
+            <div class="form-text">Incluye trabajadores vigentes y no vigentes.</div>
+
+            <div id="trabajador_suggest" class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index: 50; display:none; max-height: 280px; overflow:auto; border-radius: 10px;">
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Empleador</label>
+            <select class="form-select" id="empleador_id_trab" name="empleador_id">
+              <option value="">— Seleccionar —</option>
+            </select>
+            <div class="form-text">Se autocompleta al elegir trabajador (editable).</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Obra</label>
+            <select class="form-select" id="obra_id_trab" name="obra_id">
+              <option value="">— Seleccionar —</option>
+            </select>
+            <div class="form-text">Se autocompleta al elegir trabajador (editable).</div>
+          </div>
+
+          <input type="hidden" name="contrato_id" value="{{ egreso.contrato_id or '' }}">
+        </div>
+
+        {# =========================
+           SECCIÓN EXTERNO
+           ========================= #}
+        <div id="bloque_externo" class="row g-3 mt-0" style="display:none;">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Pagado a (Nombre/Razón social)</label>
+            <input class="form-control" name="pagado_a_nombre" value="{{ egreso.pagado_a_nombre or '' }}" placeholder="Ej: Servicios XYZ SpA / Pedro Soto">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">RUT (opcional)</label>
+            <input class="form-control" name="pagado_a_rut" value="{{ egreso.pagado_a_rut or '' }}" placeholder="12.345.678-9">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Contexto</label>
+            <div class="row g-2">
+              <div class="col-12 mb-2">
+                <select class="form-select" id="empleador_id_ext" name="empleador_id">
+                  <option value="">— Empleador (opcional) —</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <select class="form-select" id="obra_id_ext" name="obra_id">
+                  <option value="">— Obra (opcional) —</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Ítems -->
+        <h5 class="mb-2">Ítems (máximo 5)</h5>
+
+        {% for i in range(1,6) %}
+          {% set it = (egreso.items | selectattr('orden', 'equalto', i) | first) %}
+          <div class="row g-2 align-items-end mb-2">
+            <div class="col-12 col-md-8">
+              <label class="form-label">Ítem {{ i }}</label>
+              <input class="form-control" name="item_{{ i }}" value="{{ it.item if it else '' }}">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Monto {{ i }}</label>
+              <input class="form-control" name="monto_{{ i }}" value="{{ it.monto if it else '' }}" placeholder="Ej: 150000">
+            </div>
+          </div>
+        {% endfor %}
+
+        <div class="row g-2 mt-3">
+          <div class="col-12">
+            <label class="form-label">Observaciones</label>
+            <textarea class="form-control" name="observaciones" rows="3">{{ egreso.observaciones or '' }}</textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <a class="btn btn-outline-secondary" href="{{ url_for('egresos.listado') }}">Volver</a>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/egresos_form.js') }}"></script>
+{% endblock %}

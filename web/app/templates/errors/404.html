@@ -3,39 +3,76 @@
 {% block title %}Página no encontrada{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8 text-center">
-
-      <h1 class="mb-3">Página no encontrada</h1>
-
-      <p class="text-muted mb-3">
-        La página que estás buscando no existe o fue movida.
+<div class="container-fluid cs-error-page">
+  <div class="cs-error-shell">
+    <div class="section-header section-header--hero mb-3">
+      <h1 class="section-title">Control de navegación del sistema</h1>
+      <p class="section-subtitle">
+        Mensaje institucional para mantener una experiencia clara, segura y sin pantallazos técnicos innecesarios.
       </p>
-
-      <p class="text-muted">
-        Puede que el enlace esté desactualizado… o que hayamos tomado un desvío creativo 😄
-      </p>
-
-      {% if user %}
-        <div class="alert alert-secondary mt-4 text-start">
-          <strong>Usuario:</strong> {{ user.nombre or user.username }}<br>
-          <strong>Rol:</strong>
-          {{ user.roles | map(attribute='name') | join(', ') }}
-        </div>
-      {% endif %}
-
-      <div class="d-flex justify-content-center gap-3 mt-4">
-        <a href="javascript:history.back()" class="btn btn-outline-secondary">
-          ← Volver atrás
-        </a>
-
-        <a href="{{ url_for('core.index') }}" class="btn btn-primary">
-          Volver al inicio
-        </a>
-      </div>
-
+      <div class="section-divider"></div>
     </div>
+
+    <div class="cs-error-card">
+      <div class="cs-error-card-body">
+        <div class="row g-4 align-items-stretch">
+          <div class="col-lg-8">
+            <div class="d-flex align-items-start gap-3 flex-wrap">
+              <div class="cs-error-icon" aria-hidden="true">
+                <i class="bi bi-signpost-split"></i>
+              </div>
+
+              <div class="flex-grow-1">
+                <span class="cs-error-code">Error 404</span>
+                <h2 class="cs-error-title">Esta ruta no existe o fue movida</h2>
+                <p class="cs-error-lead">El enlace puede estar desactualizado, la página pudo cambiar de ubicación o simplemente llegamos a un pasillo administrativo que no tiene puerta.</p>
+
+                <div class="cs-error-actions">
+                  <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Volver atrás
+                  </a>
+
+                  <a href="{{ url_for('core.index') }}" class="btn btn-primary">
+                    <i class="bi bi-house-door"></i>
+                    Ir al inicio
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div class="cs-error-footer-note">
+              <strong>Qué puedes hacer:</strong> Vuelve al inicio, revisa el menú principal o usa el botón para regresar a la pantalla anterior.
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            {% if user %}
+              <div class="cs-error-info">
+                <div class="cs-error-info-title">Contexto de sesión</div>
+                <dl>
+                  <dt>Usuario</dt>
+                  <dd>{{ user.nombre or user.username }}</dd>
+
+                  <dt>Rol(es)</dt>
+                  <dd>{{ user.roles | map(attribute='name') | join(', ') or 'Sin roles asignados' }}</dd>
+                </dl>
+              </div>
+            {% else %}
+              <div class="cs-error-info">
+                <div class="cs-error-info-title">Sesión</div>
+                <p>No hay una sesión activa asociada a esta solicitud.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-muted small mt-3 mb-0">
+      Código mostrado: <strong>Error 404</strong>. Versión del sistema:
+      <strong>v{{ config.SYSTEM_VERSION or "sin-version" }}</strong>.
+    </p>
   </div>
 </div>
 {% endblock %}

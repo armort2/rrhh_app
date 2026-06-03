@@ -4,7 +4,14 @@
 {% block title %}Detalle Desvinculación · #{{ desv.id }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-detail-page">
+
+  <style>
+    /* Premium: badges suaves */
+    .badge-soft-warning { background: rgba(255,193,7,.18); color: #856404; border: 1px solid rgba(255,193,7,.35); }
+    .badge-soft-success { background: rgba(25,135,84,.14); color: #0f5132; border: 1px solid rgba(25,135,84,.28); }
+    .badge-soft-secondary { background: rgba(108,117,125,.14); color: #495057; border: 1px solid rgba(108,117,125,.25); }
+  </style>
 
   <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
     <div class="section-header mb-0">
@@ -16,7 +23,7 @@
       <div class="section-divider"></div>
     </div>
 
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex gap-2 flex-wrap cs-detail-actions">
       <a class="btn btn-outline-secondary"
          href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=desv.trabajador_id) }}">
         ⬅ Volver a ficha
@@ -48,6 +55,14 @@
           <div class="text-muted small">{{ desv.causal.causal_finiquito }}</div>
         </div>
 
+        {# NUEVO: Fecha inicio contrato (desde routes.py) #}
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Fecha inicio contrato</div>
+          <div class="fw-semibold">
+            {{ contrato_fecha_inicio_fmt or "-" }}
+          </div>
+        </div>
+
         <div class="col-12 col-md-6 col-lg-4">
           <div class="text-muted">Fecha de término</div>
           <div class="fw-semibold">{{ desv.fecha_termino.strftime("%d-%m-%Y") if desv.fecha_termino else "-" }}</div>
@@ -56,6 +71,20 @@
         <div class="col-12 col-md-6 col-lg-4">
           <div class="text-muted">Fecha de aviso</div>
           <div class="fw-semibold">{{ desv.fecha_aviso.strftime("%d-%m-%Y") if desv.fecha_aviso else "-" }}</div>
+        </div>
+
+        {# NUEVO: Tiempo servido (desde routes.py) #}
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="text-muted">Tiempo servido</div>
+          <div class="fw-semibold">
+            {{ tiempo_servido_fmt or "-" }}
+          </div>
+
+          {% if tiempo_servido_hint %}
+            <div class="text-muted small">
+              {{ tiempo_servido_hint }}
+            </div>
+          {% endif %}
         </div>
 
         <div class="col-12">
@@ -67,13 +96,15 @@
 
       <div class="d-flex justify-content-between gap-3 flex-wrap mt-3">
         <div class="d-flex gap-2 flex-wrap align-items-center">
-          <form method="post" action="{{ url_for('desvinculaciones.generar_carta', desvinculacion_id=desv.id) }}">
-            <button type="submit" class="btn btn-outline-secondary">📄 Generar carta aviso</button>
-          </form>
+          <a class="btn btn-outline-secondary"
+            href="{{ url_for('desvinculaciones.generar_carta', desvinculacion_id=desv.id) }}">
+            📄 Generar carta aviso
+          </a>
 
-          <form method="post" action="{{ url_for('desvinculaciones.generar_finiquito', desvinculacion_id=desv.id) }}">
-            <button type="submit" class="btn btn-outline-secondary">🧾 Generar finiquito</button>
-          </form>
+          <a class="btn btn-outline-secondary"
+             href="{{ url_for('desvinculaciones.generar_finiquito', desvinculacion_id=desv.id) }}">
+            🧾 Generar finiquito
+          </a>
 
           {% if desv.carta_ruta %}
             <span class="text-muted small">Carta: {{ desv.carta_nombre or 'Generada' }}</span>
@@ -112,6 +143,124 @@
           {% endif %}
         </div>
       </div>
+
+    </div>
+  </div>
+
+  {# ==========================================================
+     ✅ Control Premium: Pago de finiquito (tesorería / auditoría)
+     Fuente sugerida: desv.meta["pago_finiquito"] = {
+       "estado": "PAGADO"|"PENDIENTE"|"",
+       "fecha_pago": "YYYY-MM-DD",
+       "medio": "Transferencia|Efectivo|Cheque|Otro|",
+       "obs": "..."
+     }
+     Endpoint: desvinculaciones.pago_finiquito_post
+     ========================================================== #}
+
+  {# Fuente única desde backend: pago_finiquito #}
+  {% set p = pago_finiquito if pago_finiquito is mapping else {} %}
+  {% set estado_pago = (p.get("estado") or "")|upper %}
+  {% set fecha_pago_iso = (p.get("fecha_pago_iso") or p.get("fecha_pago") or "") %}
+  {% set fecha_pago_fmt = (p.get("fecha_pago_fmt") or "") %}
+  {% set medio_pago = (p.get("medio") or "") %}
+  {% set obs_pago = (p.get("obs") or "") %}
+
+  <div class="card mt-3">
+    <div class="card-body">
+
+      <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+        <div>
+          <h5 class="mb-1">Control Premium · Pago de Finiquito</h5>
+          <div class="text-muted small">
+            Registro interno RRHH/Tesorería (auditable).
+          </div>
+        </div>
+
+        <div class="text-end">
+          {% if estado_pago == "PAGADO" %}
+            <span class="badge badge-soft-success">PAGADO</span>
+          {% elif estado_pago == "PENDIENTE" %}
+            <span class="badge badge-soft-warning">PENDIENTE</span>
+          {% else %}
+            <span class="badge badge-soft-secondary">SIN REGISTRO</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="row g-3 mt-2">
+        <div class="col-12 col-lg-4">
+          <div class="text-muted small">Fecha pago</div>
+          <div class="fw-semibold">{{ fecha_pago_fmt if fecha_pago_fmt else "-" }}</div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="text-muted small">Medio</div>
+          <div class="fw-semibold">{{ medio_pago if medio_pago else "-" }}</div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="text-muted small">Observación</div>
+          <div class="fw-semibold">{{ obs_pago if obs_pago else "-" }}</div>
+        </div>
+      </div>
+
+      <hr class="my-3">
+
+      <form method="post"
+            action="{{ url_for('desvinculaciones.pago_finiquito_post', desvinculacion_id=desv.id) }}"
+            class="row g-3">
+
+        <input type="hidden" name="next" value="{{ next_url or '' }}">
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado pago</label>
+          <select class="form-select" name="estado_pago">
+            <option value="" {% if not estado_pago %}selected{% endif %}>Sin estado</option>
+            <option value="PENDIENTE" {% if estado_pago == "PENDIENTE" %}selected{% endif %}>Pendiente</option>
+            <option value="PAGADO" {% if estado_pago == "PAGADO" %}selected{% endif %}>Pagado</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Fecha pago</label>
+          <input type="date" class="form-control" name="fecha_pago" value="{{ fecha_pago_iso }}">
+          <div class="form-text">Formato YYYY-MM-DD.</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Medio</label>
+          {% set medios = ["", "Transferencia", "Efectivo", "Cheque", "Otro"] %}
+          <select class="form-select" name="medio_pago">
+            {% for m in medios %}
+              <option value="{{ m }}" {% if (medio_pago or "") == m %}selected{% endif %}>
+                {{ m if m else "—" }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Obs.</label>
+          <input type="text"
+                 class="form-control"
+                 name="obs_pago"
+                 value="{{ obs_pago }}"
+                 placeholder="Ej: comprobante #, banco, etc.">
+        </div>
+
+        <div class="col-12 d-flex gap-2 flex-wrap">
+          <button class="btn btn-primary" type="submit">Guardar control</button>
+
+          <a class="btn btn-outline-secondary"
+             href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">
+            Recargar
+          </a>
+
+          <div class="ms-auto text-muted small align-self-center">
+            Consejo corporativo 😄: “Pagado” sin fecha/medio es como contrato sin RUT… auditable, pero sospechoso.
+          </div>
+        </div>
+
+      </form>
 
     </div>
   </div>

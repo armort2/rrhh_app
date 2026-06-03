@@ -1,0 +1,250 @@
+{# web/app/templates/prevencion_riesgos/matriz.html #}
+{% extends "base.html" %}
+
+{% block title %}Matriz preventiva por contrato{% endblock %}
+
+{% block content %}
+<style>
+  .matriz-filtros .form-label {
+    margin-bottom: 0.45rem;
+  }
+
+  .matriz-filter-actions {
+    padding-top: 1.95rem;
+  }
+
+  @media (max-width: 1199.98px) {
+    .matriz-filter-actions {
+      padding-top: 0;
+    }
+  }
+</style>
+
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">Matriz preventiva por contrato</h1>
+      <p class="text-muted mb-0">
+        Semáforo preventivo por contrato vigente: ODI, EPP, charlas, documentos y reposiciones.
+      </p>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('prevencion_riesgos.dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
+      <a href="{{ url_for('prevencion_riesgos.documento_nuevo') }}" class="btn btn-outline-primary">Nuevo documento</a>
+      <a href="{{ url_for('prevencion_riesgos.epp_nueva') }}" class="btn btn-outline-primary">Nueva entrega EPP</a>
+    </div>
+  </div>
+
+  <form method="get" class="card shadow-sm mb-3 matriz-filtros">
+    <div class="card-body">
+      <div class="row g-3 align-items-start">
+        <div class="col-12 col-md-6 col-xl-3">
+          <label class="form-label">Empresa</label>
+          <select name="empleador_id" class="form-select">
+            <option value="">Todas las empresas</option>
+            {% for empleador in empleadores %}
+              <option value="{{ empleador.id }}" {% if empleador_id == empleador.id %}selected{% endif %}>
+                {{ empleador.razon_social if empleador.razon_social is defined else empleador.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+          <label class="form-label">Obra</label>
+          <select name="obra_id" class="form-select">
+            <option value="">Todas las obras autorizadas</option>
+            {% for obra in obras %}
+              <option value="{{ obra.id }}" {% if obra_id == obra.id %}selected{% endif %}>
+                {{ obra.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-xl-4">
+          <label class="form-label">Buscar trabajador / RUT / contrato</label>
+          <input
+            type="text"
+            name="q"
+            class="form-control"
+            value="{{ trabajador_q or '' }}"
+            placeholder="Ej: perez juan, juan perez, 12.345, contrato 258"
+          >
+          <div class="form-text mb-0">Busca por nombre, apellidos, RUT con/sin puntos o ID de contrato.</div>
+        </div>
+
+        <div class="col-12 col-xl-2">
+          <div class="matriz-filter-actions">
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary">
+                Filtrar
+              </button>
+              <a href="{{ url_for('prevencion_riesgos.matriz') }}" class="btn btn-outline-secondary">
+                Limpiar
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="alert alert-light border shadow-sm small">
+    <strong>Lectura de estados:</strong>
+    <span class="badge bg-success ms-1">Al día</span>
+    sin alertas relevantes ·
+    <span class="badge bg-warning text-dark ms-1">Observación</span>
+    tiene pendientes o vencimientos próximos ·
+    <span class="badge bg-danger ms-1">Crítico</span>
+    tiene documentos/EPP vencidos o faltantes relevantes.
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h2 class="h5 mb-0">Contratos vigentes evaluados</h2>
+        <div class="text-muted small">{{ rows|length }} registro(s) encontrados.</div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Contrato</th>
+            <th>Trabajador</th>
+            <th>RUT</th>
+            <th>Empresa</th>
+            <th>Obra</th>
+            <th>Cargo</th>
+            <th>Inicio</th>
+            <th>ODI</th>
+            <th>EPP</th>
+            <th>Charla 30 días</th>
+            <th>Docs vencidos</th>
+            <th>Docs por vencer</th>
+            <th>Rep. EPP vencidas</th>
+            <th>Rep. EPP por vencer</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% set contrato = row.contrato %}
+            {% set t = row.trabajador %}
+            <tr>
+              <td>
+                <div class="fw-semibold">#{{ contrato.id }}</div>
+                <div class="small text-muted">{{ contrato.tipo_contrato or '' }}</div>
+              </td>
+
+              <td>
+                <div class="fw-semibold">
+                  {{ t.ap_paterno }} {{ t.ap_materno or '' }}, {{ t.nombres }}
+                </div>
+              </td>
+
+              <td>{{ t|rut_trabajador }}</td>
+
+              <td>
+                {% if row.empleador %}
+                  {{ row.empleador.razon_social if row.empleador.razon_social is defined else row.empleador.nombre }}
+                {% else %}
+                  <span class="text-muted">Sin empresa</span>
+                {% endif %}
+              </td>
+
+              <td>{{ row.obra.nombre if row.obra else 'Sin obra' }}</td>
+              <td>{{ row.cargo.nombre if row.cargo else 'Sin cargo' }}</td>
+              <td>{{ contrato.fecha_inicio.strftime('%d-%m-%Y') if contrato.fecha_inicio else '-' }}</td>
+
+              <td>
+                {% if row.tiene_odi %}
+                  <span class="badge bg-success">Sí</span>
+                {% else %}
+                  <span class="badge bg-danger">No</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.tiene_epp %}
+                  <span class="badge bg-success">Sí</span>
+                  {% if row.ultima_entrega_epp %}
+                    <div class="small text-muted">{{ row.ultima_entrega_epp.fecha_entrega.strftime('%d-%m-%Y') }}</div>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-danger">No</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.tiene_charla_reciente %}
+                  <span class="badge bg-success">Sí</span>
+                  <div class="small text-muted">{{ row.ultima_charla.fecha.strftime('%d-%m-%Y') }}</div>
+                {% elif row.ultima_charla %}
+                  <span class="badge bg-warning text-dark">Antigua</span>
+                  <div class="small text-muted">{{ row.ultima_charla.fecha.strftime('%d-%m-%Y') }}</div>
+                {% else %}
+                  <span class="badge bg-secondary">Sin registro</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.documentos_vencidos %}
+                  <span class="badge bg-danger">{{ row.documentos_vencidos }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.documentos_por_vencer %}
+                  <span class="badge bg-warning text-dark">{{ row.documentos_por_vencer }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.reposiciones_epp_vencidas %}
+                  <span class="badge bg-danger">{{ row.reposiciones_epp_vencidas }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.reposiciones_epp_por_vencer %}
+                  <span class="badge bg-warning text-dark">{{ row.reposiciones_epp_por_vencer }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.estado_general == 'AL_DIA' %}
+                  <span class="badge bg-success">Al día</span>
+                {% elif row.estado_general == 'OBSERVACION' %}
+                  <span class="badge bg-warning text-dark">Observación</span>
+                {% else %}
+                  <span class="badge bg-danger">Crítico</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="15" class="text-center text-muted py-4">
+                No se encontraron contratos vigentes para los filtros seleccionados.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,142 @@
+{# web/app/templates/prevencion_riesgos/epp_form.html #}
+{% extends "base.html" %}
+{% set es_edicion = (modo|default('crear') == 'editar') %}
+
+{% block title %}{% if es_edicion %}Editar entrega de EPP{% else %}Nueva entrega de EPP{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-form-page">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">{% if es_edicion %}Editar entrega de EPP{% else %}Nueva entrega de EPP{% endif %}</h1>
+      <p class="text-muted mb-0">Busca primero al trabajador y selecciona el contrato específico para esta entrega.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if es_edicion %}<a href="{{ url_for('prevencion_riesgos.epp_detalle', entrega_id=entrega.id) }}" class="btn btn-outline-secondary">Volver al detalle</a>{% endif %}
+      <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-outline-secondary">Volver al listado</a>
+    </div>
+  </div>
+
+  <form method="post" class="card shadow-sm" data-prevencion-contrato-selector data-mode="single" data-api-url="{{ url_for('prevencion_riesgos.api_contratos_selector') }}">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Contrato asociado</h2>
+
+      <input type="hidden" name="contrato_id" id="contrato_id" value="{{ entrega.contrato_id if es_edicion and entrega.contrato_id else '' }}">
+      <input type="hidden" name="trabajador_id" id="trabajador_id" value="{{ entrega.trabajador_id if es_edicion else '' }}">
+      <input type="hidden" name="obra_id" id="obra_id" value="{{ entrega.obra_id if es_edicion else '' }}">
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+          <label class="form-label">Buscar trabajador</label>
+          <input type="text" id="buscadorContrato" data-contrato-search class="form-control" autocomplete="off" placeholder="Nombre, apellidos, RUT o ID de contrato">
+          <div class="form-text">Puedes escribir en cualquier orden. Ej: “perez juan”, “juan perez”, “12.345”, “154”.</div>
+          <div id="resultadosContrato" data-contrato-results class="list-group mt-2 shadow-sm d-none"></div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+          <label class="form-label">Contrato seleccionado</label>
+          <div id="contratoSeleccionado" data-contrato-selected class="border rounded-3 p-3 bg-light h-100">
+            {% if es_edicion and entrega.contrato %}
+              <div class="fw-semibold">{{ entrega.trabajador.ap_paterno }} {{ entrega.trabajador.ap_materno or '' }}, {{ entrega.trabajador.nombres }}</div>
+              <div class="small text-muted">
+                Contrato #{{ entrega.contrato.id }} · {{ entrega.obra.nombre if entrega.obra else 'Sin obra' }}
+                {% if entrega.contrato.cargo %} · {{ entrega.contrato.cargo.nombre }}{% endif %}
+              </div>
+            {% else %}
+              <div class="text-muted">Aún no has seleccionado un contrato.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-3">
+          <label class="form-label">Fecha entrega</label>
+          <input type="date" name="fecha_entrega" class="form-control" value="{% if es_edicion and entrega.fecha_entrega %}{{ entrega.fecha_entrega.strftime('%Y-%m-%d') }}{% else %}{{ today.strftime('%Y-%m-%d') }}{% endif %}" required>
+        </div>
+
+        <div class="col-12 col-xl-9">
+          <label class="form-label">Observación general</label>
+          <textarea name="observacion" class="form-control" rows="2">{% if es_edicion and entrega.observacion %}{{ entrega.observacion }}{% endif %}</textarea>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+          <h2 class="h5 mb-0">Elementos entregados</h2>
+          {% if es_edicion %}<div class="text-muted small">Al guardar, se reemplaza el detalle de items.</div>{% endif %}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddEpp">Agregar item</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table align-middle" id="tablaEppItems">
+          <thead class="table-light">
+            <tr>
+              <th style="min-width:220px;">Tipo EPP</th>
+              <th style="width:110px;">Cantidad</th>
+              <th style="width:140px;">Talla</th>
+              <th style="min-width:180px;">Marca/modelo</th>
+              <th style="width:170px;">Reposición sugerida</th>
+              <th style="min-width:180px;">Observación</th>
+              <th style="width:80px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if es_edicion and entrega.items %}
+              {% for item in entrega.items %}
+                <tr>
+                  <td>
+                    <select name="tipo_epp_id[]" class="form-select" required>
+                      <option value="">Seleccionar</option>
+                      {% for tipo in tipos_epp %}
+                        <option value="{{ tipo.id }}" {% if item.tipo_epp_id == tipo.id %}selected{% endif %}>{{ tipo.nombre }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input type="number" name="cantidad[]" class="form-control" value="{{ item.cantidad or 1 }}" min="1" required></td>
+                  <td><input type="text" name="talla[]" class="form-control" value="{{ item.talla or '' }}"></td>
+                  <td><input type="text" name="marca_modelo[]" class="form-control" value="{{ item.marca_modelo or '' }}"></td>
+                  <td><input type="date" name="fecha_reposicion_sugerida[]" class="form-control" value="{% if item.fecha_reposicion_sugerida %}{{ item.fecha_reposicion_sugerida.strftime('%Y-%m-%d') }}{% endif %}"></td>
+                  <td><input type="text" name="item_observacion[]" class="form-control" value="{{ item.observacion or '' }}"></td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Quitar</button></td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td>
+                  <select name="tipo_epp_id[]" class="form-select" required>
+                    <option value="">Seleccionar</option>
+                    {% for tipo in tipos_epp %}<option value="{{ tipo.id }}">{{ tipo.nombre }}</option>{% endfor %}
+                  </select>
+                </td>
+                <td><input type="number" name="cantidad[]" class="form-control" value="1" min="1" required></td>
+                <td><input type="text" name="talla[]" class="form-control"></td>
+                <td><input type="text" name="marca_modelo[]" class="form-control"></td>
+                <td><input type="date" name="fecha_reposicion_sugerida[]" class="form-control"></td>
+                <td><input type="text" name="item_observacion[]" class="form-control"></td>
+                <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger js-remove-row">Quitar</button></td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end gap-2">
+      {% if es_edicion %}
+        <a href="{{ url_for('prevencion_riesgos.epp_detalle', entrega_id=entrega.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      {% else %}
+        <a href="{{ url_for('prevencion_riesgos.epp_listado') }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar entrega</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/prevencion_contratos_selector.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/prevencion_epp_form.js') }}"></script>
+{% endblock %}

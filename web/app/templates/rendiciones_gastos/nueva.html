@@ -1,0 +1,119 @@
+{# web/app/templates/rendiciones_gastos/nueva.html #}
+{% extends "base.html" %}
+{% block title %}Nueva Rendición{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Nueva rendición</h1>
+      <div class="section-subtitle">Creación de cabecera (Centro de Costo, período, referencia a obra).</div>
+      <div class="section-divider"></div>
+    </div>
+  </div>
+
+  {# Debug visual suave (solo ADMIN): no rompe nada, pero nos dice si llega data al template #}
+  {% if current_user.is_authenticated and (current_user.rol or "")|upper == "ADMIN" %}
+    <div class="alert alert-light border mb-3">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div>
+          <strong>Diagnóstico (ADMIN)</strong><br>
+          centros_costos: <strong>{{ (centros_costos|length) if centros_costos is defined else "NO DEFINIDO" }}</strong>
+          {% if centros_costos is defined and centros_costos %}
+            · ejemplo: <code>{{ centros_costos[0] }}</code>
+          {% endif %}
+        </div>
+        <div class="text-muted">
+          Si esto marca 0, el problema está en la query del backend o en datos (no en el template).
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-body">
+      <form id="formNuevaRendicion" method="post" action="{{ url_for('rendiciones_gastos.crear') }}" class="row g-2">
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Centro de Costo</label>
+
+          {# Si NO llegan CC, mostramos un aviso claro para evitar "silencio" operacional #}
+          {% if centros_costos is not defined or (centros_costos|length) == 0 %}
+            <div class="alert alert-warning mb-2">
+              No hay Centros de Costo disponibles para seleccionar.
+              {% if current_user.is_authenticated and (current_user.rol or "")|upper == "ADMIN" %}
+                <div class="mt-1">
+                  Como ADMIN, deberías ver los centros de costo desde <code>obras.centro_costo</code>.
+                  Revisa que existan valores no nulos/no vacíos, y que la query de <code>nueva()</code> no esté filtrando de más.
+                </div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <select name="centro_costo" class="form-select" required {% if centros_costos is not defined or (centros_costos|length) == 0 %}disabled{% endif %}>
+            <option value="">Seleccionar…</option>
+
+            {# Soporte robusto: si llega una lista de strings, perfecto; si llega lista de tuplas, tomamos el 1er elemento #}
+            {% if centros_costos is defined %}
+              {% for cc in centros_costos %}
+                {% set cc_val = (cc[0] if cc is sequence and cc is not string else cc) %}
+                {% if cc_val %}
+                  <option value="{{ cc_val }}">{{ cc_val }}</option>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </select>
+
+          <div class="form-text">Solo verás Centros de Costo autorizados (salvo ADMIN).</div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Obra (referencia opcional)</label>
+          <select name="obra_id" class="form-select">
+            <option value="">(Sin referencia)</option>
+            {% for o in obras %}
+              <option value="{{ o.id }}">{{ o.codigo }} · {{ o.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Fecha rendición</label>
+          <input type="date" class="form-control" name="fecha_rendicion">
+        </div>
+
+        <div class="col-6 col-md-4">
+          <label class="form-label">Período desde</label>
+          <input type="date" class="form-control" name="periodo_desde">
+        </div>
+
+        <div class="col-6 col-md-4">
+          <label class="form-label">Período hasta</label>
+          <input type="date" class="form-control" name="periodo_hasta">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          <textarea class="form-control" name="observaciones" rows="2" placeholder="(Opcional)"></textarea>
+        </div>
+
+        <div class="col-12 d-flex gap-2 mt-2">
+          <button id="btnCrearRendicion" class="btn btn-primary" type="submit" {% if centros_costos is not defined or (centros_costos|length) == 0 %}disabled{% endif %}>
+            Crear rendición
+          </button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('rendiciones_gastos.listado') }}">Volver</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/rendiciones_nueva.js') }}"></script>
+{% endblock %}

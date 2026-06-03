@@ -1,0 +1,209 @@
+{# web/app/templates/pago_proveedores/detalle.html #}
+{% extends "base.html" %}
+{% block title %}Lote #{{ lote.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  <div class="section-header">
+    <div class="section-title">Pago a proveedores · Lote #{{ lote.id }}</div>
+    <div class="section-subtitle">
+      Pagador: <strong>{{ lote.pagador }}</strong>
+      · Período: {{ "%02d"|format(lote.mes) }}/{{ lote.anio }}
+      · Items: {{ lote.total_items or 0 }}
+      · Total: ${{ "{:,.0f}".format(lote.total_monto or 0).replace(",", ".") }}
+      ·
+      {% if (lote.estado or 'ACTIVO') == 'ANULADO' %}
+        <span class="badge text-bg-secondary">ANULADO</span>
+      {% else %}
+        <span class="badge text-bg-success">ACTIVO</span>
+      {% endif %}
+      ·
+      {% if (lote.estado_pago or 'PENDIENTE') == 'PAGADO' %}
+        <span class="badge text-bg-success">PAGADO</span>
+      {% else %}
+        <span class="badge text-bg-warning">PENDIENTE</span>
+      {% endif %}
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  {% if (lote.estado or 'ACTIVO') == 'ANULADO' %}
+    <div class="alert alert-secondary d-flex align-items-start gap-2">
+      <i class="bi bi-info-circle mt-1"></i>
+      <div>
+        <div class="fw-semibold">Este lote está anulado.</div>
+        {% if lote.anulado_en or lote.anulado_motivo %}
+          <div class="small text-muted">
+            {% if lote.anulado_en %}Anulado: {{ lote.anulado_en|dt_cl("%d-%m-%Y %H:%M") }}{% endif %}
+            {% if lote.anulado_motivo %} · Motivo: {{ lote.anulado_motivo }}{% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    {% if lote.archivo_generado and (lote.estado or 'ACTIVO') != 'ANULADO' %}
+      <a class="btn btn-success"
+         href="{{ url_for('pago_proveedores.descargar', lote_id=lote.id) }}">
+        <i class="bi bi-download"></i> Descargar nómina
+      </a>
+    {% endif %}
+
+    {% if current_user.has_role("ADMIN", "OPERADOR") and (lote.estado or 'ACTIVO') != 'ANULADO' %}
+      <form method="post"
+            action="{{ url_for('pago_proveedores.anular', lote_id=lote.id) }}"
+            class="d-inline">
+        <input type="hidden" name="motivo" value="Anulado por corrección de importación">
+        <button class="btn btn-outline-danger"
+                onclick="return confirm('¿Seguro que deseas anular este lote? (No se borra, queda en histórico)');">
+          <i class="bi bi-ban"></i> Anular lote
+        </button>
+      </form>
+    {% endif %}
+
+    <a class="btn btn-outline-secondary"
+       href="{{ url_for('pago_proveedores.listado') }}">
+      Volver
+    </a>
+  </div>
+
+  {# ========================== CONTROL DE PAGO ========================== #}
+  <div class="card mb-3">
+    <div class="card-header bg-white">
+      <div class="fw-semibold">Control de pago</div>
+      <div class="text-muted small">
+        Estado operativo del pago (independiente de “ANULADO”).
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Estado actual</div>
+          {% if (lote.estado_pago or 'PENDIENTE') == 'PAGADO' %}
+            <span class="badge text-bg-success">PAGADO</span>
+          {% else %}
+            <span class="badge text-bg-warning">PENDIENTE</span>
+          {% endif %}
+          {% if lote.fecha_pago %}
+            <div class="small text-muted mt-1">Fecha pago: {{ lote.fecha_pago.strftime("%d-%m-%Y") }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-md-9">
+          {% if current_user.has_role("ADMIN", "OPERADOR") and (lote.estado or 'ACTIVO') != 'ANULADO' %}
+            <form method="post" action="{{ url_for('pago_proveedores.set_pago', lote_id=lote.id) }}">
+              <div class="row g-2 align-items-end">
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-1">Nuevo estado</label>
+                  <select class="form-select" name="estado_pago">
+                    <option value="PENDIENTE" {% if (lote.estado_pago or 'PENDIENTE') == 'PENDIENTE' %}selected{% endif %}>
+                      PENDIENTE
+                    </option>
+                    <option value="PAGADO" {% if (lote.estado_pago or 'PENDIENTE') == 'PAGADO' %}selected{% endif %}>
+                      PAGADO
+                    </option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-1">Fecha de pago</label>
+                  <input type="date" class="form-control" name="fecha_pago"
+                         value="{{ lote.fecha_pago.isoformat() if lote.fecha_pago else '' }}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label mb-1">Observación</label>
+                  <input type="text" class="form-control" name="obs_pago"
+                         value="{{ lote.obs_pago or '' }}" maxlength="400"
+                         placeholder="Ej: OK cartola / comprobante / notas...">
+                </div>
+
+                <div class="col-12 col-md-2 d-grid">
+                  <button class="btn btn-primary">
+                    <i class="bi bi-check2-circle"></i> Guardar
+                  </button>
+                </div>
+
+              </div>
+            </form>
+          {% else %}
+            <div class="text-muted small">
+              Solo ADMIN/OPERADOR puede modificar este control, y no aplica a lotes ANULADOS.
+            </div>
+          {% endif %}
+
+          {% if lote.pagado_en %}
+            <div class="mt-2 text-muted small">
+              Marcado como PAGADO el {{ lote.pagado_en|dt_cl("%d-%m-%Y %H:%M") }}
+              {% if lote.pagado_por_id %} · por usuario #{{ lote.pagado_por_id }}{% endif %}
+              {% if lote.obs_pago %} · Obs: {{ lote.obs_pago }}{% endif %}
+            </div>
+          {% elif lote.obs_pago %}
+            <div class="mt-2 text-muted small">Obs: {{ lote.obs_pago }}</div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ========================== ITEMS ========================== #}
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Proveedor</th>
+              <th>RUT Benef.</th>
+              <th>Banco</th>
+              <th>Cuenta</th>
+              <th>Facturas</th>
+              <th class="text-end">Monto</th>
+              <th>Glosa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in items %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ it.nombre_beneficiario }}</div>
+                  <div class="text-muted small">
+                    {{ it.rut_tercero }} · fila {{ it.fila_orden }}
+                  </div>
+                </td>
+
+                <td>{{ it.rut_beneficiario }}</td>
+                <td>{{ it.codigo_banco }}</td>
+                <td>{{ it.cuenta_destino }}</td>
+
+                <td class="small">
+                  {% for f in (it.facturas or []) %}
+                    <div>#{{ f.nro }} · ${{ "{:,.0f}".format(f.monto or 0).replace(",", ".") }}</div>
+                  {% endfor %}
+                </td>
+
+                <td class="text-end">
+                  ${{ "{:,.0f}".format(it.monto_total or 0).replace(",", ".") }}
+                </td>
+
+                <td class="small">{{ it.glosa }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">Sin items.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

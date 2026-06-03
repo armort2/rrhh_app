@@ -1,0 +1,457 @@
+{# web/app/templates/contratos_vencimientos/listado.html #}
+{% extends "base.html" %}
+{% block title %}Contratos por vencer · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  {% set next_url = request.full_path %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Contratos por vencer</h1>
+      <div class="section-subtitle">
+        Ventana: <strong>{{ filtro_dias }}</strong> días · Desde {{ hoy.strftime("%d-%m-%Y") }} hasta {{ hasta.strftime("%d-%m-%Y") }}.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+  </div>
+
+  {# ==========================
+     FILTROS
+     ========================== #}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+
+        <div class="col-12 col-md-2">
+          <label class="form-label" for="dias">Días</label>
+          <input type="number" min="1" max="365" class="form-control" id="dias" name="dias" value="{{ filtro_dias }}">
+          <div class="form-text">Ej: 7 / 15 / 30</div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="accion">Acción</label>
+          <select class="form-select" id="accion" name="accion">
+            <option value="">Todas</option>
+            {% for a in ACCIONES %}
+              <option value="{{ a }}" {% if filtro_accion == a %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Filtra por decisión registrada.</div>
+        </div>
+
+        <div class="col-12 col-md-7">
+          <label class="form-label" for="centro_costos">Centro de Costo</label>
+          <select id="centro_costos" name="centro_costo" class="form-select" multiple size="5">
+            {% for cc in centros_costos %}
+              <option value="{{ cc }}"
+                {% if filtro_centro_costos is defined and cc in filtro_centro_costos %}selected{% endif %}>
+                {{ cc }}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Recomendado: filtrar por Centro de Costo (más operativo que por obra/empresa).</div>
+        </div>
+
+        <div class="col-12 d-flex gap-2 flex-wrap">
+          <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+          <a href="{{ url_for('contratos_vencimientos.listado') }}" class="btn btn-outline-secondary">Limpiar</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# ==========================
+     LISTADO PRINCIPAL (PRIMERO)
+     ========================== #}
+  <form method="post" action="{{ url_for('contratos_vencimientos.guardar', **request.args) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
+          <div class="text-muted small">
+            {% if contratos %}
+              Mostrando <strong>{{ contratos|length }}</strong> contrato(s) por vencer.
+            {% else %}
+              No hay resultados en la ventana definida.
+            {% endif %}
+          </div>
+
+          {% if contratos %}
+            <button type="submit" class="btn btn-success btn-sm">
+              Guardar decisiones
+            </button>
+          {% endif %}
+        </div>
+
+        {% if contratos %}
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Trabajador</th>
+                  <th class="text-nowrap">Centro Costo</th>
+                  <th>Obra</th>
+                  <th>Cargo</th>
+                  <th class="text-nowrap">Fechas</th>
+                  <th class="text-nowrap" style="width: 170px;">Decisión</th>
+                  <th class="text-nowrap">Fechas decisión</th>
+                  <th style="min-width: 320px;">Comentario</th>
+                  <th class="text-end text-nowrap" style="width: 120px;">Acción</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for c in contratos %}
+                  {% set d = decisiones.get(c.id) %}
+                  {% set accion = (d.accion if d else "PENDIENTE") %}
+                  {% set termino_iso = (c.fecha_termino.isoformat() if c.fecha_termino else "") %}
+                  {% set inicio_txt = (c.fecha_inicio.strftime("%d-%m-%Y") if c.fecha_inicio else "-") %}
+                  {% set termino_txt = (c.fecha_termino.strftime("%d-%m-%Y") if c.fecha_termino else "-") %}
+                  {% set ya_extendio = (contratos_extendidos is defined and c.id in contratos_extendidos) %}
+                  {% set puede_extender = (not ya_extendio) %}
+
+                  <tr class="js-row"
+                      data-contrato-id="{{ c.id }}"
+                      data-termino-iso="{{ termino_iso }}"
+                      data-puede-extender="{{ 1 if puede_extender else 0 }}">
+                    <td>
+                      <div class="fw-semibold">
+                        {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno or "" }}, {{ c.trabajador.nombres }}
+                      </div>
+                      <div class="text-muted small">Contrato #{{ c.id }}</div>
+                      <input type="hidden" name="contrato_id" value="{{ c.id }}">
+                    </td>
+
+                    <td class="text-nowrap">
+                      {% if c.obra and c.obra.centro_costo %}
+                        <span class="fw-semibold">{{ c.obra.centro_costo }}</span>
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if c.obra %}
+                        <div>{{ c.obra.nombre }}</div>
+                      {% else %}
+                        <span class="text-muted">Sin obra</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if c.cargo %}{{ c.cargo.nombre }}{% else %}<span class="text-muted">-</span>{% endif %}
+                    </td>
+
+                    {# Fechas compactas: inicio + término + origen #}
+                    <td class="text-nowrap">
+                      <div class="small">
+                        <div>
+                          <span class="text-muted">Inicio:</span>
+                          <span class="fw-semibold">{{ inicio_txt }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                          <div>
+                            <span class="text-muted">Término:</span>
+                            <span class="fw-semibold">{{ termino_txt }}</span>
+                          </div>
+                          {% if ya_extendio %}
+                            <span class="badge text-bg-secondary">POR ANEXO</span>
+                          {% else %}
+                            <span class="badge text-bg-light border">ORIGINAL</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </td>
+
+                    {# ✅ Decisión: centrado vertical del select + badge abajo con tooltip premium #}
+                    <td style="width:170px;">
+                      <div class="d-flex flex-column justify-content-center gap-1 h-100">
+
+                        <select class="form-select form-select-sm js-accion" name="accion_{{ c.id }}">
+                          {% for a in ACCIONES %}
+                            {% if a == "EXTENDER" and not puede_extender %}
+                              <option value="{{ a }}" disabled {% if accion == a %}selected{% endif %}>{{ a }}</option>
+                            {% else %}
+                              <option value="{{ a }}" {% if accion == a %}selected{% endif %}>{{ a }}</option>
+                            {% endif %}
+                          {% endfor %}
+                        </select>
+
+                        {% if not puede_extender %}
+                          <span
+                            class="badge bg-secondary-subtle text-secondary border small align-self-start js-tt"
+                            role="button"
+                            tabindex="0"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            data-bs-title="Este contrato ya tuvo una extensión (anexo). Por norma, no se permite extender nuevamente.">
+                            Por anexo · No extensible
+                          </span>
+                        {% endif %}
+
+                      </div>
+                    </td>
+
+                    {# Fechas decisión compactas: Extender + Terminar en un solo bloque #}
+                    <td class="text-nowrap">
+                      <div class="d-flex flex-column gap-1">
+
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="badge text-bg-light border">Ext.</span>
+                          <input type="date"
+                                 class="form-control form-control-sm js-nueva-fecha"
+                                 name="nueva_fecha_{{ c.id }}"
+                                 {% if not puede_extender %}disabled{% endif %}
+                                 value="{{ d.nueva_fecha_termino.isoformat() if d and d.nueva_fecha_termino else '' }}">
+                        </div>
+                        <div class="form-text js-hint-ext" style="display:none;">Debe ser &gt; término actual.</div>
+
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="badge text-bg-light border">Term.</span>
+                          <input type="date"
+                                 class="form-control form-control-sm js-fecha-conf"
+                                 name="fecha_conf_{{ c.id }}"
+                                 value="{{ d.fecha_termino_confirmada.isoformat() if d and d.fecha_termino_confirmada else '' }}">
+                        </div>
+                        <div class="form-text js-hint-ter" style="display:none;">Si queda vacío, se usa el término actual.</div>
+
+                      </div>
+                    </td>
+
+                    {# ✅ Comentario más alto (3 líneas) sin desorden: textarea compacto #}
+                    <td>
+                      <textarea class="form-control form-control-sm js-comentario"
+                                name="comentario_{{ c.id }}"
+                                rows="3"
+                                style="resize:none; min-height: calc(1.25em * 3 + .75rem + 2px);"
+                                placeholder="Observación breve...">{{ d.comentario if d and d.comentario else '' }}</textarea>
+                    </td>
+
+                    {# ✅ Botones uno sobre otro para ganar espacio #}
+                    <td class="text-end text-nowrap" style="width:120px;">
+                      <div class="d-flex flex-column gap-1 align-items-stretch ms-auto" style="max-width: 120px;">
+                        <a class="btn btn-outline-primary btn-sm"
+                           href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id, next=next_url) }}">
+                          Ver contrato
+                        </a>
+                        <a class="btn btn-outline-secondary btn-sm"
+                           href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id, next=next_url) }}">
+                          Trabajador
+                        </a>
+                        <a class="btn btn-outline-danger btn-sm"
+                           href="{{ url_for('desvinculaciones.nueva_desvinculacion', trabajador_id=c.trabajador.id, next=next_url) }}">
+                          Desvinculación
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="btn btn-success">
+              Guardar decisiones
+            </button>
+          </div>
+
+        {% else %}
+          <div class="text-muted">No hay contratos con vencimiento dentro de la ventana seleccionada.</div>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  {# ==========================
+     ACCIONES EXTRAORDINARIAS (ACCORDION / COLAPSABLE)
+     ========================== #}
+  <div class="accordion mb-3" id="acc-extra">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="acc-extra-h">
+        <button
+          class="accordion-button collapsed d-flex align-items-center"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#acc-extra-c"
+          aria-expanded="false"
+          aria-controls="acc-extra-c">
+          <div class="me-2 fw-semibold">Acciones extraordinarias</div>
+          <span class="ms-2 text-muted small">
+            Agrega un contrato al seguimiento aunque no esté por vencer (ej: indefinido a desvincular).
+          </span>
+        </button>
+      </h2>
+
+      <div
+        id="acc-extra-c"
+        class="accordion-collapse collapse"
+        aria-labelledby="acc-extra-h"
+        data-bs-parent="#acc-extra">
+        <div class="accordion-body">
+
+          <form method="post"
+                action="{{ url_for('contratos_vencimientos.agregar', **request.args) }}"
+                class="row g-3 mt-1 js-extra-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="trabajador_q_extra">Trabajador</label>
+              <input type="text"
+                     class="form-control js-trabajador-q-extra"
+                     id="trabajador_q_extra"
+                     placeholder="Busca por nombre o RUT…"
+                     autocomplete="off"
+                     minlength="2">
+              {# ✅ CRÍTICO: el JS necesita este hidden #}
+              <input type="hidden" name="trabajador_id" class="js-trabajador-id-extra" value="">
+              <div class="form-text">Selecciona un trabajador para cargar sus contratos.</div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label" for="contrato_id_extra">Contrato</label>
+              <select class="form-select js-contrato-select-extra" id="contrato_id_extra" name="contrato_id" required disabled>
+                <option value="">Primero selecciona un trabajador…</option>
+              </select>
+              <div class="form-text">Se listan contratos recientes (vigentes primero).</div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label" for="accion_extra">Decisión</label>
+              <select class="form-select js-accion-extra" id="accion_extra" name="accion">
+                <option value="TERMINAR" selected>TERMINAR</option>
+                <option value="PENDIENTE">PENDIENTE</option>
+                <option value="EXTENDER">EXTENDER</option>
+                <option value="INDEFINIDO">INDEFINIDO</option>
+              </select>
+              <div class="form-text">Usa TERMINAR para informar desvinculación.</div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">Nueva fecha (Extender)</label>
+              <input type="date" class="form-control js-nueva-fecha-extra" name="nueva_fecha" disabled>
+              <div class="form-text js-hint-ext-extra" style="display:none;">Debe ser &gt; término actual.</div>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">Fecha confirmada (Terminar)</label>
+              <input type="date" class="form-control js-fecha-conf-extra" name="fecha_conf" disabled>
+              <div class="form-text js-hint-ter-extra" style="display:none;">
+                Si queda vacío, el sistema sugerirá el término actual si existe.
+              </div>
+            </div>
+
+            <div class="col-12 col-md-8">
+              <label class="form-label">Comentario</label>
+              <input type="text" class="form-control" name="comentario" placeholder="Motivo / indicación de jefatura...">
+            </div>
+
+            <div class="col-12 col-md-4 d-flex align-items-end justify-content-end">
+              <button type="submit" class="btn btn-warning">
+                Agregar al seguimiento
+              </button>
+            </div>
+          </form>
+
+          {% if extra_contratos %}
+            <div class="mt-3 table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Trabajador</th>
+                    <th>Centro de Costo</th>
+                    <th>Obra</th>
+                    <th>Cargo</th>
+                    <th class="text-nowrap">Término actual</th>
+                    <th class="text-nowrap">Decisión</th>
+                    <th class="text-nowrap">Nueva fecha</th>
+                    <th class="text-nowrap">Fecha confirmada</th>
+                    <th>Comentario</th>
+                    <th class="text-end">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for c in extra_contratos %}
+                    {% set d = decisiones_extra.get(c.id) %}
+                    <tr>
+                      <td>
+                        <div class="fw-semibold">
+                          {{ c.trabajador.ap_paterno }} {{ c.trabajador.ap_materno or "" }}, {{ c.trabajador.nombres }}
+                        </div>
+                        <div class="text-muted small">Contrato #{{ c.id }}</div>
+                      </td>
+
+                      <td>
+                        {% if c.obra and c.obra.centro_costo %}
+                          <span class="fw-semibold">{{ c.obra.centro_costo }}</span>
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+
+                      <td>{% if c.obra %}{{ c.obra.nombre }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                      <td>{% if c.cargo %}{{ c.cargo.nombre }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+
+                      <td class="text-nowrap">
+                        {% if c.fecha_termino %}
+                          {{ c.fecha_termino.strftime("%d-%m-%Y") }}
+                        {% else %}
+                          <span class="text-muted">Indefinido</span>
+                        {% endif %}
+                      </td>
+
+                      <td class="text-nowrap">{% if d %}{{ d.accion }}{% else %}PENDIENTE{% endif %}</td>
+                      <td class="text-nowrap">{% if d and d.nueva_fecha_termino %}{{ d.nueva_fecha_termino.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</td>
+                      <td class="text-nowrap">{% if d and d.fecha_termino_confirmada %}{{ d.fecha_termino_confirmada.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</td>
+                      <td>{% if d and d.comentario %}{{ d.comentario }}{% else %}-{% endif %}</td>
+
+                      <td class="text-end text-nowrap">
+                        <div class="btn-group btn-group-sm" role="group">
+                          <a class="btn btn-outline-primary"
+                             href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id, next=next_url) }}">
+                            Ver contrato
+                          </a>
+                          <a class="btn btn-outline-secondary"
+                             href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=c.trabajador.id, next=next_url) }}">
+                            Trabajador
+                          </a>
+                          <a class="btn btn-outline-danger"
+                             href="{{ url_for('desvinculaciones.nueva_desvinculacion', trabajador_id=c.trabajador.id, next=next_url) }}">
+                            Desvinculación
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+
+              <div class="text-muted small mt-2">
+                Mostrando hasta {{ extra_limit }} registro(s) extraordinarios recientes.
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted small mt-3">Aún no hay acciones extraordinarias registradas.</div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="contratos-vencimientos-config"
+     data-api-contratos-url="{{ url_for('contratos_vencimientos.api_contratos') }}"
+     data-api-trabajadores-url="{{ url_for('trabajadores.api_search_trabajadores') }}"></div>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/contratos_vencimientos_listado.js') }}"></script>
+{% endblock %}

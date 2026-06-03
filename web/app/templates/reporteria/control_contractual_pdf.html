@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Control contractual</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    body { font-family: Arial, sans-serif; color: #111827; font-size: 10px; }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    .muted { color: #6b7280; }
+    .kpis { display: table; width: 100%; margin: 12px 0; border-spacing: 6px; }
+    .kpi { display: table-cell; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; }
+    .kpi .label { color: #6b7280; font-size: 9px; }
+    .kpi .value { font-size: 18px; font-weight: bold; }
+    h2 { font-size: 13px; margin: 14px 0 6px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #d1d5db; padding: 4px 5px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .danger { color: #b91c1c; font-weight: bold; }
+    .warn { color: #b45309; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Control contractual · Sistema Grupo CS</h1>
+  <div class="muted">Fecha reporte: {{ fmt_date(control.fecha_reporte) }} · Filtros aplicados desde Reportería</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Alertas</div><div class="value">{{ control.total_alertas }}</div></div>
+    <div class="kpi"><div class="label">Vencen 7 días</div><div class="value danger">{{ control.total_7 }}</div></div>
+    <div class="kpi"><div class="label">Vencen 15 días</div><div class="value warn">{{ control.total_15 }}</div></div>
+    <div class="kpi"><div class="label">Vencen 30 días</div><div class="value">{{ control.total_30 }}</div></div>
+    <div class="kpi"><div class="label">Vencidos</div><div class="value danger">{{ control.total_vencidos }}</div></div>
+    <div class="kpi"><div class="label">Sin término</div><div class="value">{{ control.total_sin_fecha_termino_no_indef }}</div></div>
+  </div>
+
+  {% for bucket in control.buckets %}
+    <h2>{{ bucket.label }} ({{ bucket.rows|length }})</h2>
+    <table>
+      <thead><tr><th>Días</th><th>Inicio</th><th>Término</th><th>Antigüedad</th><th>Trabajador</th><th>RUT</th><th>Obra</th><th>Cargo</th><th>Tipo</th></tr></thead>
+      <tbody>
+        {% for r in bucket.rows[:60] %}
+          <tr><td>{{ r.dias_para_vencer }}</td><td>{{ fmt_date(r.fecha_inicio) }}</td><td>{{ fmt_date(r.fecha_termino) }}</td><td>{{ r.antiguedad }}</td><td>{{ r.trabajador }}</td><td>{{ r.rut }}</td><td>{{ r.obra }}</td><td>{{ r.cargo }}</td><td>{{ r.tipo_contrato }}</td></tr>
+        {% else %}
+          <tr><td colspan="9" class="muted">Sin contratos en este tramo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+
+  <h2>Vencidos / requieren revisión ({{ control.vencidos|length }})</h2>
+  <table>
+    <thead><tr><th>Inicio</th><th>Término</th><th>Antigüedad</th><th>Trabajador</th><th>RUT</th><th>Obra</th><th>Cargo</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for r in control.vencidos[:80] %}
+        <tr><td>{{ fmt_date(r.fecha_inicio) }}</td><td>{{ fmt_date(r.fecha_termino) }}</td><td>{{ r.antiguedad }}</td><td>{{ r.trabajador }}</td><td>{{ r.rut }}</td><td>{{ r.obra }}</td><td>{{ r.cargo }}</td><td>{{ r.estado_calculado }}</td></tr>
+      {% else %}
+        <tr><td colspan="8" class="muted">Sin vencidos según los filtros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

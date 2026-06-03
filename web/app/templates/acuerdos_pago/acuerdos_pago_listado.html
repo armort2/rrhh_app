@@ -1,0 +1,128 @@
+{# web/app/templates/acuerdos_pago/acuerdos_pago_listado.html #}
+{% extends "base.html" %}
+
+{% block title %}Acuerdos de Pago · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Acuerdos de Pago</h1>
+      <div class="section-subtitle">Préstamos, herramientas y diferencias por EPP</div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('acuerdos_pago.nuevo') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo acuerdo
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-lg-5">
+          <label class="form-label">Buscar</label>
+          <input class="form-control" name="q" value="{{ q }}" placeholder="Nombre, apellidos, RUT o concepto">
+        </div>
+
+        <div class="col-6 col-lg-2">
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="estado">
+            <option value="">(Todos)</option>
+            {% for st in ["BORRADOR","EMITIDO","FIRMADO","PAGADO","ANULADO"] %}
+              <option value="{{ st }}" {% if estado == st %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-lg-3">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" name="tipo">
+            <option value="">(Todos)</option>
+            {% for k,v in tipo_labels.items() %}
+              <option value="{{ k.value }}" {% if tipo == k.value %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-lg-2 d-flex gap-2">
+          <button class="btn btn-primary w-100" type="submit">
+            <i class="bi bi-search me-1"></i> Filtrar
+          </button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('acuerdos_pago.listado') }}">
+            Limpiar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 90px;">N°</th>
+              <th style="width: 120px;">Fecha</th>
+              <th>Trabajador</th>
+              <th style="width: 220px;">Tipo</th>
+              <th>Concepto</th>
+              <th style="width: 130px;">Estado</th>
+              <th style="width: 90px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in acuerdos %}
+              <tr>
+                <td class="text-muted">#{{ a.numero }}</td>
+                <td>{{ a.fecha_acuerdo }}</td>
+                <td>
+                  {% if a.trabajador %}
+                    <div class="fw-semibold">{{ a.trabajador.ap_paterno }} {{ a.trabajador.ap_materno or '' }}, {{ a.trabajador.nombres }}</div>
+                    <div class="text-muted small">{{ a.trabajador.rut_completo }}</div>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>{{ tipo_labels.get(a.tipo, a.tipo.value if a.tipo else '-') }}</td>
+                <td>{{ a.concepto }}</td>
+                <td>
+                  {% set st = (a.estado or '') %}
+                  {% if st == 'BORRADOR' %}
+                    <span class="badge bg-secondary">BORRADOR</span>
+                  {% elif st == 'EMITIDO' %}
+                    <span class="badge bg-primary">EMITIDO</span>
+                  {% elif st == 'FIRMADO' %}
+                    <span class="badge bg-success">FIRMADO</span>
+                  {% elif st == 'PAGADO' %}
+                    <span class="badge bg-dark">PAGADO</span>
+                  {% elif st == 'ANULADO' %}
+                    <span class="badge bg-warning text-dark">ANULADO</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark">{{ st }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('acuerdos_pago.detalle', acuerdo_id=a.id) }}">
+                    Ver
+                  </a>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                  No hay acuerdos que coincidan con los filtros.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

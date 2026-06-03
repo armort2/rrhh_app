@@ -1,0 +1,662 @@
+{# web/app/templates/solicitudes_fondos/solicitudes_fondos_imprimir_pdf.html #}
+{% extends "print_base_pdf.html" %}
+
+{% block title %}Solicitud de Fondos PDF · N° {{ solicitud.numero or solicitud.id }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .brand-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: #7a1f16;
+    letter-spacing: .2px;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .header-meta {
+    margin-top: 2mm;
+    font-size: 10px;
+    color: #444;
+    line-height: 1.25;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 900;
+    margin: 6mm 0 1.5mm;
+  }
+
+  .section-subtitle {
+    font-size: 10px;
+    color: #444;
+    margin: 0 0 3mm;
+  }
+
+  .hr {
+    height: 1px;
+    background: #ddd;
+    margin: 8px 0 10px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 6px 6px; border-bottom: 1px solid #e6e6e6; vertical-align: top; }
+  th { text-align: left; font-size: 10px; color: #333; background: #f6f0ea; }
+  td { font-size: 10px; color: #222; }
+
+  .money { text-align: right; white-space: nowrap; }
+  .small { font-size: 10px; color: #555; }
+  .muted { color: #666; }
+
+  .total-row td {
+    border-top: 2px solid #ddd;
+    border-bottom: none;
+    padding-top: 7px;
+    font-weight: 900;
+  }
+
+  /* =========================================================
+     Ajustes SOLO para tablas extendidas (TERC / VAR)
+     - Comprime un poco filas y mejora legibilidad
+     - NO afecta sección REND (que nos pediste no tocar)
+     ========================================================= */
+  table.wide-table th,
+  table.wide-table td {
+    padding: 4px 5px;
+  }
+  table.wide-table td {
+    font-size: 9.5px;
+    line-height: 1.15;
+  }
+  table.wide-table th {
+    font-size: 9.5px;
+  }
+  .nowrap { white-space: nowrap; }
+
+  .signatures {
+    margin-top: 8mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .sign-title { font-weight: 800; margin-bottom: 20mm; }
+  .sign-col { padding: 0 10px; }
+</style>
+{% endblock %}
+
+{% block print_header %}
+  <div>
+    <div class="brand-title">Solicitud de Fondos</div>
+
+    <div class="header-meta">
+      {# Fecha robusta: primero fecha_solicitud (modelo), luego fallbacks #}
+      {% set _fecha_sf =
+        solicitud.fecha_solicitud
+        |default(solicitud.creado_en)
+        |default(solicitud.creada_en)
+        |default(solicitud.fecha)
+        |default(solicitud.created_at)
+        |default("")
+      %}
+      <div>
+        <strong>Solicitud N° {{ solicitud.numero or solicitud.id }}</strong>
+        · Fecha: <strong>{{ _fecha_sf }}</strong>
+        · Estado: <strong>{{ solicitud.estado }}</strong>
+      </div>
+
+      <div>
+        Obra: <strong>{{ obra_nombre or "-" }}</strong>
+        {% if centro_costo %}
+          · Centro de costo: <strong>{{ centro_costo }}</strong>
+        {% endif %}
+      </div>
+
+      {% if solicitado_por %}
+        <div>Solicitado por: {{ solicitado_por }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block print_footer_left %}
+  © 2026 Grupo CS · Sistema Interno RRHH · Desarrollado por AOE Asesorías
+{% endblock %}
+
+{% block content %}
+
+  {# =========================
+     Helpers (macros) para PDF
+     ========================= #}
+  {% macro rut_con_puntos(rut_num, dv=None) -%}
+    {%- if not rut_num -%}
+      -
+    {%- else -%}
+      {%- set r = (rut_num|string)|replace(".", "")|replace("-", "")|replace(" ", "") -%}
+      {%- if r.isdigit() -%}
+        {%- set r_fmt = "{:,}".format(r|int).replace(",", ".") -%}
+        {%- if dv -%}
+          {{ r_fmt }}-{{ dv }}
+        {%- else -%}
+          {{ r_fmt }}
+        {%- endif -%}
+      {%- else -%}
+        {{ rut_num }}{% if dv %}-{{ dv }}{% endif %}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endmacro %}
+
+  {% macro split_doc(nro_documento) -%}
+    {%- set raw = (nro_documento or "") -%}
+    {%- if "|" in raw -%}
+      {%- set parts = raw.split("|", 1) -%}
+      {{ (parts[0] or "-") }} · {{ (parts[1] or "-") }}
+    {%- else -%}
+      {{ raw or "-" }}
+    {%- endif -%}
+  {%- endmacro %}
+
+  {% macro beneficiario_nombre(it) -%}
+    {%- if it.tercero -%}
+      {{ (it.tercero.nombre_display or "-") }}
+    {%- elif it.trabajador -%}
+      {%- set apellidos = (" ".join([it.trabajador.ap_paterno or "", it.trabajador.ap_materno or ""]).strip()) -%}
+      {%- set nombres = (it.trabajador.nombres or "").strip() -%}
+      {%- if apellidos and nombres -%}
+        {{ (apellidos ~ ", " ~ nombres) }}
+      {%- else -%}
+        {{ (apellidos or nombres or "-") }}
+      {%- endif -%}
+    {%- else -%}
+      {{ it.beneficiario_nombre or "-" }}
+    {%- endif -%}
+  {%- endmacro %}
+
+  {% macro beneficiario_rut(it) -%}
+    {%- if it.tercero -%}
+      {{ rut_con_puntos(it.tercero.rut_num, (it.tercero.dv or "")|upper) }}
+    {%- elif it.trabajador -%}
+      {{ rut_con_puntos(it.trabajador.rut, (it.trabajador.dv or "")|upper) }}
+    {%- else -%}
+      {{ rut_con_puntos(it.beneficiario_rut_num, it.beneficiario_dv) }}
+    {%- endif -%}
+  {%- endmacro %}
+
+  {% macro pago_label(raw) -%}
+    {%- set v = (raw or "")|string|trim -%}
+    {%- if not v -%}
+      -
+    {%- else -%}
+      {%- set u = v|upper -%}
+      {%- if u == "TRANSFERENCIA" -%}
+        Transferencia
+      {%- elif u in ["NOMINA_2", "NOMINA 2", "NÓMINA 2"] -%}
+        Nómina 2
+      {%- elif u == "CHEQUE" -%}
+        Cheque
+      {%- elif u == "EFECTIVO" -%}
+        Efectivo
+      {%- elif u == "DEPOSITO" or u == "DEPÓSITO" -%}
+        Depósito
+      {%- else -%}
+        {{ v|replace("_", " ")|lower|capitalize }}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endmacro %}
+
+  {% macro concepto_label(raw) -%}
+    {%- set v = (raw or "")|string|trim -%}
+    {%- if not v -%}
+      -
+    {%- else -%}
+        {{ v|replace("_", " ")|lower|capitalize }}
+    {%- endif -%}
+  {%- endmacro %}
+
+  <div class="hr"></div>
+
+  {# =========================
+     REMUNERACIONES
+     ========================= #}
+
+  {% set periodo_u = ((solicitud.periodo_tipo or "")|upper|trim) %}
+  {% set tot_remu = (tot["REMU"] if (tot is defined and "REMU" in tot) else 0) %}
+
+  {# --- 1) QUINCENA: anticipos visados (service) --- #}
+  {% if resumen_anticipos %}
+    <div class="section-title">Remuneraciones</div>
+    <div class="section-subtitle">
+      Anticipos VISADOS · Nómina #{{ resumen_anticipos.nomina_id }} · {{ resumen_anticipos.centro_costo }}
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Detalle</th>
+          <th class="money" style="width:140px;">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        {% for st in (resumen_anticipos.subtotales_tipo or []) %}
+          {% set tipo_u = (st.tipo or "")|upper %}
+          {% if tipo_u in ["JEFATURA Y OTROS", "JEFATURA U OTROS"] %}
+            <tr>
+              <td>{{ st.tipo }}</td>
+              <td class="money">${{ "{:,.0f}".format((st.total or 0)|float).replace(",", ".") }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+
+        {% for st in (resumen_anticipos.subtotales_tipo or []) %}
+          {% if (st.tipo or "")|upper == "DIRECTO" %}
+            <tr>
+              <td>{{ st.tipo }}</td>
+              <td class="money">${{ "{:,.0f}".format((st.total or 0)|float).replace(",", ".") }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+
+        {% for st in (resumen_anticipos.subtotales_tipo or []) %}
+          {% set tipo_u = (st.tipo or "")|upper %}
+          {% if tipo_u not in ["DIRECTO", "JEFATURA Y OTROS", "JEFATURA U OTROS"] %}
+            <tr>
+              <td>{{ st.tipo }}</td>
+              <td class="money">${{ "{:,.0f}".format((st.total or 0)|float).replace(",", ".") }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+
+        <tr class="total-row">
+          <td>Total</td>
+          <td class="money">
+            ${{ "{:,.0f}".format((resumen_anticipos.total_monto or 0)|float).replace(",", ".") }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="height:3mm;"></div>
+
+  {% elif periodo_u == "QUINCENA" and (remu_anticipos_cards is defined and remu_anticipos_cards) %}
+
+    {# --- 2) QUINCENA: anticipos integrados (cards) --- #}
+    <div class="section-title">Remuneraciones</div>
+    <div class="section-subtitle">Anticipos integrados (QUINCENA)</div>
+
+    {% for card in remu_anticipos_cards %}
+      {% set nom = card.nomina %}
+      <div class="small muted" style="margin-bottom:1mm;">
+        {% if nom %}
+          Nómina #{{ nom.id }}
+          · {{ "%04d-%02d"|format(nom.anio, nom.mes) }}
+          · {{ nom.centro_costo }}
+        {% else %}
+          Nómina: <strong>no vinculada</strong> · (resumen desde ítems REMU)
+        {% endif %}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th class="money" style="width:140px;">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for tipo, total, cant in (card.subtotales_tipo or []) %}
+            {% if (tipo or "")|upper in ["JEFATURA U OTROS", "JEFATURA Y OTROS"] %}
+              <tr>
+                <td>
+                  {{ tipo }}
+                  {% if cant is not none %}<span class="muted">({{ cant }} trab.)</span>{% endif %}
+                </td>
+                <td class="money">${{ "{:,.0f}".format((total or 0)|float).replace(",", ".") }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+
+          {% for tipo, total, cant in (card.subtotales_tipo or []) %}
+            {% if (tipo or "")|upper == "DIRECTO" %}
+              <tr>
+                <td>
+                  {{ tipo }}
+                  {% if cant is not none %}<span class="muted">({{ cant }} trab.)</span>{% endif %}
+                </td>
+                <td class="money">${{ "{:,.0f}".format((total or 0)|float).replace(",", ".") }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+
+          {% for tipo, total, cant in (card.subtotales_tipo or []) %}
+            {% set tipo_u = (tipo or "")|upper %}
+            {% if tipo_u not in ["JEFATURA U OTROS", "JEFATURA Y OTROS", "DIRECTO"] %}
+              <tr>
+                <td>
+                  {{ tipo or "SIN TIPO" }}
+                  {% if cant is not none %}<span class="muted">({{ cant }} trab.)</span>{% endif %}
+                </td>
+                <td class="money">${{ "{:,.0f}".format((total or 0)|float).replace(",", ".") }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+
+          <tr class="total-row">
+            <td>Total</td>
+            <td class="money">${{ "{:,.0f}".format((card.total or 0)|float).replace(",", ".") }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {% if not loop.last %}<div style="height:3mm;"></div>{% endif %}
+    {% endfor %}
+
+    <div style="height:3mm;"></div>
+
+  {% elif periodo_u == "FIN_MES" and (remu_sueldos_cards is defined and remu_sueldos_cards) %}
+
+    {# --- 3) FIN_MES: sueldos integrados (cards) --- #}
+    <div class="section-title">Remuneraciones</div>
+    <div class="section-subtitle">Sueldos integrados (FIN_MES)</div>
+
+    {% for card in remu_sueldos_cards %}
+      {% set nom = card.nomina %}
+      <div class="small muted" style="margin-bottom:1mm;">
+        {% if nom %}
+          Nómina #{{ nom.id }}
+          · {{ "%04d-%02d"|format(nom.anio, nom.mes) }}
+          · {{ nom.centro_costo }}
+        {% else %}
+          Nómina: <strong>no vinculada</strong> · (resumen desde ítems REMU)
+        {% endif %}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th class="money" style="width:140px;">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for tipo, total, cant in (card.subtotales_tipo or []) %}
+            {% if (tipo or "")|upper == "JEFATURA U OTROS" %}
+              <tr>
+                <td>
+                  {{ tipo }}
+                  {% if cant is not none %}<span class="muted">({{ cant }} trab.)</span>{% endif %}
+                </td>
+                <td class="money">${{ "{:,.0f}".format((total or 0)|float).replace(",", ".") }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+
+          {% for tipo, total, cant in (card.subtotales_tipo or []) %}
+            {% if (tipo or "")|upper == "DIRECTO" %}
+              <tr>
+                <td>
+                  {{ tipo }}
+                  {% if cant is not none %}<span class="muted">({{ cant }} trab.)</span>{% endif %}
+                </td>
+                <td class="money">${{ "{:,.0f}".format((total or 0)|float).replace(",", ".") }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+
+          {% for tipo, total, cant in (card.subtotales_tipo or []) %}
+            {% set tipo_u = (tipo or "")|upper %}
+            {% if tipo_u not in ["JEFATURA U OTROS", "DIRECTO"] %}
+              <tr>
+                <td>
+                  {{ tipo or "SIN TIPO" }}
+                  {% if cant is not none %}<span class="muted">({{ cant }} trab.)</span>{% endif %}
+                </td>
+                <td class="money">${{ "{:,.0f}".format((total or 0)|float).replace(",", ".") }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+
+          <tr class="total-row">
+            <td>Total</td>
+            <td class="money">${{ "{:,.0f}".format((card.total or 0)|float).replace(",", ".") }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {% if not loop.last %}<div style="height:3mm;"></div>{% endif %}
+    {% endfor %}
+
+    <div style="height:3mm;"></div>
+
+  {% else %}
+
+    {# --- 4) Sin estructuras, pero si hay total REMU, mostramos resumen mínimo --- #}
+    <div class="section-title">Remuneraciones</div>
+
+    {% if (tot_remu or 0) > 0 %}
+      <div class="section-subtitle">
+        Remuneraciones integradas (resumen) · No fue posible construir el desglose (service/cards).
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th class="money" style="width:140px;">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Total Remuneraciones</td>
+            <td class="money">${{ "{:,.0f}".format((tot_remu or 0)|float).replace(",", ".") }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="height:3mm;"></div>
+    {% else %}
+      <div class="section-subtitle muted">Sin remuneraciones integradas.</div>
+    {% endif %}
+
+  {% endif %}
+
+  {# =========================
+     RENDICIONES DE GASTOS (NO TOCAR)
+     ========================= #}
+  <div class="section-title">Rendiciones de gastos</div>
+  <div class="section-subtitle">Sección: REND</div>
+
+  {% macro rut_from_string(raw) -%}
+    {%- set s = (raw or "")|string|replace(".", "")|replace(" ", "") -%}
+    {%- if "-" in s -%}
+      {%- set parts = s.split("-", 1) -%}
+      {{ rut_con_puntos(parts[0], (parts[1] or "")|upper) }}
+    {%- elif s.isdigit() -%}
+      {{ rut_con_puntos(s) }}
+    {%- else -%}
+      {{ raw or "-" }}
+    {%- endif -%}
+  {%- endmacro %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th style="width:110px;">RUT</th>
+        <th style="width:105px;">Tipo de pago</th>
+        <th class="money" style="width:140px;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if resumen_rendiciones is defined and resumen_rendiciones %}
+        {% for rr in (resumen_rendiciones or []) %}
+          <tr>
+            <td style="font-weight:700;">{{ rr.usuario_nombre or "-" }}</td>
+            <td>{{ rut_from_string(rr.usuario_rut) }}</td>
+            <td>Nómina 2</td>
+            <td class="money">
+              ${{ "{:,.0f}".format((rr.total or 0)|float).replace(",", ".") }}
+            </td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        {% for it in (items_rend or []) %}
+          <tr>
+            <td>{{ it.descripcion or "-" }}</td>
+            <td class="muted">-</td>
+            <td class="muted">-</td>
+            <td class="money">
+              {% if it.monto is not none %}
+                ${{ "{:,.0f}".format((it.monto or 0)|float).replace(",", ".") }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="muted">Sin rendiciones integradas.</td></tr>
+        {% endfor %}
+      {% endif %}
+
+      <tr class="total-row">
+        <td colspan="3">Total</td>
+        <td class="money">${{ "{:,.0f}".format((total_rend or 0)|float).replace(",", ".") }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="height:3mm;"></div>
+
+  {# =========================
+     CONTRATISTAS Y PROVEEDORES (AJUSTES)
+     ========================= #}
+  <div class="section-title">Contratistas y Proveedores</div>
+  <div class="section-subtitle">Sección: TERC</div>
+
+  <table class="wide-table">
+    <thead>
+      <tr>
+        <th style="width:28px;">#</th>
+        <th class="nowrap" style="width:82px;">RUT</th>
+        <th>Beneficiario</th>
+        <th style="width:72px;">Pago</th>
+        <th style="width:105px;">Documento</th>
+        <th style="width:82px;">Concepto</th>
+        <th>Descripción</th>
+        <th class="money" style="width:105px;">Monto</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in (items_terc or []) %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="nowrap">{{ beneficiario_rut(it) }}</td>
+          <td>{{ beneficiario_nombre(it) }}</td>
+          <td>{{ pago_label(it.tipo_pago) }}</td>
+          <td>{{ split_doc(it.nro_documento) }}</td>
+          <td>{{ concepto_label(it.concepto) }}</td>
+          <td>{{ it.descripcion or it.control_interno or "-" }}</td>
+          <td class="money">
+            {% if it.monto is not none %}
+              ${{ "{:,.0f}".format((it.monto or 0)|float).replace(",", ".") }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="muted">Sin ítems.</td></tr>
+      {% endfor %}
+
+      <tr class="total-row">
+        <td colspan="7">Total</td>
+        <td class="money">${{ "{:,.0f}".format((total_terc or 0)|float).replace(",", ".") }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="height:3mm;"></div>
+
+  {# =========================
+     PAGOS VARIOS
+     ========================= #}
+  <div class="section-title">Pagos varios</div>
+  <div class="section-subtitle">Sección: VAR</div>
+
+  <table class="wide-table">
+    <thead>
+      <tr>
+        <th style="width:28px;">#</th>
+        <th class="nowrap" style="width:82px;">RUT</th>
+        <th>Beneficiario</th>
+        <th style="width:72px;">Pago</th>
+        <th style="width:105px;">Documento</th>
+        <th style="width:82px;">Concepto</th>
+        <th>Descripción</th>
+        <th class="money" style="width:105px;">Monto</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in (items_var or []) %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="nowrap">{{ beneficiario_rut(it) }}</td>
+          <td>{{ beneficiario_nombre(it) }}</td>
+          <td>{{ pago_label(it.tipo_pago) }}</td>
+          <td>{{ split_doc(it.nro_documento) }}</td>
+          <td>{{ concepto_label(it.concepto) }}</td>
+          <td>{{ it.descripcion or it.control_interno or "-" }}</td>
+          <td class="money">
+            {% if it.monto is not none %}
+              ${{ "{:,.0f}".format((it.monto or 0)|float).replace(",", ".") }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="muted">Sin ítems.</td></tr>
+      {% endfor %}
+
+      <tr class="total-row">
+        <td colspan="7">Total</td>
+        <td class="money">${{ "{:,.0f}".format((total_var or 0)|float).replace(",", ".") }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="height:4mm;"></div>
+
+  {# =========================
+     TOTAL GENERAL (al final)
+     ========================= #}
+  <div class="hr"></div>
+  <div class="money" style="font-weight:900;">
+    Total general: ${{ "{:,.0f}".format((total_general or 0)|float).replace(",", ".") }}
+  </div>
+
+  <div style="height:8mm;"></div>
+
+  <div class="signatures">
+    <div class="signatures-grid">
+      <div class="sign-col">
+        <div class="sign-title">V°B° Administración</div>
+        <div class="sign-line"></div>
+        <div class="sign-foot">Nombre / Firma / Fecha</div>
+      </div>
+
+      <div class="sign-col" style="text-align:center;">
+        <div class="sign-title">V°B° Adm. C. Costo</div>
+        <div class="sign-line"></div>
+        <div class="sign-foot">Nombre / Firma / Fecha</div>
+      </div>
+
+      <div class="sign-col" style="text-align:right;">
+        <div class="sign-title">V°B° Gerencia</div>
+        <div class="sign-line"></div>
+        <div class="sign-foot">Nombre / Firma / Fecha</div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

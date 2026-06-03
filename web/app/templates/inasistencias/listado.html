@@ -3,9 +3,9 @@
 {% block title %}Inasistencias{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-list-page">
 
-  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Inasistencias</h1>
       <div class="section-subtitle">
@@ -14,7 +14,7 @@
       <div class="section-divider"></div>
     </div>
 
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="cs-page-actions">
       <a class="btn btn-primary" href="{{ url_for('inasistencias.nuevo') }}">
         + Registrar inasistencia
       </a>
@@ -24,7 +24,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card cs-filter-card">
     <div class="card-body">
 
       {# ==========================================================
@@ -62,7 +62,7 @@
         {%- endif -%}
       {%- endmacro %}
 
-      <form method="get">
+      <form method="get" class="cs-filter-form" data-filter-form data-filter-count-target="#inas-filter-count">
         <div class="row g-3">
           <div class="col-12 col-md-4 col-lg-3">
             <label class="form-label">Centro de costo</label>
@@ -94,12 +94,13 @@
             <input type="month" name="mes" class="form-control" value="{{ mes }}">
           </div>
 
-          <div class="col-12 d-flex gap-2 flex-wrap justify-content-end">
+          <div class="col-12 d-flex gap-2 flex-wrap justify-content-end align-items-center">
             <button class="btn btn-primary" type="submit">Filtrar</button>
             <a class="btn btn-secondary"
                href="{{ url_for('inasistencias.listado', mes=mes_default) }}">
               Limpiar
             </a>
+            <span id="inas-filter-count" class="cs-filter-count is-empty ms-md-auto">0 filtros activos</span>
           </div>
         </div>
       </form>
@@ -128,7 +129,7 @@
             {% endif %}
           {% endfor %}
 
-          <div class="accordion" id="accordionInasistencias">
+          <div class="accordion cs-table-card" id="accordionInasistencias">
 
             {% for fecha, regs in dias %}
               {% set idx = loop.index %}
@@ -255,7 +256,7 @@
                                   <form method="post"
                                         action="{{ url_for('inasistencias.eliminar', item_id=it.id, next=next_url) }}"
                                         class="d-inline"
-                                        onsubmit="return confirm('¿Eliminar esta inasistencia?');">
+                                        data-confirm-message="¿Eliminar esta inasistencia?">
                                     <input type="hidden" name="next" value="{{ next_url }}">
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
                                   </form>
@@ -276,8 +277,16 @@
           </div>
 
         {% else %}
-          <div class="text-center py-4 text-muted">
-            Sin registros para el filtro seleccionado.
+          <div class="cs-empty-state" role="status">
+            <div class="cs-empty-icon" aria-hidden="true">📅</div>
+            <div>
+              <h2 class="cs-empty-title">Sin inasistencias registradas</h2>
+              <p class="cs-empty-text">No hay inasistencias para el filtro seleccionado. Puedes cambiar el mes, limpiar filtros o registrar una nueva ausencia.</p>
+              <div class="cs-empty-actions">
+                <a href="{{ url_for('inasistencias.listado', mes=mes_default) }}" class="btn btn-outline-secondary btn-sm">Limpiar filtros</a>
+                <a href="{{ url_for('inasistencias.nuevo') }}" class="btn btn-primary btn-sm">Registrar inasistencia</a>
+              </div>
+            </div>
           </div>
         {% endif %}
 

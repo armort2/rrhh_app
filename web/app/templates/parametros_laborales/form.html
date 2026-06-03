@@ -1,0 +1,327 @@
+{# web/app/templates/parametros_laborales/form.html #}
+{% extends "base.html" %}
+{% block title %}
+  {% if modo == 'editar' %}Editar Parámetro Laboral{% else %}Nuevo Parámetro Laboral{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+    <div class="section-header mb-0">
+      <div class="info-chip mb-2">Motor laboral</div>
+      <h1 class="section-title">
+        {% if modo == 'editar' %}
+          Editar Parámetro Laboral
+        {% else %}
+          Nuevo Parámetro Laboral
+        {% endif %}
+      </h1>
+      <div class="section-subtitle">
+        Registro mensual de indicadores y parámetros laborales para uso transversal en el sistema.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('parametros_laborales.listado') }}">
+        ⬅ Volver
+      </a>
+    </div>
+  </div>
+
+    {% if importado_desde_previred %}
+      <div class="alert alert-success">
+        <div class="fw-semibold mb-1">PDF Previred procesado correctamente</div>
+        <div class="small">
+          Se precargaron los campos desde el archivo
+          {% if previred_pdf_nombre %}<strong>{{ previred_pdf_nombre }}</strong>{% endif %}.
+          Revisa la información antes de guardar.
+        </div>
+      </div>
+    {% endif %}
+
+    <form method="post"
+        action="{% if modo == 'editar' and row %}
+                    {{ url_for('parametros_laborales.editar_post', parametro_id=row.id) }}
+                {% else %}
+                    {{ url_for('parametros_laborales.nuevo_post') }}
+                {% endif %}">
+        <div class="row g-4">
+
+      <!-- Identificación -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="fw-semibold mb-3">Identificación del período</div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="periodo">Período (YYYY-MM)</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="periodo"
+                  name="periodo"
+                  placeholder="Ej: 2026-02"
+                  value="{{ vals.get('periodo', '') }}"
+                  required>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="fecha_vigencia_desde">Vigencia desde</label>
+                <input
+                  type="date"
+                  class="form-control"
+                  id="fecha_vigencia_desde"
+                  name="fecha_vigencia_desde"
+                  value="{{ vals.get('fecha_vigencia_desde', '') }}"
+                  required>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="fecha_vigencia_hasta">Vigencia hasta</label>
+                <input
+                  type="date"
+                  class="form-control"
+                  id="fecha_vigencia_hasta"
+                  name="fecha_vigencia_hasta"
+                  value="{{ vals.get('fecha_vigencia_hasta', '') }}"
+                  required>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Indicadores económicos -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="fw-semibold mb-3">Indicadores económicos</div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="uf">UF</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="uf"
+                  name="uf"
+                  value="{{ vals.get('uf', '') }}"
+                  placeholder="Ej: 39790.63">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="utm">UTM</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="utm"
+                  name="utm"
+                  value="{{ vals.get('utm', '') }}"
+                  placeholder="Ej: 69611">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="uta">UTA</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="uta"
+                  name="uta"
+                  value="{{ vals.get('uta', '') }}"
+                  placeholder="Ej: 835332">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rentas mínimas -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="fw-semibold mb-3">Rentas mínimas</div>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-4">
+                <label class="form-label" for="renta_minima_dependiente">Renta mínima dependiente</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="renta_minima_dependiente"
+                  name="renta_minima_dependiente"
+                  value="{{ vals.get('renta_minima_dependiente', '') }}">
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label class="form-label" for="renta_minima_menor_mayor65">Renta mínima menor de 18 / mayor de 65</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="renta_minima_menor_mayor65"
+                  name="renta_minima_menor_mayor65"
+                  value="{{ vals.get('renta_minima_menor_mayor65', '') }}">
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label class="form-label" for="renta_minima_no_remuneracional">Renta mínima no remuneracional</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="renta_minima_no_remuneracional"
+                  name="renta_minima_no_remuneracional"
+                  value="{{ vals.get('renta_minima_no_remuneracional', '') }}">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Topes imponibles -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="fw-semibold mb-3">Topes imponibles</div>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-4">
+                <label class="form-label" for="tope_imponible_afp">Tope imponible AFP</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="tope_imponible_afp"
+                  name="tope_imponible_afp"
+                  value="{{ vals.get('tope_imponible_afp', '') }}">
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label class="form-label" for="tope_imponible_inp">Tope imponible INP</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="tope_imponible_inp"
+                  name="tope_imponible_inp"
+                  value="{{ vals.get('tope_imponible_inp', '') }}">
+              </div>
+
+              <div class="col-12 col-lg-4">
+                <label class="form-label" for="tope_imponible_seguro_cesantia">Tope imponible seguro cesantía</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="tope_imponible_seguro_cesantia"
+                  name="tope_imponible_seguro_cesantia"
+                  value="{{ vals.get('tope_imponible_seguro_cesantia', '') }}">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gratificación -->
+      <div class="col-12">
+        <div class="card border-warning-subtle">
+          <div class="card-body">
+            <div class="fw-semibold mb-3">Parámetros de gratificación</div>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-6">
+                  <label class="form-label" for="gratificacion_25_por_ciento_tope_mensual">
+                  Tope mensual referencial gratificación 25%
+                  </label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="gratificacion_25_por_ciento_tope_mensual"
+                  name="gratificacion_25_por_ciento_tope_mensual"
+                  value="{{ vals.get('gratificacion_25_por_ciento_tope_mensual', '') }}">
+                  <div class="text-muted small mt-1">
+                    Calculado automáticamente desde el sueldo mínimo del período como referencia operativa mensual.
+                  </div>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label class="form-label" for="sueldo_minimo_para_gratificacion">
+                  Sueldo mínimo para gratificación
+                </label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="sueldo_minimo_para_gratificacion"
+                  name="sueldo_minimo_para_gratificacion"
+                  value="{{ vals.get('sueldo_minimo_para_gratificacion', '') }}">
+              </div>
+            </div>
+
+            <div class="text-muted small mt-2">
+              Estos campos servirán para automatizar el cálculo de gratificación y topes en finiquitos y otros módulos.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fuente -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="fw-semibold mb-3">Trazabilidad</div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="fuente">Fuente</label>
+                <select class="form-select" id="fuente" name="fuente">
+                  <option value="">-- Seleccionar --</option>
+                  <option value="MANUAL" {% if vals.get('fuente') == 'MANUAL' %}selected{% endif %}>MANUAL</option>
+                  <option value="PREVIRED" {% if vals.get('fuente') == 'PREVIRED' %}selected{% endif %}>PREVIRED</option>
+                  <option value="OTRO" {% if vals.get('fuente') == 'OTRO' %}selected{% endif %}>OTRO</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-8">
+                <label class="form-label" for="fuente_documento">Documento fuente</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="fuente_documento"
+                  name="fuente_documento"
+                  value="{{ vals.get('fuente_documento', '') }}"
+                  placeholder="Ej: Indicadores-Previsionales-Previred-Febrero-2026.pdf">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" for="observaciones">Observaciones</label>
+                <textarea
+                  class="form-control"
+                  id="observaciones"
+                  name="observaciones"
+                  rows="4"
+                  placeholder="Notas adicionales del período, criterios internos, observaciones de carga, etc.">{{ vals.get('observaciones', '') }}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="col-12">
+        <div class="d-flex justify-content-end gap-2 flex-wrap">
+          <a class="btn btn-secondary" href="{{ url_for('parametros_laborales.listado') }}">
+            Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary">
+            {% if modo == 'editar' %}
+              Guardar cambios
+            {% else %}
+              Crear parámetro
+            {% endif %}
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+</div>
+{% endblock %}

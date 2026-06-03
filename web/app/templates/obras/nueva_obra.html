@@ -15,7 +15,6 @@
         <div class="section-divider"></div>
       </div>
 
-
       <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('obras.lista_obras') }}" class="btn btn-outline-secondary">
           ← Volver
@@ -25,6 +24,7 @@
 
     <div class="card-body">
       <form method="post">
+
         <h2 class="section-title mb-3">Datos de la obra</h2>
 
         <div class="row g-3">
@@ -88,6 +88,55 @@
           </div>
         </div>
 
+        <hr class="my-4">
+
+        <h2 class="section-title mb-2">Contacto administrativo (para cartas/avisos)</h2>
+        <div class="text-muted small mb-3">
+          Estos datos alimentan los placeholders de documentos (p. ej. carta de aviso). Mantenerlos actualizados evita “planillas paralelas” 🙃.
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <label for="obra_administrativo_nombre" class="form-label">Nombre</label>
+            <input type="text" id="obra_administrativo_nombre" name="obra_administrativo_nombre"
+                   class="form-control" maxlength="120"
+                   value="{{ request.form.get('obra_administrativo_nombre','') }}"
+                   placeholder="Ej: Juan Pérez Soto">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="obra_administrativo_rut" class="form-label">RUT</label>
+            <input type="text" id="obra_administrativo_rut" name="obra_administrativo_rut"
+                   class="form-control" maxlength="20"
+                   value="{{ request.form.get('obra_administrativo_rut','') }}"
+                   placeholder="Ej: 12.345.678-9">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="obra_administrativo_cargo" class="form-label">Cargo</label>
+            <input type="text" id="obra_administrativo_cargo" name="obra_administrativo_cargo"
+                   class="form-control" maxlength="120"
+                   value="{{ request.form.get('obra_administrativo_cargo','') }}"
+                   placeholder="Ej: Administrativo de obra">
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <label for="obra_administrativo_telefono" class="form-label">Teléfono</label>
+            <input type="text" id="obra_administrativo_telefono" name="obra_administrativo_telefono"
+                   class="form-control" maxlength="30"
+                   value="{{ request.form.get('obra_administrativo_telefono','') }}"
+                   placeholder="Ej: +56 9 1234 5678">
+          </div>
+
+          <div class="col-12 col-lg-8">
+            <label for="obra_administrativo_correo" class="form-label">Correo</label>
+            <input type="email" id="obra_administrativo_correo" name="obra_administrativo_correo"
+                   class="form-control" maxlength="120"
+                   value="{{ request.form.get('obra_administrativo_correo','') }}"
+                   placeholder="Ej: admin.obra@grupo-cs.cl">
+          </div>
+        </div>
+
         <div class="d-flex justify-content-between gap-2 mt-4 flex-wrap">
           <a href="{{ url_for('obras.lista_obras') }}" class="btn btn-outline-secondary">
             Cancelar
@@ -101,29 +150,9 @@
   </div>
 </div>
 
-<script>
-  // UX simple: si el usuario marca CERRADA y no hay fecha_cierre, propone hoy.
-  (function () {
-    const estado = document.getElementById("estado");
-    const cierre = document.getElementById("fecha_cierre");
-    if (!estado || !cierre) return;
+{% endblock %}
 
-    function todayISO() {
-      const d = new Date();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${d.getFullYear()}-${mm}-${dd}`;
-    }
-
-    estado.addEventListener("change", function () {
-      if (estado.value === "CERRADA" && !cierre.value) {
-        cierre.value = todayISO();
-      }
-      if (estado.value === "ACTIVA") {
-        // Si prefieres mantener fecha manual incluso en ACTIVA, comenta esta línea:
-        cierre.value = "";
-      }
-    });
-  })();
-</script>
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/obras_form.js') }}"></script>
 {% endblock %}

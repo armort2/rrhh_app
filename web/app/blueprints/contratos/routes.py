@@ -201,6 +201,12 @@ def lista_contratos():
     inicio_desde = parse_date(inicio_desde_raw) if inicio_desde_raw else None
     inicio_hasta = parse_date(inicio_hasta_raw) if inicio_hasta_raw else None
 
+    # ✅ NUEVO: filtro por fecha de término
+    termino_desde_raw = (request.args.get("termino_desde") or "").strip()
+    termino_hasta_raw = (request.args.get("termino_hasta") or "").strip()
+    termino_desde = parse_date(termino_desde_raw) if termino_desde_raw else None
+    termino_hasta = parse_date(termino_hasta_raw) if termino_hasta_raw else None
+
     query = (
         Contrato.query
         .join(Trabajador)
@@ -223,12 +229,33 @@ def lista_contratos():
     if estado:
         query = query.filter(Contrato.estado_contrato == estado)
 
+    # Filtro por fecha de inicio
     if inicio_desde and inicio_hasta:
         query = query.filter(Contrato.fecha_inicio >= inicio_desde, Contrato.fecha_inicio <= inicio_hasta)
     elif inicio_desde:
         query = query.filter(Contrato.fecha_inicio >= inicio_desde)
     elif inicio_hasta:
         query = query.filter(Contrato.fecha_inicio <= inicio_hasta)
+
+    # ✅ NUEVO: filtro por fecha de término
+    # Nota: al comparar fechas, SQL ya excluye NULL; es decir, si filtras por término,
+    # automáticamente quedarás con contratos que sí tienen fecha_termino.
+    if termino_desde and termino_hasta:
+        query = query.filter(Contrato.fecha_termino >= termino_desde, Contrato.fecha_termino <= termino_hasta)
+    elif termino_desde:
+        query = query.filter(Contrato.fecha_termino >= termino_desde)
+    elif termino_hasta:
+        query = query.filter(Contrato.fecha_termino <= termino_hasta)
+
+    # ✅ NUEVO: selector Con/Sin fecha término
+    termino_estado = (request.args.get("termino_estado", type=str) or "").strip() or ""
+
+    # ✅ NUEVO: Con/Sin fecha término
+    # Valores esperados: "" (todas), "CON_FECHA", "SIN_FECHA"
+    if termino_estado == "CON_FECHA":
+        query = query.filter(Contrato.fecha_termino.isnot(None))
+    elif termino_estado == "SIN_FECHA":
+        query = query.filter(Contrato.fecha_termino.is_(None))
 
     contratos = (
         query.order_by(
@@ -255,6 +282,11 @@ def lista_contratos():
         filtro_estado=estado,
         filtro_inicio_desde=inicio_desde_raw,
         filtro_inicio_hasta=inicio_hasta_raw,
+        # ✅ NUEVO: pasar filtros término al template
+        filtro_termino_desde=termino_desde_raw,
+        filtro_termino_hasta=termino_hasta_raw,
+        format_rut=format_rut,
+        filtro_termino_estado=termino_estado,
     )
 
 
@@ -832,19 +864,35 @@ def generar_contrato(contrato_id):
     try:
         ensure_dir(dest_dir)
 
-        nombre_docx = generar_nombre_documento(
-            tipo=f"CONTRATO_{contrato.tipo_contrato or 'SIN_TIPO'}",
-            ap_paterno=trabajador.ap_paterno or "SIN_APELLIDO",
-            fecha_ref=contrato.fecha_inicio,
-            extension="docx",
-        )
-        docx_final = dest_dir / nombre_docx
+        # -------------------------
+        # Nombre de archivo (nuevo formato) -> UNA SOLA VEZ
+        # -------------------------
+        # Fecha en formato AAAA-MM-DD (ISO)
+        fecha_ingreso_txt = contrato.fecha_inicio.strftime("%Y-%m-%d") if contrato.fecha_inicio else "SIN_FECHA"
 
+        ap_paterno = (trabajador.ap_paterno or "").strip()
+        ap_materno = (trabajador.ap_materno or "").strip()
+        nombres = (trabajador.nombres or "").strip()
+        cargo_nombre = ((contrato.cargo.nombre if contrato.cargo else "") or "").strip()
+
+        nombre_trabajador = " ".join([p for p in [ap_paterno, ap_materno, nombres] if p])
+        nombre_base = f"{fecha_ingreso_txt} Contrato - {nombre_trabajador} ({cargo_nombre})"
+
+        # Sanitiza para filesystem (Windows/Nextcloud)
+        nombre_base = re.sub(r'[\\/:*?"<>|]+', "-", nombre_base).strip()
+        nombre_base = re.sub(r"\s+", " ", nombre_base).strip()
+
+        # Paths finales
+        docx_final = dest_dir / f"{nombre_base}.docx"
+        pdf_final = dest_dir / f"{nombre_base}.pdf"
+
+        # Carpeta temporal
         out_tmp = Path(current_app.instance_path) / "generated_docs"
         ensure_dir(out_tmp)
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         docx_tmp = out_tmp / f"tmp_contrato_{contrato.id}_{stamp}.docx"
 
+        # Generar DOCX temporal
         build_contract_docx(
             base_template_path=base_tpl,
             cargos_library_path=cargos_tpl,
@@ -853,23 +901,18 @@ def generar_contrato(contrato_id):
             output_path=docx_tmp,
         )
 
-        docx_final.write_bytes(docx_tmp.read_bytes())
+        # Guardar DOCX en Nextcloud SOLO si corresponde
+        if formato in ("DOCX", "AMBOS"):
+            docx_final.write_bytes(docx_tmp.read_bytes())
 
+        # Convertir y guardar PDF SOLO si corresponde
         if formato in ("PDF", "AMBOS"):
-            nombre_pdf = generar_nombre_documento(
-                tipo=f"CONTRATO_{contrato.tipo_contrato or 'SIN_TIPO'}",
-                ap_paterno=trabajador.ap_paterno or "SIN_APELLIDO",
-                fecha_ref=contrato.fecha_inicio,
-                extension="pdf",
-            )
-            pdf_final = dest_dir / nombre_pdf
-
             pdf_tmp_dir = out_tmp / "pdf"
             ensure_dir(pdf_tmp_dir)
             pdf_tmp = convert_docx_to_pdf(docx_tmp, pdf_tmp_dir)
-
             pdf_final.write_bytes(pdf_tmp.read_bytes())
 
+        # Mensajes consistentes
         if formato == "DOCX":
             flash("Contrato generado y guardado en Nextcloud: DOCX", "success")
         elif formato == "PDF":

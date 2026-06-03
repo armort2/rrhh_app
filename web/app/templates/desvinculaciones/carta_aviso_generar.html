@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Generar carta aviso · #{{ desv.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Generar carta de aviso</h1>
+      <div class="section-subtitle">
+        Desvinculación <strong>#{{ desv.id }}</strong> ·
+        {{ desv.trabajador.nombres }} {{ desv.trabajador.ap_paterno }} {{ desv.trabajador.ap_materno }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">⬅ Volver</a>
+    </div>
+  </div>
+
+  {# --------------------------
+     Normalizamos vals a dict
+     -------------------------- #}
+    {% set vals = vals or {} %}
+    {% set causal_id = desv.causal_id|int %}
+
+    {# ✅ NUEVO: warning suave para Art. 159 N°4 (vencimiento del plazo) #}
+    {% if warning_venc_plazo %}
+      <div class="alert alert-warning py-2 mb-3">
+        <div class="fw-semibold">⚠ Validación Art. 159 N°4</div>
+        <div class="small text-muted">{{ warning_venc_plazo }}</div>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-body">
+
+      <form method="post" action="{{ url_for('desvinculaciones.generar_carta', desvinculacion_id=desv.id) }}">
+        <div class="row g-3">
+
+          <!-- INFO CONTRATO -->
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">📌 Info contrato</div>
+
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Contrato</div>
+                    <div class="fw-semibold">#{{ desv.contrato_id }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Fecha inicio</div>
+                    <div class="fw-semibold">{{ contrato_fecha_inicio_fmt or "-" }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Fecha término</div>
+                    <div class="fw-semibold">
+                      {{ desv.fecha_termino.strftime("%d-%m-%Y") if desv.fecha_termino else "-" }}
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-muted small">Tiempo servido</div>
+                    <div class="fw-semibold">{{ tiempo_servido_fmt or "-" }}</div>
+                  </div>
+                </div>
+
+                {% if tiempo_servido_hint %}
+                  <div class="text-muted small mt-2">{{ tiempo_servido_hint }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- FORMATO -->
+          <div class="col-12 col-lg-4">
+            <label class="form-label" for="formato">Formato de salida</label>
+            <select class="form-select" id="formato" name="formato" required>
+              <option value="DOCX" {% if formato == "DOCX" %}selected{% endif %}>Word (DOCX)</option>
+              <option value="PDF" {% if formato == "PDF" %}selected{% endif %}>PDF</option>
+              <option value="AMBOS" {% if formato == "AMBOS" %}selected{% endif %}>DOCX + PDF</option>
+            </select>
+            <div class="text-muted small mt-1">
+              Recomendación: PDF para entrega/firmas; DOCX si vas a editar.
+            </div>
+          </div>
+
+          <div class="col-12">
+            <hr class="my-2">
+            <div class="fw-semibold">Datos específicos según causal</div>
+            <div class="text-muted small">
+              Solo se muestran los campos que aplica la carta. El sistema recupera montos desde el último finiquito si existen.
+            </div>
+          </div>
+
+          {# =========================
+             Art. 160 N°3 (inasistencias) - causal_id == 7
+             ========================= #}
+          {% if causal_id == 7 %}
+            <div class="col-12">
+              <div class="card">
+                <div class="card-body">
+                  <div class="fw-semibold mb-2">📌 Art. 160 N°3 · Detalle inasistencias</div>
+
+                  {# Pista visual si el backend trajo sugerencias #}
+                  {% if vals.get("SUGERIDO_DESDE_INASISTENCIAS") %}
+                    <div class="alert alert-info py-2 mb-3">
+                      <div class="fw-semibold">Sugerencia automática aplicada</div>
+                      <div class="small text-muted">
+                        El sistema cargó inasistencias desde el módulo de asistencia
+                        {% if vals.get("INASISTENCIAS_COUNT") is not none %}
+                          ({{ vals.get("INASISTENCIAS_COUNT") }} registro(s)).
+                        {% else %}
+                          .
+                        {% endif %}
+                      </div>
+                      {% if vals.get("INASISTENCIAS_RESUMEN") %}
+                        <div class="small mt-1">
+                          <span class="text-muted">Resumen:</span>
+                          <span class="fw-semibold">{{ vals.get("INASISTENCIAS_RESUMEN") }}</span>
+                        </div>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+
+                  <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                      <label class="form-label" for="CAUSAL_7_FRASE_DIAS">Frase</label>
+                      <input
+                        class="form-control"
+                        id="CAUSAL_7_FRASE_DIAS"
+                        name="CAUSAL_7_FRASE_DIAS"
+                        value="{{ vals.get('CAUSAL_7_FRASE_DIAS', '') }}"
+                        placeholder="Ej: dos días seguidos en el mes / tres días en el mes / dos días lunes en el mes"
+                        autocomplete="off"
+                      >
+                      <div class="text-muted small mt-1">
+                        Esta frase va a {{ "{{CAUSAL_7_FRASE_DIAS}}" }} en el DOCX.
+                      </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6">
+                      <label class="form-label" for="CAUSAL_7_DETALLE_DIAS">Detalle días</label>
+                      <input
+                        class="form-control"
+                        id="CAUSAL_7_DETALLE_DIAS"
+                        name="CAUSAL_7_DETALLE_DIAS"
+                        value="{{ vals.get('CAUSAL_7_DETALLE_DIAS', '') }}"
+                        placeholder="Ej: los días 03, 04, 10 y 17 de enero de 2026"
+                        autocomplete="off"
+                      >
+                      <div class="text-muted small mt-1">
+                        Este detalle va a {{ "{{CAUSAL_7_DETALLE_DIAS}}" }} en el DOCX.
+                      </div>
+                    </div>
+                  </div>
+
+                  {# Si por cualquier razón llegó vacío, dejamos una pista útil #}
+                  {% if not vals.get('CAUSAL_7_FRASE_DIAS') and not vals.get('CAUSAL_7_DETALLE_DIAS') %}
+                    <div class="text-muted small mt-3">
+                      Nota: si esperabas que estos campos se autocompleten, revisa que existan inasistencias del trabajador
+                      con el motivo exacto configurado como “Ausencia injustificada” (match textual) y que correspondan al mes/año
+                      de la desvinculación.
+                    </div>
+                  {% endif %}
+
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          {# =========================
+             Art. 161 (necesidades) - tu causal 8
+             ========================= #}
+          {% if causal_id == 8 %}
+            <div class="col-12">
+              <div class="card">
+                <div class="card-body">
+                  <div class="fw-semibold mb-2">📌 Art. 161 · Necesidades de la empresa</div>
+
+                  {# ✅ Presets de texto (UX: seleccionable + inserción) #}
+                  <div class="row g-3 align-items-end mb-2">
+                    <div class="col-12 col-lg-8">
+                      <label class="form-label" for="CAUSAL_8_PRESET_KEY">Texto sugerido (elige una alternativa)</label>
+                      <select class="form-select" id="CAUSAL_8_PRESET_KEY" name="CAUSAL_8_PRESET_KEY">
+                        <option value="">— Sin sugerencia (escritura manual) —</option>
+                        {% for opt in causal_8_presets or [] %}
+                          <option value="{{ opt.key }}"
+                                  data-text="{{ opt.text|e }}"
+                                  {% if (vals.get("CAUSAL_8_PRESET_KEY") or "") == opt.key %}selected{% endif %}>
+                            {{ opt.label }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                      <div class="text-muted small mt-1">
+                        Consejo: elige un preset y luego ajusta al caso concreto (sin “novelas”, con hechos).
+                      </div>
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                      <div class="d-flex gap-2 flex-wrap justify-content-lg-end">
+                        <button class="btn btn-outline-primary" type="button" id="btnPresetReplace">
+                          Insertar (reemplazar)
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" id="btnPresetAppend">
+                          Insertar (agregar)
+                        </button>
+                      </div>
+                      <div class="text-muted small mt-1 text-lg-end">
+                        “Reemplazar” pisa el texto; “Agregar” lo suma al final.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-12">
+                      <label class="form-label" for="CAUSAL_8_FRASE">Motivo (redacción para la carta)</label>
+                      <textarea
+                        class="form-control"
+                        id="CAUSAL_8_FRASE"
+                        name="CAUSAL_8_FRASE"
+                        rows="4"
+                        placeholder="Ej: reestructuración interna, disminución de dotación por avance, optimización operativa, etc."
+                      >{{ vals.get('CAUSAL_8_FRASE', '') }}</textarea>
+                      <div class="text-muted small mt-1">
+                        Tip: que sea específico, sobrio y defendible (como buen ERP conservador 😄).
+                      </div>
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                      <label class="form-label" for="FINIQUITO_AVISO_PREVIO">Indemnización falta aviso previo</label>
+                      <input class="form-control" id="FINIQUITO_AVISO_PREVIO" name="FINIQUITO_AVISO_PREVIO"
+                             value="{{ vals.get('FINIQUITO_AVISO_PREVIO', '') }}">
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                      <label class="form-label" for="FINIQUITO_ANIOS_SERVICIOS">Indemnización años de servicio</label>
+                      <input class="form-control" id="FINIQUITO_ANIOS_SERVICIOS" name="FINIQUITO_ANIOS_SERVICIOS"
+                             value="{{ vals.get('FINIQUITO_ANIOS_SERVICIOS', '') }}">
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                      <label class="form-label" for="FINIQUITO_INDEM_VOLUNTARIA">Indemnización voluntaria (si aplica)</label>
+                      <input class="form-control" id="FINIQUITO_INDEM_VOLUNTARIA" name="FINIQUITO_INDEM_VOLUNTARIA"
+                             value="{{ vals.get('FINIQUITO_INDEM_VOLUNTARIA', '') }}">
+                    </div>
+
+                    <div class="col-12">
+                      <div class="text-muted small">
+                        Tiempo servido a insertar:
+                        <span class="fw-semibold">{{ tiempo_servido_fmt or '-' }}</span>
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <div class="alert alert-warning py-2 mb-0">
+                        <div class="fw-semibold">Checklist rápido 🧾</div>
+                        <div class="small text-muted">
+                          Alinea el texto con decisiones organizacionales reales (reorganización/etapas/ajuste dotación).
+                          Evita referencias personales. Si hay respaldo documental interno, mejor.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            {# ✅ JS mínimo para presets (sin dependencias) #}
+            
+          {% endif %}
+
+          <div class="col-12">
+            <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
+              <a class="btn btn-secondary" href="{{ url_for('desvinculaciones.detalle', desvinculacion_id=desv.id) }}">Cancelar</a>
+              <button type="submit" class="btn btn-primary">Generar carta</button>
+            </div>
+          </div>
+
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/desvinculaciones_carta_aviso.js') }}"></script>
+{% endblock %}

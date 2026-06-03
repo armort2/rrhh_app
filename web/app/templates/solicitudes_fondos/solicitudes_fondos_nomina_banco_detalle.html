@@ -1,0 +1,134 @@
+{# web/app/templates/solicitudes_fondos/solicitudes_fondos_nomina_banco_detalle #}
+{% extends "base.html" %}
+{% block title %}Nómina Bancaria #{{ nomina.numero }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Nómina bancaria #{{ nomina.numero }}</h1>
+      <div class="section-subtitle">
+        Período {{ nomina.periodo_ym }} · Corte {{ nomina.periodo_tipo_label }} · Tipo pago {{ nomina.tipo_pago_label }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap cs-detail-actions">
+      <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.nominas_banco') }}">
+        ⬅ Volver
+      </a>
+      <a class="btn btn-success" href="{{ url_for('solicitudes_fondos.nominas_banco_descargar_persistida', nomina_id=nomina.id) }}">
+        ⬇ Descargar XLSX
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted small">Estado</div>
+          <div class="fw-semibold">{{ nomina.estado_label }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted small">Fecha generación</div>
+          <div class="fw-semibold">{{ nomina.fecha_generacion }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted small">Registros</div>
+          <div class="fw-semibold">{{ nomina.detalles|length }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted small">Total nómina</div>
+          <div class="fw-semibold">$ {{ fmt_clp_text(nomina.total_monto) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <div class="text-muted small">Creado por</div>
+          <div class="fw-semibold">{{ nomina.creado_por.nombre if nomina.creado_por else "-" }}</div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="text-muted small">Observaciones</div>
+          <div>{{ nomina.observaciones or "-" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="fw-semibold">Detalle</div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Origen</th>
+              <th>Sección</th>
+              <th>Beneficiario</th>
+              <th>Documento</th>
+              <th>Glosa</th>
+              <th class="text-end" style="width:160px;">Original</th>
+              <th class="text-end" style="width:160px;">Pagado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if not nomina.detalles %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">Sin registros.</td>
+              </tr>
+            {% else %}
+              {% for d in nomina.detalles %}
+                <tr>
+                  <td>
+                    <div>{{ d.origen_label }}</div>
+                    {% if d.solicitud %}
+                      <a class="small" href="{{ url_for('solicitudes_fondos.detalle', solicitud_id=d.solicitud.id) }}">Solicitud #{{ d.solicitud.numero }}</a>
+                    {% endif %}
+                  </td>
+                  <td>{{ d.seccion }}</td>
+                  <td>
+                    <div class="fw-semibold">{{ d.nombre_beneficiario }}</div>
+                    <div class="text-muted small">
+                      RUT: {{ d.rut_beneficiario or "-" }}
+                      {% if d.codigo_banco or d.cuenta_destino %}
+                        · Banco: {{ d.codigo_banco or "-" }}
+                        · Cuenta: {{ d.cuenta_destino or "-" }}
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>{{ d.nro_documento or "-" }}</td>
+                  <td>{{ d.glosa or "-" }}</td>
+                  <td class="text-end">$ {{ fmt_clp_text(d.monto_original) }}</td>
+                  <td class="text-end fw-semibold">$ {{ fmt_clp_text(d.monto_pagado_en_esta_nomina) }}</td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

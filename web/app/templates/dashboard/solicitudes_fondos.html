@@ -1,0 +1,551 @@
+{# web/app/templates/dashboard/solicitudes_fondos.html #}
+{% extends "base.html" %}
+
+{% block title %}Dashboard · Solicitudes de Fondos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div class="section-header mb-0">
+      <div class="info-chip mb-2">Dashboard financiero operacional</div>
+      <h1 class="section-title mb-1">Solicitudes de Fondos</h1>
+      <div class="section-subtitle">
+        Vista consolidada de remuneraciones, rendiciones, contratistas/proveedores y pagos varios.
+        <br>
+        <small class="text-muted">
+          Rango consultado:
+          <strong>{{ periodo_desde or '—' }}</strong>
+          a
+          <strong>{{ periodo_hasta or '—' }}</strong>
+
+          {% if periodo_tipo %}
+            · Tipo:
+            <strong>{{ 'Quincena' if periodo_tipo == 'QUINCENA' else 'Fin de mes' }}</strong>
+          {% else %}
+            · Tipo: <strong>Todos</strong>
+          {% endif %}
+
+          {% if centro_costo %}
+            · CC: <strong>{{ centro_costo }}</strong>
+          {% endif %}
+
+          {% if estado %}
+            · Estado: <strong>{{ estado }}</strong>
+          {% endif %}
+        </small>
+      </div>
+    </div>
+  </div>
+
+  {# =========================================================
+     Filtros premium
+     ========================================================= #}
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="form-label">Período desde</label>
+          <input
+            type="month"
+            name="periodo_desde"
+            class="form-control"
+            value="{{ periodo_desde or '' }}"
+          >
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="form-label">Período hasta</label>
+          <input
+            type="month"
+            name="periodo_hasta"
+            class="form-control"
+            value="{{ periodo_hasta or '' }}"
+          >
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="form-label">Tipo de período</label>
+          <select name="periodo_tipo" class="form-select">
+            <option value="" {% if not periodo_tipo %}selected{% endif %}>Todos</option>
+            <option value="QUINCENA" {% if periodo_tipo == 'QUINCENA' %}selected{% endif %}>Quincena</option>
+            <option value="FIN_MES" {% if periodo_tipo == 'FIN_MES' %}selected{% endif %}>Fin de mes</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="form-label">Centro de costo</label>
+          <select name="centro_costo" class="form-select">
+            <option value="" {% if not centro_costo %}selected{% endif %}>(Todos)</option>
+            {% for cc in centros_costos %}
+              <option value="{{ cc }}" {% if centro_costo == cc %}selected{% endif %}>{{ cc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-2">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="" {% if not estado %}selected{% endif %}>(Todos)</option>
+            <option value="BORRADOR" {% if estado == 'BORRADOR' %}selected{% endif %}>BORRADOR</option>
+            <option value="ENVIADA" {% if estado == 'ENVIADA' %}selected{% endif %}>ENVIADA</option>
+            <option value="APROBADA" {% if estado == 'APROBADA' %}selected{% endif %}>APROBADA</option>
+            <option value="RECHAZADA" {% if estado == 'RECHAZADA' %}selected{% endif %}>RECHAZADA</option>
+            <option value="PAGADA" {% if estado == 'PAGADA' %}selected{% endif %}>PAGADA</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-2">
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-funnel me-1"></i> Aplicar filtros
+            </button>
+            <a href="{{ url_for('dashboard.solicitudes_fondos') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
+            </a>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# =========================================================
+     KPIs
+     ========================================================= #}
+  {% set remu_val = totales_por_seccion["REMU"] %}
+  {% set rend_val = totales_por_seccion["REND"] %}
+  {% set terc_val = totales_por_seccion["TERC"] %}
+  {% set var_val = totales_por_seccion["VAR"] %}
+
+  {% if remu_val >= rend_val and remu_val >= terc_val and remu_val >= var_val %}
+    {% set top_sec = "REMU" %}
+    {% set top_sec_label = "Remuneraciones" %}
+  {% elif rend_val >= terc_val and rend_val >= var_val %}
+    {% set top_sec = "REND" %}
+    {% set top_sec_label = "Rendiciones" %}
+  {% elif terc_val >= var_val %}
+    {% set top_sec = "TERC" %}
+    {% set top_sec_label = "Contratistas y Proveedores" %}
+  {% else %}
+    {% set top_sec = "VAR" %}
+    {% set top_sec_label = "Pagos varios" %}
+  {% endif %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small text-uppercase mb-1">Total solicitado</div>
+          <div class="fs-3 fw-bold">${{ "{:,.0f}".format(total_general).replace(",", ".") }}</div>
+          <div class="small text-muted mt-2">Suma consolidada del rango filtrado.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small text-uppercase mb-1">Solicitudes</div>
+          <div class="fs-3 fw-bold">{{ total_solicitudes }}</div>
+          <div class="small text-muted mt-2">Cantidad de solicitudes encontradas.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small text-uppercase mb-1">Ticket promedio</div>
+          <div class="fs-3 fw-bold">${{ "{:,.0f}".format(ticket_promedio).replace(",", ".") }}</div>
+          <div class="small text-muted mt-2">Promedio por solicitud dentro del rango.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small text-uppercase mb-1">Sección líder</div>
+          <div class="fs-4 fw-bold">{{ top_sec }}</div>
+          <div class="small text-muted mt-2">{{ top_sec_label }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# =========================================================
+     Evolución pro con Chart.js
+     ========================================================= #}
+  {% if mostrar_evolucion_rango %}
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white border-0 pb-0">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <h5 class="mb-1">Evolución de montos solicitados</h5>
+            <div class="text-muted small">
+              Comportamiento mensual consolidado del rango seleccionado.
+            </div>
+          </div>
+          <span class="badge text-bg-light border">
+            {{ periodo_desde }} → {{ periodo_hasta }}
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div style="position: relative; height: 360px;">
+          <canvas id="chartEvolucionSolicitudes"></canvas>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {# =========================================================
+     Distribución + histórico resumido
+     ========================================================= #}
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">Distribución por sección</h5>
+          <div class="text-muted small">Participación de cada tipo de desembolso.</div>
+        </div>
+        <div class="card-body">
+          {% set total_base = total_general if total_general > 0 else 1 %}
+
+          {% for codigo, etiqueta in [
+            ("REMU", "Remuneraciones"),
+            ("REND", "Rendiciones de gastos"),
+            ("TERC", "Contratistas y Proveedores"),
+            ("VAR", "Pagos varios")
+          ] %}
+            {% set valor = totales_por_seccion[codigo] %}
+            {% set pct = ((valor / total_base) * 100) if total_general > 0 else 0 %}
+
+            <div class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-semibold">{{ etiqueta }}</span>
+                <span class="text-muted small">{{ "%.1f"|format(pct) }}%</span>
+              </div>
+
+              <div class="d-flex justify-content-between small text-muted mb-2">
+                <span>{{ codigo }}</span>
+                <strong>${{ "{:,.0f}".format(valor).replace(",", ".") }}</strong>
+              </div>
+
+              <div class="progress" style="height: 12px; border-radius: 999px;">
+                <div
+                  class="progress-bar js-progress-width"
+                  role="progressbar"
+                  data-width="{{ '%.2f'|format(pct) }}"
+                  aria-valuenow="{{ pct }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">Resumen histórico reciente</h5>
+          <div class="text-muted small">Últimos períodos con información disponible.</div>
+        </div>
+        <div class="card-body">
+          {% set max_total = (evolucion_meses | map(attribute='TOTAL') | max) if evolucion_meses else 0 %}
+          {% set max_total = max_total if max_total > 0 else 1 %}
+
+          {% for row in evolucion_meses %}
+            {% set ancho = (row.TOTAL / max_total) * 100 %}
+            <div class="mb-3">
+              <div class="d-flex justify-content-between small mb-1">
+                <span>{{ row.periodo }}</span>
+                <strong>${{ "{:,.0f}".format(row.TOTAL).replace(",", ".") }}</strong>
+              </div>
+
+              <div class="progress" style="height: 12px; border-radius: 999px;">
+                <div
+                  class="progress-bar js-progress-width"
+                  role="progressbar"
+                  data-width="{{ '%.2f'|format(ancho) }}"
+                  aria-valuenow="{{ ancho }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></div>
+              </div>
+
+              <div class="small text-muted mt-1">
+                REMU: ${{ "{:,.0f}".format(row.REMU).replace(",", ".") }}
+                · REND: ${{ "{:,.0f}".format(row.REND).replace(",", ".") }}
+                · TERC: ${{ "{:,.0f}".format(row.TERC).replace(",", ".") }}
+                · VAR: ${{ "{:,.0f}".format(row.VAR).replace(",", ".") }}
+              </div>
+            </div>
+          {% else %}
+            <div class="text-center text-muted py-4">
+              Sin información histórica disponible.
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# =========================================================
+     NUEVO: Desglose ejecutivo por componente
+     ========================================================= #}
+  <div class="row g-3 mb-4">
+
+    <div class="col-12 col-xxl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">REMU · Desglose por tipo</h5>
+          <div class="text-muted small">Distribución del gasto en remuneraciones.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Tipo</th>
+                <th class="text-end">Mov.</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">% REMU</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in remu_desglose %}
+                <tr>
+                  <td><strong>{{ row.tipo }}</strong></td>
+                  <td class="text-end">{{ row.cantidad }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.total).replace(",", ".") }}</td>
+                  <td class="text-end">{{ "%.1f"|format(row.pct) }}%</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Sin detalle de remuneraciones para este filtro.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xxl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">REND · Rendiciones por responsable</h5>
+          <div class="text-muted small">Quién rindió y cuánto dentro del período consultado.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Trabajador</th>
+                <th class="text-end">Rend.</th>
+                <th class="text-end">Promedio</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rend_desglose %}
+                <tr>
+                  <td><strong>{{ row.trabajador or 'SIN IDENTIFICAR' }}</strong></td>
+                  <td class="text-end">{{ row.cantidad }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.promedio).replace(",", ".") }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.total).replace(",", ".") }}</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Sin rendiciones asociadas para este filtro.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xxl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">TERC · Pagos por tercero / beneficiario</h5>
+          <div class="text-muted small">Concentración de pagos a contratistas y proveedores.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Beneficiario</th>
+                <th class="text-end">Mov.</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">% TERC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in terc_desglose %}
+                <tr>
+                  <td><strong>{{ row.beneficiario or 'SIN IDENTIFICAR' }}</strong></td>
+                  <td class="text-end">{{ row.cantidad }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.total).replace(",", ".") }}</td>
+                  <td class="text-end">{{ "%.1f"|format(row.pct) }}%</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Sin pagos a terceros para este filtro.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xxl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">VAR · Pagos varios desglosados</h5>
+          <div class="text-muted small">Movimientos agrupados por beneficiario o descripción.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Beneficiario / detalle</th>
+                <th class="text-end">Mov.</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">% VAR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in var_desglose %}
+                <tr>
+                  <td><strong>{{ row.beneficiario or 'SIN IDENTIFICAR' }}</strong></td>
+                  <td class="text-end">{{ row.cantidad }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.total).replace(",", ".") }}</td>
+                  <td class="text-end">{{ "%.1f"|format(row.pct) }}%</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Sin pagos varios para este filtro.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# =========================================================
+     Tablas principales
+     ========================================================= #}
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">Resumen por centro de costo</h5>
+          <div class="text-muted small">Concentración de solicitudes por CC.</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Centro de costo</th>
+                <th class="text-end">Solicitudes</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Última fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in resumen_cc %}
+                <tr>
+                  <td><strong>{{ row.centro_costo }}</strong></td>
+                  <td class="text-end">{{ row.cantidad }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.total).replace(",", ".") }}</td>
+                  <td class="text-end">
+                    {{ row.ultima_fecha.strftime("%d-%m-%Y") if row.ultima_fecha else "-" }}
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">
+                    Sin datos para el filtro aplicado.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-1">Últimas solicitudes</h5>
+          <div class="text-muted small">Últimos folios encontrados en el rango consultado.</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>N°</th>
+                <th>Fecha</th>
+                <th>CC</th>
+                <th>Estado</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in ultimas_solicitudes %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('solicitudes_fondos.detalle', solicitud_id=row.id) }}">
+                      {{ row.numero or row.id }}
+                    </a>
+                  </td>
+                  <td>{{ row.fecha_solicitud.strftime("%d-%m-%Y") if row.fecha_solicitud else "-" }}</td>
+                  <td>{{ row.centro_costo or "-" }}</td>
+                  <td>{{ row.estado or "-" }}</td>
+                  <td class="text-end">${{ "{:,.0f}".format(row.total).replace(",", ".") }}</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-4">
+                    No hay solicitudes en este período.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+{% if mostrar_evolucion_rango %}
+  <script id="serie-rango-data" type="application/json">
+    {{ serie_rango | tojson }}
+  </script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {% if mostrar_evolucion_rango %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  {% endif %}
+  <script src="{{ url_for('static', filename='js/dashboard_solicitudes_fondos.js') }}"></script>
+{% endblock %}

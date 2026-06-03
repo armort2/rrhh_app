@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Previsualización · Pago proveedores{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header">
+    <div class="section-title">Previsualización de importación</div>
+    <div class="section-subtitle">
+      Archivo: <strong>{{ archivo_origen }}</strong> · Período: {{ "%02d"|format(mes) }}/{{ anio }}
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header fw-semibold">Archivos preview</div>
+        <div class="card-body">
+          {% if resultados %}
+            <div class="list-group">
+              {% for r in resultados %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-semibold">{{ r.pagador }}</div>
+                    <div class="text-muted small">
+                      Items: {{ r.total_items }} · Total: ${{ "{:,.0f}".format(r.total_monto or 0).replace(",", ".") }}
+                    </div>
+                  </div>
+                  <a class="btn btn-sm btn-outline-success"
+                     href="{{ url_for('pago_proveedores.descargar_preview', token=token, filename=r.archivo) }}">
+                    Descargar preview
+                  </a>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No se generaron filas válidas.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <form method="post" action="{{ url_for('pago_proveedores.cancelar_preview', token=token) }}">
+          <button class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+        </form>
+
+        <form method="post" action="{{ url_for('pago_proveedores.guardar_preview', token=token) }}">
+          <button class="btn btn-primary" {% if not resultados %}disabled{% endif %}>
+            <i class="bi bi-check2-circle"></i> Guardar
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header fw-semibold">Excluidos / Observaciones</div>
+        <div class="card-body">
+          {% if excluidos %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Fila</th>
+                    <th>Pagador</th>
+                    <th>RUT</th>
+                    <th>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in excluidos %}
+                    <tr>
+                      <td>{{ e.fila or "" }}</td>
+                      <td>{{ e.pagador or "" }}</td>
+                      <td>{{ e.rut or "" }}</td>
+                      <td class="text-danger">{{ e.motivo }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Sin excluidos 🎉</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

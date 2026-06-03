@@ -18,7 +18,6 @@
         <div class="section-divider"></div>
       </div>
 
-
       <div class="d-flex gap-2 flex-wrap align-items-center">
         <a class="btn btn-outline-secondary" href="{{ url_for('obras.lista_obras') }}">⬅ Volver</a>
 
@@ -89,6 +88,50 @@
             <div class="form-text">
               Recomendación: si cierras la obra, el sistema asigna fecha de cierre automáticamente si está vacía.
             </div>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <h2 class="section-title mb-2">Contacto administrativo (para cartas/avisos)</h2>
+        <div class="text-muted small mb-3">
+          Estos datos se usan en placeholders de documentos (carta de aviso, etc.).
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <label for="obra_administrativo_nombre" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="obra_administrativo_nombre" name="obra_administrativo_nombre"
+                   value="{{ obra.obra_administrativo_nombre or '' }}" maxlength="120"
+                   placeholder="Ej: Juan Pérez Soto">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="obra_administrativo_rut" class="form-label">RUT</label>
+            <input type="text" class="form-control" id="obra_administrativo_rut" name="obra_administrativo_rut"
+                   value="{{ obra.obra_administrativo_rut or '' }}" maxlength="20"
+                   placeholder="Ej: 12.345.678-9">
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label for="obra_administrativo_cargo" class="form-label">Cargo</label>
+            <input type="text" class="form-control" id="obra_administrativo_cargo" name="obra_administrativo_cargo"
+                   value="{{ obra.obra_administrativo_cargo or '' }}" maxlength="120"
+                   placeholder="Ej: Administrativo de obra">
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <label for="obra_administrativo_telefono" class="form-label">Teléfono</label>
+            <input type="text" class="form-control" id="obra_administrativo_telefono" name="obra_administrativo_telefono"
+                   value="{{ obra.obra_administrativo_telefono or '' }}" maxlength="30"
+                   placeholder="Ej: +56 9 1234 5678">
+          </div>
+
+          <div class="col-12 col-lg-8">
+            <label for="obra_administrativo_correo" class="form-label">Correo</label>
+            <input type="email" class="form-control" id="obra_administrativo_correo" name="obra_administrativo_correo"
+                   value="{{ obra.obra_administrativo_correo or '' }}" maxlength="120"
+                   placeholder="Ej: admin.obra@grupo-cs.cl">
           </div>
         </div>
 

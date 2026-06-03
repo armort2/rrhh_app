@@ -1,0 +1,122 @@
+{# web/app/templates/anexos_cambio_cargo/nuevo.html #}
+{% extends "base.html" %}
+{% block title %}Anexo cambio de cargo · Contrato #{{ contrato.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Generar anexo de cambio de cargo</h1>
+      <div class="section-subtitle">
+        Contrato <strong>#{{ contrato.id }}</strong> ·
+        <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">⬅ Volver</a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning mb-3" role="alert">
+    <strong>Importante:</strong> al confirmar, el sistema generará el anexo, insertará la descripción del cargo desde
+    <strong>cargos.docx</strong> y <strong>actualizará el cargo vigente del contrato</strong>. Revisar antes de guardar: aquí no hay Ctrl+Z mágico, solo buenas migraciones 😄.
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Trabajador</label>
+          <div>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</div>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Empleador</label>
+          <div>{{ contrato.empleador.razon_social if contrato.empleador else "Sin empleador" }}</div>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Obra</label>
+          <div>{{ contrato.obra.nombre if contrato.obra else "Sin obra" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% set cargo_actual_id = contrato.cargo.id if contrato.cargo else 0 %}
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post"
+            action="{{ url_for('anexos_cambio_cargo.crear', contrato_id=contrato.id) }}"
+            id="form-anexo-cambio-cargo"
+            data-cargo-actual-id="{{ cargo_actual_id }}"
+            novalidate
+            data-submitted="0">
+
+        <div class="row g-3">
+          <div class="col-12 col-md-3">
+            <label for="fecha_cambio" class="form-label">Fecha del cambio</label>
+            <input type="date" id="fecha_cambio" name="fecha_cambio" class="form-control">
+            <div class="form-text">Se usará en la frase “A contar del día…”.</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label for="formato" class="form-label">Formato</label>
+            <select id="formato" name="formato" class="form-select">
+              <option value="DOCX">DOCX</option>
+              <option value="PDF">PDF</option>
+              <option value="AMBOS" selected>AMBOS</option>
+            </select>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <h2 class="h6 text-uppercase mb-3" style="letter-spacing:.06em; color: var(--cs-brown);">
+          Cambio de cargo
+        </h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Cargo actual</label>
+            <div class="form-control bg-light">{{ contrato.cargo.nombre if contrato.cargo else "Sin cargo asignado" }}</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="cargo_nuevo_id" class="form-label">Nuevo cargo</label>
+            <select id="cargo_nuevo_id" name="cargo_nuevo_id" class="form-select" required>
+              <option value="">Seleccionar nuevo cargo...</option>
+              {% for c in cargos %}
+                <option value="{{ c.id }}" data-current="{{ 1 if contrato.cargo and c.id == contrato.cargo.id else 0 }}">
+                  {{ c.nombre }}{% if c.categoria %} · {{ c.categoria }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback">Selecciona un cargo distinto al actual.</div>
+            <div class="form-text">La descripción contractual se tomará desde el marcador <code>CARGO_ID__DESCRIPCION</code> de cargos.docx.</div>
+          </div>
+
+          <div class="col-12">
+            <label for="observaciones" class="form-label">Observaciones internas</label>
+            <textarea id="observaciones" name="observaciones" rows="3" class="form-control"
+                      placeholder="Opcional: motivo del cambio, respaldo de autorización, instrucción de jefatura, etc."></textarea>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
+          <a class="btn btn-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato.id) }}">⬅ Volver</a>
+          <button class="btn btn-primary" type="submit" id="btn-submit">🧾 Generar anexo y actualizar contrato</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/anexos_cambio_cargo_form.js') }}"></script>
+{% endblock %}
+

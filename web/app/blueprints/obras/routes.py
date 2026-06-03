@@ -28,6 +28,18 @@ def _parse_date(value: str | None):
         return None
 
 
+def _s(val: str | None, *, lower: bool = False) -> str | None:
+    """
+    Normaliza strings: strip + None si vacío.
+    """
+    if val is None:
+        return None
+    out = val.strip()
+    if not out:
+        return None
+    return out.lower() if lower else out
+
+
 # ---------------------------
 # Routes
 # ---------------------------
@@ -47,12 +59,19 @@ def lista_obras():
 @role_required("ADMIN")
 def nueva_obra():
     if request.method == "POST":
-        nombre = (request.form.get("nombre") or "").strip()
-        codigo = (request.form.get("codigo") or "").strip()
+        nombre = _s(request.form.get("nombre"))
+        codigo = _s(request.form.get("codigo"))
 
-        centro_costo = (request.form.get("centro_costo") or "").strip() or None
-        direccion = (request.form.get("direccion") or "").strip() or None
-        comuna = (request.form.get("comuna") or "").strip() or None
+        centro_costo = _s(request.form.get("centro_costo"))
+        direccion = _s(request.form.get("direccion"))
+        comuna = _s(request.form.get("comuna"))
+
+        # Contacto administrativo
+        admin_nombre = _s(request.form.get("obra_administrativo_nombre"))
+        admin_rut = _s(request.form.get("obra_administrativo_rut"))
+        admin_telefono = _s(request.form.get("obra_administrativo_telefono"))
+        admin_correo = _s(request.form.get("obra_administrativo_correo"), lower=True)
+        admin_cargo = _s(request.form.get("obra_administrativo_cargo"))
 
         estado = (request.form.get("estado") or "ACTIVA").strip() or "ACTIVA"
         if estado not in ("ACTIVA", "CERRADA"):
@@ -80,6 +99,12 @@ def nueva_obra():
             estado=estado,
             fecha_inicio=fecha_inicio,
             fecha_cierre=fecha_cierre,
+
+            obra_administrativo_nombre=admin_nombre,
+            obra_administrativo_rut=admin_rut,
+            obra_administrativo_telefono=admin_telefono,
+            obra_administrativo_correo=admin_correo,
+            obra_administrativo_cargo=admin_cargo,
         )
         db.session.add(o)
 
@@ -103,8 +128,8 @@ def editar_obra(obra_id: int):
     obra = Obra.query.get_or_404(obra_id)
 
     if request.method == "POST":
-        codigo = (request.form.get("codigo") or "").strip()
-        nombre = (request.form.get("nombre") or "").strip()
+        codigo = _s(request.form.get("codigo"))
+        nombre = _s(request.form.get("nombre"))
 
         if not (nombre and codigo):
             flash("Nombre y código son obligatorios.", "warning")
@@ -126,9 +151,16 @@ def editar_obra(obra_id: int):
         obra.codigo = codigo
         obra.nombre = nombre
 
-        obra.centro_costo = (request.form.get("centro_costo") or "").strip() or None
-        obra.direccion = (request.form.get("direccion") or "").strip() or None
-        obra.comuna = (request.form.get("comuna") or "").strip() or None
+        obra.centro_costo = _s(request.form.get("centro_costo"))
+        obra.direccion = _s(request.form.get("direccion"))
+        obra.comuna = _s(request.form.get("comuna"))
+
+        # Contacto administrativo
+        obra.obra_administrativo_nombre = _s(request.form.get("obra_administrativo_nombre"))
+        obra.obra_administrativo_rut = _s(request.form.get("obra_administrativo_rut"))
+        obra.obra_administrativo_telefono = _s(request.form.get("obra_administrativo_telefono"))
+        obra.obra_administrativo_correo = _s(request.form.get("obra_administrativo_correo"), lower=True)
+        obra.obra_administrativo_cargo = _s(request.form.get("obra_administrativo_cargo"))
 
         obra.estado = estado
         obra.fecha_inicio = fecha_inicio

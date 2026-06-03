@@ -1,0 +1,212 @@
+{# web/app/templates/rendiciones_gastos/rendiciones_gastos_imprimir_pdf.html #}
+{% extends "print_base_pdf.html" %}
+
+{% block title %}Rendición de Gastos PDF · N° {{ r.numero or r.id }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ✅ Aire arriba del header (running element) */
+  .header { padding-top: 5mm; }
+
+  .brand-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: #7a1f16;
+    letter-spacing: .2px;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .header-meta {
+    margin-top: 2mm;
+    font-size: 10px;
+    color: #444;
+    line-height: 1.25;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 900;
+    margin: 6mm 0 1.5mm;
+  }
+
+  .section-subtitle {
+    font-size: 10px;
+    color: #444;
+    margin: 0 0 3mm;
+  }
+
+  .hr {
+    height: 1px;
+    background: #ddd;
+    margin: 8px 0 10px;
+  }
+
+  /* Tabla compacta + anchos estables en WeasyPrint */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* 👈 clave para respetar widths */
+  }
+
+  th, td {
+    padding: 3px 4px;              /* antes 3px 5px */
+    border-bottom: 1px solid #e6e6e6;
+    vertical-align: top;
+  }
+
+  td {
+    font-size: 9.5px;
+    color: #222;
+    line-height: 1.15;
+  }
+
+  th { font-size: 9.5px; }
+
+  .money { text-align: right; white-space: nowrap; }
+  .muted { color: #666; }
+  .small { font-size: 10px; color: #555; }
+
+  /* Columnas: evitar cortes raros */
+  .col-fecha { white-space: nowrap; }
+  .col-monto { white-space: nowrap; }
+
+  /* Doc/Proveedor: que corte en espacios y no “ensanche” */
+  .col-docprov { overflow-wrap: break-word; word-break: normal; }
+
+  /* ✅ Rendiciones NO llevan firmas */
+  .signatures { display: none !important; }
+
+  .total-row td {
+    border-top: 2px solid #ddd;
+    border-bottom: none;
+    padding-top: 7px;
+    font-weight: 900;
+  }
+</style>
+{% endblock %}
+
+{% block print_header %}
+  <div>
+    <div class="brand-title">Rendición de Gastos</div>
+
+    <div class="header-meta">
+      <div>
+        <strong>Rendición N° {{ r.numero or r.id }}</strong>
+        · Fecha: <strong>{{ r.fecha_rendicion or "-" }}</strong>
+        · Estado: <strong>{{ r.estado or "-" }}</strong>
+      </div>
+
+      <div>
+        Centro de costo: <strong>{{ r.centro_costo or "-" }}</strong>
+        {% if r.obra %}
+          · Ref: <strong>{{ r.obra.codigo or "-" }}</strong> · <strong>{{ r.obra.nombre or "-" }}</strong>
+        {% endif %}
+      </div>
+
+      <div>
+        {% if creador_display %}
+          Creado por: <strong>{{ creador_display }}</strong>
+          {% if creador_username %} <span class="muted">(@{{ creador_username }})</span>{% endif %}
+        {% else %}
+          Creado por: <strong>{{ r.creado_por_user_id or "-" }}</strong>
+        {% endif %}
+      </div>
+
+      <div>
+        Período:
+        {% if r.periodo_desde and r.periodo_hasta %}
+          <strong>{{ r.periodo_desde }}</strong> → <strong>{{ r.periodo_hasta }}</strong>
+        {% elif r.periodo_desde %}
+          Desde <strong>{{ r.periodo_desde }}</strong>
+        {% elif r.periodo_hasta %}
+          Hasta <strong>{{ r.periodo_hasta }}</strong>
+        {% else %}
+          <strong>-</strong>
+        {% endif %}
+      </div>
+
+      {% if r.observaciones %}
+        <div>Observaciones: {{ r.observaciones }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block print_footer_left %}
+  © 2026 Grupo CS · Sistema Interno RRHH · Desarrollado por AOE Asesorías
+{% endblock %}
+
+{% block content %}
+  {% macro fmt_clp(n) -%}
+    ${{ "{:,.0f}".format((n or 0)|float).replace(",", ".") }}
+  {%- endmacro %}
+
+  <div class="hr"></div>
+
+  <div class="section-title">Ítems de rendición</div>
+  <div class="section-subtitle">Detalle de gastos rendidos</div>
+
+  <table>
+    <thead>
+      <tr>
+        {# Ajuste de anchos:
+           - #: 28px
+           - Fecha: 66px (cabe 2026-01-31)
+           - Concepto: 92px
+           - Doc/Proveedor: 125px
+           - Monto: 95px
+           - Descripción: libre (gana el resto) #}
+        <th style="width:28px;">#</th>
+        <th style="width:66px;">Fecha</th>
+        <th style="width:92px;">Concepto</th>
+        <th>Descripción</th>
+        <th style="width:125px;">Documento / Proveedor</th>
+        <th class="money" style="width:95px;">Monto</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for it in (items or []) %}
+        <tr>
+          <td class="small muted">{{ loop.index }}</td>
+          <td class="small col-fecha">{{ it.fecha or "-" }}</td>
+
+          <td class="small" style="font-weight:700;">
+            {{ it.detalle or "-" }}
+          </td>
+
+          <td class="small">
+            {{ it.descripcion or "-" }}
+          </td>
+
+          <td class="small col-docprov">
+            {% if it.tipo_doc or it.nro_doc %}
+              <span style="font-weight:700;">{{ it.tipo_doc or "COMPROBANTE" }}</span>
+              {% if it.nro_doc %} · {{ it.nro_doc }}{% endif %}
+            {% else %}
+              <span class="muted">Sin documento</span>
+            {% endif %}
+
+            {% if it.proveedor %}
+              <div class="muted">Proveedor: {{ it.proveedor }}</div>
+            {% endif %}
+          </td>
+
+          <td class="money col-monto">{{ fmt_clp(it.monto or 0) }}</td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="muted">Sin ítems.</td>
+        </tr>
+      {% endfor %}
+
+      <tr class="total-row">
+        <td colspan="5">Total</td>
+        <td class="money">{{ fmt_clp(total or 0) }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="height:6mm;"></div>
+{% endblock %}

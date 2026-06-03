@@ -1,0 +1,144 @@
+{# web/app/templates/egresos/egreso_detalle.html #}
+{% extends "base.html" %}
+{% block title %}Egreso {{ egreso.numero }} · GRUPO CS{% endblock %}
+
+{% block content %}
+<div class="container py-3 cs-detail-page">
+
+  {# =========================
+     Helpers (formato CLP)
+     ========================= #}
+  {% macro clp(v) -%}
+    {%- set n = (v or 0) -%}
+    {%- set s = "{:,.0f}".format(n|float) -%}
+    ${{
+      s.replace(",", "X").replace(".", ",").replace("X", ".")
+    }}
+  {%- endmacro %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Egreso N° {{ egreso.numero }}</h1>
+      <div class="section-subtitle">{{ egreso.fecha_egreso }} · {{ egreso.motivo }}</div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-primary" href="{{ url_for('egresos.editar', egreso_id=egreso.id) }}">
+        <i class="bi bi-pencil"></i> Editar
+      </a>
+
+      <form method="post" action="{{ url_for('egresos.emitir', egreso_id=egreso.id) }}">
+        <button class="btn btn-success" type="submit">
+          <i class="bi bi-file-earmark-word"></i> Emitir (DOCX + PDF)
+        </button>
+      </form>
+
+      {% if egreso.docx_ruta %}
+      <a class="btn btn-outline-success" href="{{ url_for('egresos.descargar_docx', egreso_id=egreso.id) }}">
+        🧾 Descargar DOCX
+      </a>
+      {% endif %}
+
+      {% if egreso.pdf_ruta %}
+      <a class="btn btn-outline-danger" href="{{ url_for('egresos.descargar_pdf', egreso_id=egreso.id) }}">
+        📄 Descargar PDF
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Estado</div>
+          <div class="fw-semibold">{{ egreso.estado }}</div>
+        </div>
+
+        <div class="col-12 col-md-9">
+          <div class="text-muted small">Beneficiario</div>
+          <div class="fw-semibold">
+            {% if egreso.trabajador %}
+              {{ egreso.trabajador.ap_paterno }} {{ egreso.trabajador.ap_materno or '' }}, {{ egreso.trabajador.nombres }}
+              <span class="text-muted">· {{ egreso.trabajador.rut_completo }}</span>
+            {% else %}
+              {{ egreso.pagado_a_nombre or '-' }}
+              {% if egreso.pagado_a_rut %}<span class="text-muted">· {{ egreso.pagado_a_rut }}</span>{% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="text-muted small">Solicitante</div>
+          <div class="fw-semibold">{{ egreso.solicitante or '-' }}</div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="text-muted small">Cargo</div>
+          <div class="fw-semibold">{{ egreso.solicitante_cargo or '-' }}</div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="text-muted small">Contexto</div>
+          <div class="fw-semibold">
+            {% if egreso.empleador %}{{ egreso.empleador.razon_social }}{% else %}-{% endif %}
+            {% if egreso.obra %} · {{ egreso.obra.nombre }}{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-3">
+
+      <h5>Ítems</h5>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th style="width:80px;">#</th>
+              <th>Detalle</th>
+              <th style="width:180px;" class="text-end">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in (egreso.items or [])|sort(attribute="orden") %}
+              <tr>
+                <td>{{ it.orden }}</td>
+                <td>{{ it.item or '' }}</td>
+                <td class="text-end">
+                  {# ✅ ocultar montos 0 / nulos #}
+                  {% if it.monto and (it.monto|float) != 0 %}
+                    {{ clp(it.monto) }}
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="3" class="text-muted text-center py-3">Sin ítems.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="text-end fw-semibold">Total: {{ clp(total_items) }}</div>
+
+      {% if egreso.observaciones %}
+      <hr class="my-3">
+      <div class="text-muted small">Observaciones</div>
+      <div>{{ egreso.observaciones }}</div>
+      {% endif %}
+
+      {% if egreso.docx_ruta %}
+      <hr class="my-3">
+      <div class="text-muted small">DOCX generado</div>
+      <div class="fw-semibold">{{ egreso.docx_nombre }}</div>
+      {% endif %}
+
+      {% if egreso.pdf_ruta %}
+      <hr class="my-3">
+      <div class="text-muted small">PDF generado</div>
+      <div class="fw-semibold">{{ egreso.pdf_nombre }}</div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

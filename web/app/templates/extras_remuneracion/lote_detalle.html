@@ -1,0 +1,485 @@
+{# web/app/templates/extras_remuneracion/lote_detalle.html #}
+{% extends "base.html" %}
+{% block title %}Lote {{ lote.id }} · Extras Remuneración{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-detail-page">
+
+  <div class="section-header">
+    <div class="section-title">Lote #{{ lote.id }} · Extras Remuneración</div>
+    <div class="section-subtitle">
+      Centro de costo: <span class="fw-semibold">{{ lote.centro_costo }}</span>
+      · Periodo: <span class="fw-semibold">{{ lote.periodo_str }}</span>
+      · Estado: <span class="badge bg-secondary">{{ lote.estado }}</span>
+      · Total: <span class="fw-semibold">{{ total }}</span>
+      {% if lote.obra %}
+        <span class="text-muted">· Obra ref: {{ lote.obra.codigo }} · {{ lote.obra.nombre }}</span>
+      {% endif %}
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="d-flex gap-2 flex-wrap mb-3">
+    <a class="btn btn-outline-secondary" href="{{ url_for('extras_remuneracion.listado') }}">Volver</a>
+
+    <form method="post" action="{{ url_for('extras_remuneracion.cambiar_estado', lote_id=lote.id) }}" class="d-flex gap-2 align-items-center">
+      <select name="estado" class="form-select form-select-sm" style="max-width: 220px;">
+        {% for st in ["BORRADOR","ENVIADO","APROBADO","CERRADO"] %}
+          <option value="{{ st }}" {{ "selected" if lote.estado==st else "" }}>{{ st }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-primary" type="submit">Actualizar estado</button>
+    </form>
+
+    <a class="btn btn-sm btn-success" href="{{ url_for('extras_remuneracion.exportar_csv', lote_id=lote.id) }}">
+      Exportar CSV/ZIP
+    </a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Agregar extra</div>
+
+          <form method="post" action="{{ url_for('extras_remuneracion.agregar_item', lote_id=lote.id) }}" class="row g-3">
+
+            <div class="col-12">
+              <label class="form-label">Trabajador</label>
+              <select name="trabajador_id" class="form-select" required>
+                <option value="">— Selecciona —</option>
+                {% for t in trabajadores %}
+                  {% set meta = (trab_meta.get(t.id) if trab_meta is defined else None) %}
+                  <option value="{{ t.id }}">
+                    {{ t.ap_paterno }} {{ t.ap_materno or '' }}, {{ t.nombres }} · {{ t.rut_completo }}
+                    {% if meta and meta.get('no_vigente_hoy') %}
+                      · [No vigente]
+                    {% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+
+              <div class="form-text">
+                Elegibles: trabajadores con contrato que <strong>solapa</strong> el periodo del lote en este <strong>centro de costo</strong>.
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Concepto</label>
+              <select id="conceptoSelect" name="concepto" class="form-select" required>
+                <option value="BONO">BONO</option>
+                <option value="TRATO">TRATO</option>
+                <option value="SABADO">SÁBADO</option>
+                <option value="HORAS_EXTRA">HORAS EXTRA</option>
+                <option value="OTRO">OTRO</option>
+              </select>
+              <div class="form-text">
+                Si seleccionas <strong>BONO</strong>, debes indicar <strong>código interno</strong>.
+                Si seleccionas <strong>TRATO</strong>, debes indicar <strong>unidades</strong> y <strong>valor unidad</strong>; el monto se calcula automáticamente.
+              </div>
+            </div>
+
+            {# BONO: código interno #}
+            <div class="col-12" id="codigoBonoWrap" style="display:none;">
+              <label class="form-label">Código interno de bono</label>
+              <select id="codigoBonoSelect" name="codigo_bono" class="form-select">
+                <option value="">— Selecciona —</option>
+                <option value="BONO_PRODUCCION">Bono de Producción</option>
+                <option value="BONO_DESEMPENO">Bono por Desempeño</option>
+                <option value="BONO_ASISTENCIA">Bono por Asistencia</option>
+                <option value="BONO_RESPONSABILIDAD">Bono de Responsabilidad</option>
+                <option value="BONO_SEGURIDAD">Bono por Seguridad</option>
+                <option value="BONO_TURNOS">Bono por Turnos</option>
+                <option value="BONO_PUNTUALIDAD">Bono por Puntualidad</option>
+                <option value="BONO_EXTRAORDINARIO">Bono Extraordinario</option>
+              </select>
+              <div class="form-text">
+                Se guardará como <strong>concepto_codigo</strong> (ej: <code>BONO_PRODUCCION</code>).
+              </div>
+            </div>
+
+            {# TRATO: unidades + valor_unidad #}
+            <div class="col-12" id="tratoWrap" style="display:none;">
+              <div class="row g-3">
+                <div class="col-6">
+                  <label class="form-label">Unidades</label>
+                  <input id="tratoUnidades" name="unidades" class="form-control" placeholder="Ej: 10" inputmode="decimal">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Valor unidad (CLP)</label>
+                  <input id="tratoValor" name="valor_unidad" class="form-control" placeholder="Ej: 5000" inputmode="numeric">
+                </div>
+              </div>
+              <div class="form-text">
+                Monto TRATO = <code>unidades × valor_unidad</code> (CLP sin decimales).
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Monto</label>
+              <input id="montoInput" name="monto" class="form-control" placeholder="Ej: 50000" required>
+              <div class="form-text" id="montoHelp" style="display:none;">
+                En <strong>TRATO</strong>, el monto es calculado automáticamente.
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Imponible</label>
+              <select name="imponible" class="form-select">
+                <option value="1" selected>Imponible</option>
+                <option value="0">No imponible</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Formato documento</label>
+              <select name="formato" class="form-select">
+                <option value="AMBOS" selected>DOCX + PDF</option>
+                <option value="DOCX">Solo DOCX</option>
+                <option value="PDF">Solo PDF</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Reseña / Motivo</label>
+              <textarea name="resena" class="form-control" rows="4" placeholder="Fundamento del pago (se usa en el anexo)" required></textarea>
+              <div class="form-text">Este texto es “la defensa en auditoría”: claro, específico y trazable 😉</div>
+            </div>
+
+            <div class="col-12 d-grid">
+              <button class="btn btn-primary" type="submit">Agregar</button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Trabajador</th>
+                  <th>Concepto</th>
+                  <th class="text-end">Monto</th>
+                  <th>Doc</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in (items_vm or []) %}
+                  {% set it = row.it %}
+                  <tr>
+                    <td>{{ it.id }}</td>
+                    <td>
+                      {{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno or '' }}, {{ it.trabajador.nombres }}
+                      <div class="text-muted small">{{ it.trabajador.rut_completo }}</div>
+                      {% if it.contrato and it.contrato.obra %}
+                        <div class="text-muted small">
+                          Obra: {{ it.contrato.obra.codigo }} · {{ it.contrato.obra.nombre }}
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="badge bg-info text-dark">{{ row.concepto_codigo_label }}</span>
+                      <span class="badge bg-light text-dark border">{{ it.concepto_tipo }}</span>
+                      {% if not it.imponible %}
+                        <span class="badge bg-warning text-dark">No imponible</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">{{ row.monto_clp }}</td>
+                    <td>
+                      <span class="badge bg-secondary">{{ it.estado_doc }}</span>
+                      <div class="text-muted small">{{ it.formato }}</div>
+                    </td>
+                    <td class="text-end d-flex justify-content-end gap-2 flex-wrap">
+
+                      {% if it.requiere_anexo %}
+                        <form method="post" action="{{ url_for('extras_remuneracion.generar_docs', item_id=it.id) }}">
+                          <button class="btn btn-sm btn-success" type="submit">Generar</button>
+                        </form>
+                      {% endif %}
+
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalEditar{{ it.id }}"
+                      >
+                        Editar
+                      </button>
+
+                      {% if it.docx_ruta %}
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('extras_remuneracion.descargar_docx', item_id=it.id) }}">DOCX</a>
+                      {% endif %}
+                      {% if it.pdf_ruta %}
+                        <a class="btn btn-sm btn-outline-danger" href="{{ url_for('extras_remuneracion.descargar_pdf', item_id=it.id) }}">PDF</a>
+                      {% endif %}
+
+                      <form method="post" action="{{ url_for('extras_remuneracion.eliminar_item', item_id=it.id) }}">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">Eliminar</button>
+                      </form>
+                    </td>
+                  </tr>
+
+                  <tr class="table-light">
+                    <td></td>
+                    <td colspan="5" class="small">
+                      <span class="text-muted">Reseña:</span> {{ it.resena }}
+                    </td>
+                  </tr>
+
+                  {# ===================== MODAL EDITAR ===================== #}
+                  <div class="modal fade" id="modalEditar{{ it.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                      <div class="modal-content">
+                        <form method="post" action="{{ url_for('extras_remuneracion.editar_item', item_id=it.id) }}">
+                          <div class="modal-header">
+                            <h5 class="modal-title">Editar extra #{{ it.id }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                          </div>
+
+                          <div class="modal-body">
+                            <div class="row g-3">
+
+                              <div class="col-12">
+                                <div class="text-muted small">
+                                  Trabajador:
+                                  <strong>{{ it.trabajador.ap_paterno }} {{ it.trabajador.ap_materno or '' }}, {{ it.trabajador.nombres }}</strong>
+                                  · {{ it.trabajador.rut_completo }}
+                                </div>
+                              </div>
+
+                              {# TRATO: unidades + valor + monto readonly #}
+                              {% if (it.concepto_tipo or "")|upper == "TRATO" %}
+                                <div class="col-12 col-md-4">
+                                  <label class="form-label">Unidades</label>
+                                  <input id="u{{ it.id }}" name="unidades" class="form-control" value="{{ (it.unidades or 0)|float }}" required>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                  <label class="form-label">Valor unidad (CLP)</label>
+                                  <input id="v{{ it.id }}" name="valor_unidad" class="form-control" value="{{ (it.valor_unidad or 0)|int }}" required>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                  <label class="form-label">Monto (CLP)</label>
+                                  <input id="m{{ it.id }}" name="monto" class="form-control" value="{{ (it.monto or 0)|int }}" readonly required>
+                                  <div class="form-text">Calculado automáticamente.</div>
+                                </div>
+                              {% else %}
+                                <div class="col-12 col-md-6">
+                                  <label class="form-label">Monto (CLP)</label>
+                                  <input name="monto" class="form-control" value="{{ (it.monto or 0)|int }}" required>
+                                  <div class="form-text">Sin decimales.</div>
+                                </div>
+                              {% endif %}
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Imponible</label>
+                                <select name="imponible" class="form-select">
+                                  <option value="1" {{ "selected" if it.imponible else "" }}>Imponible</option>
+                                  <option value="0" {{ "selected" if not it.imponible else "" }}>No imponible</option>
+                                </select>
+                              </div>
+
+                              {% if (it.concepto_tipo or "")|upper == "BONO" %}
+                                <div class="col-12">
+                                  <label class="form-label">Código interno de bono</label>
+                                  <select name="codigo_bono" class="form-select" required>
+                                    <option value="">— Selecciona —</option>
+                                    <option value="BONO_PRODUCCION" {{ "selected" if it.concepto_codigo=="BONO_PRODUCCION" else "" }}>Bono de Producción</option>
+                                    <option value="BONO_DESEMPENO" {{ "selected" if it.concepto_codigo=="BONO_DESEMPENO" else "" }}>Bono por Desempeño</option>
+                                    <option value="BONO_ASISTENCIA" {{ "selected" if it.concepto_codigo=="BONO_ASISTENCIA" else "" }}>Bono por Asistencia</option>
+                                    <option value="BONO_RESPONSABILIDAD" {{ "selected" if it.concepto_codigo=="BONO_RESPONSABILIDAD" else "" }}>Bono de Responsabilidad</option>
+                                    <option value="BONO_SEGURIDAD" {{ "selected" if it.concepto_codigo=="BONO_SEGURIDAD" else "" }}>Bono por Seguridad</option>
+                                    <option value="BONO_TURNOS" {{ "selected" if it.concepto_codigo=="BONO_TURNOS" else "" }}>Bono por Turnos</option>
+                                    <option value="BONO_PUNTUALIDAD" {{ "selected" if it.concepto_codigo=="BONO_PUNTUALIDAD" else "" }}>Bono por Puntualidad</option>
+                                    <option value="BONO_EXTRAORDINARIO" {{ "selected" if it.concepto_codigo=="BONO_EXTRAORDINARIO" else "" }}>Bono Extraordinario</option>
+                                  </select>
+                                </div>
+                              {% endif %}
+
+                              <div class="col-12">
+                                <label class="form-label">Formato documento</label>
+                                <select name="formato" class="form-select">
+                                  <option value="AMBOS" {{ "selected" if it.formato=="AMBOS" else "" }}>DOCX + PDF</option>
+                                  <option value="DOCX" {{ "selected" if it.formato=="DOCX" else "" }}>Solo DOCX</option>
+                                  <option value="PDF" {{ "selected" if it.formato=="PDF" else "" }}>Solo PDF</option>
+                                </select>
+                              </div>
+
+                              <div class="col-12">
+                                <label class="form-label">Reseña / Motivo</label>
+                                <textarea name="resena" class="form-control" rows="4" required>{{ it.resena }}</textarea>
+                              </div>
+
+                              <div class="col-12">
+                                <div class="alert alert-warning mb-0">
+                                  Si editas datos clave, se recomienda <strong>regenerar</strong> documentos para que queden consistentes.
+                                </div>
+                              </div>
+
+                            </div>
+                          </div>
+
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  {# ===================== /MODAL ===================== #}
+
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Aún no hay extras en este lote.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-muted small mt-2">
+        Nota: cuando el lote esté <strong>CERRADO</strong>, el CSV queda “congelado” para importación a EDIG. Orden y control, como buen hormigón armado 💼🧱
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const concepto = document.getElementById("conceptoSelect");
+
+  const bonoWrap = document.getElementById("codigoBonoWrap");
+  const bonoSel  = document.getElementById("codigoBonoSelect");
+
+  const tratoWrap = document.getElementById("tratoWrap");
+  const uInp = document.getElementById("tratoUnidades");
+  const vInp = document.getElementById("tratoValor");
+
+  const montoInp = document.getElementById("montoInput");
+  const montoHelp = document.getElementById("montoHelp");
+
+  function parseNum(val) {
+    return (val || "").toString().replace(/\./g, "").replace(/,/g, ".").trim();
+  }
+
+  function calcTrato() {
+    if (!uInp || !vInp || !montoInp) return;
+    const u = parseFloat(parseNum(uInp.value)) || 0;
+    const v = parseFloat(parseNum(vInp.value)) || 0;
+    const m = Math.round(u * v);
+    montoInp.value = (m > 0 ? String(m) : "");
+  }
+
+  function sync() {
+    const val = concepto ? concepto.value : "";
+    const isBono = (val === "BONO");
+    const isTrato = (val === "TRATO");
+
+    // BONO
+    if (bonoWrap && bonoSel) {
+      if (isBono) {
+        bonoWrap.style.display = "";
+        bonoSel.setAttribute("required", "required");
+      } else {
+        bonoWrap.style.display = "none";
+        bonoSel.removeAttribute("required");
+        bonoSel.value = "";
+      }
+    }
+
+    // TRATO
+    if (tratoWrap && uInp && vInp) {
+      if (isTrato) {
+        tratoWrap.style.display = "";
+        uInp.setAttribute("required", "required");
+        vInp.setAttribute("required", "required");
+      } else {
+        tratoWrap.style.display = "none";
+        uInp.removeAttribute("required");
+        vInp.removeAttribute("required");
+        uInp.value = "";
+        vInp.value = "";
+      }
+    }
+
+    // Monto readonly en TRATO
+    if (montoInp) {
+      if (isTrato) {
+        montoInp.setAttribute("readonly", "readonly");
+        if (montoHelp) montoHelp.style.display = "";
+        calcTrato();
+      } else {
+        montoInp.removeAttribute("readonly");
+        if (montoHelp) montoHelp.style.display = "none";
+      }
+    }
+  }
+
+  if (concepto) concepto.addEventListener("change", sync);
+  if (uInp) uInp.addEventListener("input", calcTrato);
+  if (vInp) vInp.addEventListener("input", calcTrato);
+
+  sync(); // init
+})();
+</script>
+
+<script>
+(function () {
+  function parseNum(val) {
+    return (val || "")
+      .toString()
+      .replace(/\./g, "")
+      .replace(/,/g, ".")
+      .trim();
+  }
+
+  function calcTratoInContainer(container) {
+    if (!container) return;
+
+    const u = container.querySelector('input[name="unidades"]');
+    const v = container.querySelector('input[name="valor_unidad"]');
+    const m = container.querySelector('input[name="monto"]');
+
+    // Solo aplica a modales TRATO (si existen esos inputs)
+    if (!u || !v || !m) return;
+
+    const uu = parseFloat(parseNum(u.value)) || 0;
+    const vv = parseFloat(parseNum(v.value)) || 0;
+    const mm = Math.round(uu * vv);
+
+    // monto readonly, pero igual seteable por JS
+    m.value = (mm > 0 ? String(mm) : "0");
+  }
+
+  // 1) Recalcular cuando se escriba unidades/valor_unidad dentro de cualquier modal
+  document.addEventListener("input", function (ev) {
+    const t = ev.target;
+    if (!t) return;
+
+    if (t.name === "unidades" || t.name === "valor_unidad") {
+      const modal = t.closest(".modal");
+      if (modal) calcTratoInContainer(modal);
+    }
+  });
+
+  // 2) Recalcular cuando el modal se muestre (Bootstrap)
+  document.addEventListener("shown.bs.modal", function (ev) {
+    const modal = ev.target;
+    if (modal && modal.classList && modal.classList.contains("modal")) {
+      calcTratoInContainer(modal);
+    }
+  });
+})();
+</script>
+
+{% endblock %}

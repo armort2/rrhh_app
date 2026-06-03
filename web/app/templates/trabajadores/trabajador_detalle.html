@@ -4,18 +4,27 @@
 {% block title %}Ficha trabajador · {{ trabajador.nombres }} {{ trabajador.ap_paterno }}{% endblock %}
 
 {% block content %}
-<div class="container py-3">
+<div class="container py-3 cs-detail-page">
 
   {% set puede_editar = (current_user and (current_user.has_role("ADMIN") or current_user.has_role("OPERADOR"))) %}
   {% set es_revisor = (current_user and current_user.has_role("REVISOR") and (not puede_editar)) %}
 
-  <div class="card shadow-sm">
+  {% set contratos_vigentes = contratos | selectattr("estado_contrato", "equalto", "VIGENTE") | list %}
+  {% set total_contratos_vigentes = contratos_vigentes | length %}
+
+  <div class="card shadow-sm trabajador-ficha-card">
     <div class="card-body border-bottom">
       <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
         <div class="section-header mb-0">
           <h1 class="section-title">Ficha del trabajador</h1>
           <div class="section-subtitle">
-            <strong>{{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}</strong>
+            {% set apm = (trabajador.ap_materno or "")|trim %}
+            <strong>
+              {{ trabajador.nombres }} {{ trabajador.ap_paterno }}
+              {% if apm and apm|lower != "none" %}
+                {{ apm }}
+              {% endif %}
+            </strong>
             · RUT: {{ rut_formateado or trabajador.rut }}
             {% if es_revisor %}
               <span class="badge text-bg-secondary ms-2">Modo lectura</span>
@@ -24,7 +33,7 @@
           <div class="section-divider"></div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap gap-2 trabajador-actions">
           {% if puede_editar %}
             <a href="{{ url_for('trabajadores.editar_trabajador', trabajador_id=trabajador.id, next=request.args.get('next')) }}"
                class="btn btn-outline-primary">
@@ -43,162 +52,853 @@
     <div class="card-body">
 
       <!-- ==========================
-           RESUMEN EJECUTIVO
+           EXPEDIENTE LABORAL 2.0
       =========================== -->
-      <h2 class="cs-section-kicker mb-3">Resumen ejecutivo</h2>
-
-      {% if contrato_vigente_actual %}
-        <div class="row g-3">
-          <div class="col-12 col-md-4 col-lg-3">
-            <div class="small text-muted text-uppercase">Contrato vigente (ID)</div>
-            <div class="fw-semibold">
-              <a href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato_vigente_actual.id) }}">#{{ contrato_vigente_actual.id }}</a>
-            </div>
+      <div class="trabajador-hero-2 mb-4">
+        <div class="trabajador-hero-main">
+          <div class="trabajador-avatar">
+            {{ (trabajador.nombres or 'T')[:1] }}{{ (trabajador.ap_paterno or '')[:1] }}
           </div>
-
-          <div class="col-12 col-md-4 col-lg-3">
-            <div class="small text-muted text-uppercase">Empleador</div>
-            <div class="fw-semibold">
-              {{ contrato_vigente_actual.empleador.razon_social if contrato_vigente_actual.empleador else "-" }}
+          <div>
+            <div class="trabajador-hero-eyebrow">Expediente laboral vivo</div>
+            <h2 class="trabajador-hero-title mb-1">
+              {{ trabajador.nombres }} {{ trabajador.ap_paterno }}
+              {% if apm and apm|lower != "none" %}{{ apm }}{% endif %}
+            </h2>
+            <div class="trabajador-hero-meta">
+              <span>RUT {{ rut_formateado or trabajador.rut }}</span>
+              <span>·</span>
+              <span>{{ trabajador.cargo.nombre if trabajador.cargo else 'Cargo no definido' }}</span>
+              <span>·</span>
+              <span>{{ trabajador.obra.nombre if trabajador.obra else 'Obra no definida' }}</span>
             </div>
-          </div>
-
-          <div class="col-12 col-md-4 col-lg-3">
-            <div class="small text-muted text-uppercase">Obra</div>
-            <div class="fw-semibold">
-              {{ contrato_vigente_actual.obra.nombre if contrato_vigente_actual.obra else "-" }}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4 col-lg-3">
-            <div class="small text-muted text-uppercase">Cargo</div>
-            <div class="fw-semibold">
-              {{ contrato_vigente_actual.cargo.nombre if contrato_vigente_actual.cargo else "-" }}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4 col-lg-3">
-            <div class="small text-muted text-uppercase">Inicio</div>
-            <div class="fw-semibold">
-              {% if contrato_vigente_actual.fecha_inicio %}
-                {{ contrato_vigente_actual.fecha_inicio.strftime("%d-%m-%Y") }}
-              {% else %}-{% endif %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4 col-lg-3">
-            <div class="small text-muted text-uppercase">Estado</div>
-            <span class="badge text-bg-success">Vigente</span>
           </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <a class="btn btn-outline-secondary"
-             href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato_vigente_actual.id) }}">
-            🔍 Ver contrato
-          </a>
-
-          {% if puede_editar %}
-            <a class="btn btn-outline-primary"
-               href="{{ url_for('contratos.editar_contrato', contrato_id=contrato_vigente_actual.id) }}">
-              ✏️ Editar contrato
-            </a>
-            <a class="btn btn-primary"
-               href="{{ url_for('contratos.generar_contrato', contrato_id=contrato_vigente_actual.id) }}">
-              📄 Generar contrato
-            </a>
+        <div class="trabajador-hero-actions">
+          {% if contrato_contexto %}
+            <span class="badge rounded-pill text-bg-primary">Contrato contexto #{{ contrato_contexto.id }}</span>
           {% endif %}
+          {% if total_contratos_vigentes > 0 %}
+            <span class="badge rounded-pill text-bg-success">Vigente</span>
+          {% else %}
+            <span class="badge rounded-pill text-bg-secondary">Sin contrato vigente</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if acciones_rapidas_ficha %}
+        <div class="card border-0 trabajador-quick-actions-card mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+              <div>
+                <div class="trabajador-card-kicker">Centro de operaciones</div>
+                <h3 class="h6 mb-0">Acciones rápidas</h3>
+              </div>
+              {% if contrato_contexto %}
+                <span class="badge rounded-pill text-bg-primary">Operando contrato #{{ contrato_contexto.id }}</span>
+              {% else %}
+                <span class="badge rounded-pill text-bg-secondary">Sin contrato de contexto</span>
+              {% endif %}
+            </div>
+
+            <div class="row g-3">
+              {% for grupo in acciones_rapidas_ficha %}
+                <div class="col-12 col-xl-4">
+                  <div class="trabajador-action-group h-100">
+                    <div class="trabajador-action-group-head">
+                      <strong>{{ grupo.titulo }}</strong>
+                      <small>{{ grupo.subtitulo }}</small>
+                    </div>
+                    <div class="d-grid gap-2">
+                      {% for item in grupo["items"] %}
+                        <a href="{{ item.url }}" class="btn {{ item.class }} trabajador-action-btn">
+                          <span class="trabajador-action-icon">{{ item.icono }}</span>
+                          <span>
+                            <strong>{{ item.label }}</strong>
+                            {% if item.detalle %}
+                              <small>{{ item.detalle }}</small>
+                            {% endif %}
+                          </span>
+                        </a>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <ul class="nav nav-pills trabajador-section-tabs mb-4" role="tablist" aria-label="Navegación de ficha trabajador">
+        <li class="nav-item"><a class="nav-link active" href="#resumen-ejecutivo">📊 Resumen</a></li>
+        <li class="nav-item"><a class="nav-link" href="#info-trabajador">👤 Datos</a></li>
+        <li class="nav-item"><a class="nav-link" href="#contratos-trabajador">📄 Contratos</a></li>
+        <li class="nav-item"><a class="nav-link" href="#inasistencias-trabajador">📅 Inasistencias</a></li>
+        <li class="nav-item"><a class="nav-link" href="#documentos-trabajador">🗂️ Documentos</a></li>
+        <li class="nav-item"><a class="nav-link" href="#historial-trabajador">🕘 Historial</a></li>
+      </ul>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+          <div class="card border-0 trabajador-command-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                  <div class="trabajador-card-kicker">Panel de control RRHH</div>
+                  <h3 class="h6 mb-0">Indicadores rápidos</h3>
+                </div>
+                <span class="badge text-bg-light border">Ficha 2.0</span>
+              </div>
+
+              <div class="row g-3 trabajador-mini-kpis">
+                <div class="col-6 col-md-3">
+                  <div class="trabajador-mini-kpi">
+                    <span>Contratos</span>
+                    <strong>{{ resumen_ficha.total_contratos }}</strong>
+                    <small>{{ total_contratos_vigentes }} vigente(s)</small>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="trabajador-mini-kpi">
+                    <span>Por vencer</span>
+                    <strong>{{ resumen_ficha.contratos_por_vencer }}</strong>
+                    <small>Próx. 45 días</small>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="trabajador-mini-kpi">
+                    <span>Prevención</span>
+                    <strong>{{ resumen_ficha.prevencion.documentos }}</strong>
+                    <small>{{ resumen_ficha.prevencion.epp }} EPP · {{ resumen_ficha.prevencion.charlas }} charlas</small>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="trabajador-mini-kpi">
+                    <span>Anticipos</span>
+                    <strong>{{ resumen_ficha.anticipos.cantidad }}</strong>
+                    <small>{{ fmt_clp(resumen_ficha.anticipos.total) }}</small>
+                  </div>
+                </div>
+              </div>
+
+              {% if contratos_por_vencer %}
+                <div class="mt-3 trabajador-expiring-list">
+                  {% for item in contratos_por_vencer[:3] %}
+                    <a href="{{ url_for('contratos.contrato_detalle', contrato_id=item.contrato.id) }}" class="trabajador-expiring-item">
+                      <span>⏳ Contrato #{{ item.contrato.id }}</span>
+                      <strong>{{ item.dias }} día(s)</strong>
+                    </a>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+          <div class="card border-0 trabajador-alert-card h-100">
+            <div class="card-body">
+              <div class="trabajador-card-kicker">Alertas operativas</div>
+              <h3 class="h6 mb-3">Puntos de control</h3>
+
+              {% if alertas_ficha %}
+                <div class="d-grid gap-2">
+                  {% for alerta in alertas_ficha[:4] %}
+                    <div class="trabajador-alert-item is-{{ alerta.nivel }}">
+                      <div class="trabajador-alert-icon">{{ alerta.icono }}</div>
+                      <div>
+                        <div class="fw-semibold">{{ alerta.titulo }}</div>
+                        <div class="small text-muted">{{ alerta.detalle }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="trabajador-empty compact">
+                  <p class="text-muted mb-0">Sin alertas críticas. Ficha ordenada y lista para operar.</p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if timeline_items %}
+        <div id="historial-trabajador" class="card border-0 trabajador-timeline-card mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+              <div>
+                <div class="trabajador-card-kicker">Línea de tiempo</div>
+                <h3 class="h6 mb-0">Últimos hitos laborales</h3>
+              </div>
+              <span class="text-muted small">Contratos, eventos y desvinculaciones recientes</span>
+            </div>
+
+            <div class="trabajador-timeline">
+              {% for item in timeline_items %}
+                <div class="trabajador-timeline-item">
+                  <div class="trabajador-timeline-dot"></div>
+                  <div class="trabajador-timeline-content">
+                    <div class="d-flex justify-content-between gap-2 flex-wrap">
+                      <div>
+                        <span class="badge text-bg-light border">{{ item.tipo }}</span>
+                        {% if item.url %}
+                          <a href="{{ item.url }}" class="fw-semibold ms-1">{{ item.titulo }}</a>
+                        {% else %}
+                          <span class="fw-semibold ms-1">{{ item.titulo }}</span>
+                        {% endif %}
+                      </div>
+                      <span class="text-muted small">{% if item.fecha %}{{ item.fecha.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</span>
+                    </div>
+                    {% if item.detalle %}
+                      <div class="small text-muted mt-1">{{ item.detalle }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- ==========================
+           RESUMEN EJECUTIVO
+      =========================== -->
+      <h2 id="resumen-ejecutivo" class="cs-section-kicker mb-3">Resumen ejecutivo</h2>
+
+      {% if total_contratos_vigentes > 0 %}
+        {% set ns = namespace(empleadores=[], obras=[]) %}
+        {% for c in contratos_vigentes %}
+          {% if c.empleador and c.empleador.razon_social not in ns.empleadores %}
+            {% set _ = ns.empleadores.append(c.empleador.razon_social) %}
+          {% endif %}
+          {% if c.obra and c.obra.nombre not in ns.obras %}
+            {% set _ = ns.obras.append(c.obra.nombre) %}
+          {% endif %}
+        {% endfor %}
+
+        <div class="row g-3 trabajador-kpi-row mb-3">
+          <div class="col-12 col-md-4 col-xl-2">
+            <div class="card border-0 h-100">
+              <div class="card-body">
+                <div class="trabajador-kpi-label">Estado</div>
+                <div class="trabajador-kpi-value">
+                  <span class="badge text-bg-success">Vigente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4 col-xl-2">
+            <div class="card border-0 h-100">
+              <div class="card-body">
+                <div class="trabajador-kpi-label">Contratos vigentes</div>
+                <div class="trabajador-kpi-value is-accent">{{ total_contratos_vigentes }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4 col-xl-4">
+            <div class="card border-0 h-100">
+              <div class="card-body">
+                <div class="trabajador-kpi-label">Empleadores vigentes</div>
+                <div class="trabajador-kpi-value">
+                  {{ ns.empleadores | join(" · ") if ns.empleadores else "-" }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-xl-4">
+            <div class="card border-0 h-100">
+              <div class="card-body">
+                <div class="trabajador-kpi-label">Obras vigentes</div>
+                <div class="trabajador-kpi-value">
+                  {{ ns.obras | join(" · ") if ns.obras else "-" }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 trabajador-contract-grid">
+          {% for c in contratos_vigentes %}
+            <div class="{% if total_contratos_vigentes == 1 %}col-12{% else %}col-12 col-xl-6{% endif %}">
+              <div class="card shadow-sm h-100 trabajador-contrato-card trabajador-contract-card-pro {% if contrato_contexto and contrato_contexto.id == c.id %}is-selected{% endif %}">
+                <div class="card-body">
+                  <div class="trabajador-contract-card-head">
+                    <div>
+                      <div class="small text-muted text-uppercase">Contrato vigente</div>
+                      <a class="trabajador-contract-id" href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">#{{ c.id }}</a>
+                    </div>
+
+                    <div class="trabajador-contract-badges">
+                      <span class="badge text-bg-success">Vigente</span>
+                      {% if contrato_contexto and contrato_contexto.id == c.id %}
+                        <span class="badge text-bg-primary">Seleccionado</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="trabajador-contract-meta">
+                    <div>
+                      <span>Tipo</span>
+                      <strong>{{ c.tipo_contrato or "-" }}</strong>
+                    </div>
+                    <div>
+                      <span>Inicio</span>
+                      <strong>{% if c.fecha_inicio %}{{ c.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</strong>
+                    </div>
+                    <div>
+                      <span>Empleador</span>
+                      <strong>{{ c.empleador.razon_social if c.empleador else "-" }}</strong>
+                    </div>
+                    <div>
+                      <span>Obra / Cargo</span>
+                      <strong>{{ c.obra.nombre if c.obra else "-" }}</strong>
+                      <small>{{ c.cargo.nombre if c.cargo else "-" }}</small>
+                    </div>
+                  </div>
+
+                  <div class="trabajador-contract-footer">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">👁️ Ver detalle</a>
+
+                    {% if contrato_contexto and contrato_contexto.id == c.id %}
+                      <span class="btn btn-sm btn-primary disabled">Contrato seleccionado</span>
+                    {% else %}
+                      <a href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id, contrato_id=c.id) }}" class="btn btn-sm btn-outline-primary">🎯 Usar este contrato</a>
+                    {% endif %}
+
+                    {% if puede_editar %}
+                      <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                          🧩 Anexos
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end cs-dropdown-menu">
+                          <li><a class="dropdown-item" href="{{ url_for('anexos.anexo_extension', contrato_id=c.id) }}">➕ Anexo extensión</a></li>
+                          <li><a class="dropdown-item" href="{{ url_for('anexos_cambio_sueldo.nuevo', contrato_id=c.id) }}">💰 Cambio de sueldo</a></li>
+                          <li><a class="dropdown-item" href="{{ url_for('anexos_cambio_cargo.nuevo', contrato_id=c.id) }}">🧰 Cambio de cargo</a></li>
+                          <li><a class="dropdown-item" href="{{ url_for('anexos_indefinidos.nuevo', contrato_id=c.id) }}">📌 Paso a indefinido</a></li>
+                          <li><hr class="dropdown-divider"></li>
+                          <li><a class="dropdown-item text-danger" href="{{ url_for('desvinculaciones.nueva_desvinculacion', trabajador_id=trabajador.id, contrato_id=c.id) }}">⛔ Desvincular este contrato</a></li>
+                        </ul>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
 
       {% else %}
-        <p class="text-muted mb-0">Este trabajador no registra contrato vigente actualmente.</p>
-        {% if puede_editar %}
-          <div class="mt-3">
-            <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id, next=request.args.get('next')) }}"
-               class="btn btn-primary">
-              ➕ Crear contrato
-            </a>
+        <div class="trabajador-empty">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Estado trabajador</div>
+              <div class="fw-semibold">{{ trabajador.estado_trabajador or "-" }}</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Fecha ingreso empresa</div>
+              <div class="fw-semibold">
+                {% if trabajador.fecha_ingreso_empresa %}{{ trabajador.fecha_ingreso_empresa.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Fecha egreso empresa</div>
+              <div class="fw-semibold">
+                {% if trabajador.fecha_egreso_empresa %}{{ trabajador.fecha_egreso_empresa.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+              </div>
+            </div>
           </div>
-        {% endif %}
+        </div>
       {% endif %}
+
+      <hr class="my-4">
+
+      <!-- ==========================
+           INFORMACIÓN DEL TRABAJADOR
+      =========================== -->
+      <h2 id="info-trabajador" class="cs-section-kicker mb-3">Información del trabajador</h2>
+
+      <ul class="nav nav-tabs mb-3" id="trabajadorInfoTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-personales-tab" data-bs-toggle="tab" data-bs-target="#tab-personales"
+                  type="button" role="tab" aria-controls="tab-personales" aria-selected="true">
+            Datos personales
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-contacto-tab" data-bs-toggle="tab" data-bs-target="#tab-contacto"
+                  type="button" role="tab" aria-controls="tab-contacto" aria-selected="false">
+            Contacto
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-bancarios-tab" data-bs-toggle="tab" data-bs-target="#tab-bancarios"
+                  type="button" role="tab" aria-controls="tab-bancarios" aria-selected="false">
+            Datos bancarios
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-previsional-tab" data-bs-toggle="tab" data-bs-target="#tab-previsional"
+                  type="button" role="tab" aria-controls="tab-previsional" aria-selected="false">
+            Datos previsionales
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-laboral-tab" data-bs-toggle="tab" data-bs-target="#tab-laboral"
+                  type="button" role="tab" aria-controls="tab-laboral" aria-selected="false">
+            Situación laboral
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white trabajador-tabs-wrap" id="trabajadorInfoTabsContent">
+
+        <!-- DATOS PERSONALES -->
+        <div class="tab-pane fade show active trabajador-tab-pane" id="tab-personales" role="tabpanel" aria-labelledby="tab-personales-tab" tabindex="0">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">RUT</div>
+              <div class="fw-semibold">{{ rut_formateado or trabajador.rut }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Nombres</div>
+              <div class="fw-semibold">{{ trabajador.nombres }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Apellido paterno</div>
+              <div class="fw-semibold">{{ trabajador.ap_paterno }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Apellido materno</div>
+              <div class="fw-semibold">{{ trabajador.ap_materno or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Fecha nacimiento</div>
+              <div class="fw-semibold">
+                {% if trabajador.fecha_nacimiento %}{{ trabajador.fecha_nacimiento.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+              </div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Nacionalidad</div>
+              <div class="fw-semibold">{{ trabajador.nacionalidad or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Sexo</div>
+              <div class="fw-semibold">{{ trabajador.sexo or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Estado civil</div>
+              <div class="fw-semibold">{{ trabajador.estado_civil or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Cargas familiares</div>
+              <div class="fw-semibold">{{ trabajador.num_cargas_familiares if trabajador.num_cargas_familiares is not none else 0 }}</div>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-2">
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Extranjero</div>
+              <div class="fw-semibold">{{ "Sí" if trabajador.es_extranjero else "No" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Discapacitado</div>
+              <div class="fw-semibold">{{ "Sí" if trabajador.es_discapacitado else "No" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Pensionado</div>
+              <div class="fw-semibold">{{ "Sí" if trabajador.es_pensionado else "No" }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTACTO -->
+        <div class="tab-pane fade trabajador-tab-pane" id="tab-contacto" role="tabpanel" aria-labelledby="tab-contacto-tab" tabindex="0">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="small text-muted text-uppercase">Dirección</div>
+              <div class="fw-semibold">{{ trabajador.direccion or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">Comuna</div>
+              <div class="fw-semibold">{{ trabajador.comuna or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">Teléfono</div>
+              <div class="fw-semibold">{{ trabajador.telefono or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Teléfono emergencia</div>
+              <div class="fw-semibold">{{ trabajador.telefono_emergencia or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-8">
+              <div class="small text-muted text-uppercase">Correo</div>
+              <div class="fw-semibold">{{ trabajador.correo or "-" }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATOS BANCARIOS -->
+        <div class="tab-pane fade trabajador-tab-pane" id="tab-bancarios" role="tabpanel" aria-labelledby="tab-bancarios-tab" tabindex="0">
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="small text-muted text-uppercase mb-2">Cuenta del trabajador</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Banco</div>
+              <div class="fw-semibold">{{ trabajador.banco.nombre if trabajador.banco else "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Tipo de cuenta</div>
+              <div class="fw-semibold">{{ trabajador.tipo_cuenta or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">N° de cuenta</div>
+              <div class="fw-semibold">{{ trabajador.cuenta_numero or "-" }}</div>
+            </div>
+
+            {% if trabajador.cuenta_rut %}
+              <div class="col-12 col-md-4">
+                <div class="small text-muted text-uppercase">Cuenta RUT</div>
+                <div class="fw-semibold">{{ trabajador.cuenta_rut }}</div>
+              </div>
+            {% endif %}
+
+            {% if trabajador.pago_tercero_activo %}
+              <div class="col-12">
+                <hr class="my-2">
+                <div class="small text-muted text-uppercase mb-2">Pago a tercero</div>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <div class="small text-muted text-uppercase">Activo</div>
+                <div class="fw-semibold">Sí</div>
+              </div>
+              <div class="col-12 col-md-3">
+                <div class="small text-muted text-uppercase">RUT tercero</div>
+                <div class="fw-semibold">{{ trabajador.pago_tercero_rut or "-" }}</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="small text-muted text-uppercase">Nombre tercero</div>
+                <div class="fw-semibold">{{ trabajador.pago_tercero_nombre or "-" }}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="small text-muted text-uppercase">Banco tercero</div>
+                <div class="fw-semibold">{{ trabajador.pago_tercero_banco.nombre if trabajador.pago_tercero_banco else "-" }}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="small text-muted text-uppercase">Tipo cuenta tercero</div>
+                <div class="fw-semibold">{{ trabajador.pago_tercero_tipo_cuenta or "-" }}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="small text-muted text-uppercase">N° cuenta tercero</div>
+                <div class="fw-semibold">{{ trabajador.pago_tercero_cuenta_numero or "-" }}</div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- DATOS PREVISIONALES -->
+        <div class="tab-pane fade trabajador-tab-pane" id="tab-previsional" role="tabpanel" aria-labelledby="tab-previsional-tab" tabindex="0">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">AFP</div>
+              <div class="fw-semibold">{{ trabajador.afp.nombre if trabajador.afp else "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Salud</div>
+              <div class="fw-semibold">{{ trabajador.salud.nombre if trabajador.salud else "-" }}</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Plan salud (UF)</div>
+              <div class="fw-semibold">{{ trabajador.uf_plan_salud or "-" }}</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="small text-muted text-uppercase">Caja de compensación</div>
+              <div class="fw-semibold">{{ trabajador.caja_compensacion.nombre if trabajador.caja_compensacion else "-" }}</div>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-2">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">APV activo</div>
+              <div class="fw-semibold">{{ "Sí" if trabajador.apv_activo else "No" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">APV modalidad</div>
+              <div class="fw-semibold">{{ trabajador.apv_modalidad or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">APV valor</div>
+              <div class="fw-semibold">{{ trabajador.apv_valor or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">APV institución</div>
+              <div class="fw-semibold">{{ trabajador.apv_institucion or "-" }}</div>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-2">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">CAV activo</div>
+              <div class="fw-semibold">{{ "Sí" if trabajador.cav_activo else "No" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">CAV modalidad</div>
+              <div class="fw-semibold">{{ trabajador.cav_modalidad or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">CAV valor</div>
+              <div class="fw-semibold">{{ trabajador.cav_valor or "-" }}</div>
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="small text-muted text-uppercase">CAV institución</div>
+              <div class="fw-semibold">{{ trabajador.cav_institucion or "-" }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SITUACIÓN LABORAL -->
+        <div class="tab-pane fade trabajador-tab-pane" id="tab-laboral" role="tabpanel" aria-labelledby="tab-laboral-tab" tabindex="0">
+          <div class="row g-3 trabajador-laboral-grid">
+
+            <div class="col-12 col-md-6">
+              <div class="trabajador-laboral-box is-main">
+                <div class="small text-muted text-uppercase">Obra actual</div>
+                <div class="fw-semibold">
+                  {% if trabajador.obra %}
+                    {{ trabajador.obra.nombre }}
+                    {% if trabajador.obra.centro_costo %}
+                      <div class="subdato">{{ trabajador.obra.centro_costo }}</div>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">Sin obra asignada</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="trabajador-laboral-box is-main">
+                <div class="small text-muted text-uppercase">Cargo actual</div>
+                <div class="fw-semibold">
+                  {% if trabajador.cargo %}
+                    {{ trabajador.cargo.nombre }}
+                  {% else %}
+                    <span class="text-muted">Sin cargo asignado</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Estado trabajador</div>
+                <div class="fw-semibold">{{ trabajador.estado_trabajador or "-" }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Tipo trabajador</div>
+                <div class="fw-semibold">{{ trabajador.tipo_trabajador or "-" }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Fecha ingreso empresa</div>
+                <div class="fw-semibold">
+                  {% if trabajador.fecha_ingreso_empresa %}{{ trabajador.fecha_ingreso_empresa.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Fecha egreso empresa</div>
+                <div class="fw-semibold">
+                  {% if trabajador.fecha_egreso_empresa %}{{ trabajador.fecha_egreso_empresa.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-2">
+              <div class="small text-muted text-uppercase mb-2">Seguridad y salud ocupacional</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Examen preocupacional</div>
+                <div class="fw-semibold">{{ "Sí" if trabajador.tiene_examen_preocupacional else "No" }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Fecha examen</div>
+                <div class="fw-semibold">
+                  {% if trabajador.fecha_examen_preocupacional %}{{ trabajador.fecha_examen_preocupacional.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Curso de altura</div>
+                <div class="fw-semibold">{{ "Sí" if trabajador.tiene_curso_altura else "No" }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Vencimiento curso altura</div>
+                <div class="fw-semibold">
+                  {% if trabajador.fecha_vencimiento_curso_altura %}{{ trabajador.fecha_vencimiento_curso_altura.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Inducción obra</div>
+                <div class="fw-semibold">{{ "Sí" if trabajador.tiene_induccion_obra else "No" }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="trabajador-laboral-box">
+                <div class="small text-muted text-uppercase">Fecha inducción</div>
+                <div class="fw-semibold">
+                  {% if trabajador.fecha_induccion_obra %}{{ trabajador.fecha_induccion_obra.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
 
       <hr class="my-4">
 
       <!-- ==========================
            CONTRATOS
       =========================== -->
-      <h2 class="cs-section-kicker mb-3">Contratos del trabajador</h2>
-
-      {% if contratos %}
-        <div class="table-responsive">
-          <table class="table table-sm align-middle table-striped table-hover">
-            <thead class="table-light">
-              <tr>
-                <th>ID</th>
-                <th>Tipo</th>
-                <th>Inicio</th>
-                <th>Término</th>
-                <th>Empleador</th>
-                <th>Obra</th>
-                <th>Cargo</th>
-                <th>Estado</th>
-                <th class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for c in contratos %}
-              <tr>
-                <td><a href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">#{{ c.id }}</a></td>
-                <td>{{ c.tipo_contrato or "-" }}</td>
-                <td>{% if c.fecha_inicio %}{{ c.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</td>
-                <td>{% if c.fecha_termino %}{{ c.fecha_termino.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</td>
-                <td>{{ c.empleador.razon_social if c.empleador else "-" }}</td>
-                <td>{{ c.obra.nombre if c.obra else "-" }}</td>
-                <td>{{ c.cargo.nombre if c.cargo else "-" }}</td>
-                <td>
-                  {% if c.estado_contrato == "VIGENTE" %}
-                    <span class="badge text-bg-success">Vigente</span>
-                  {% else %}
-                    <span class="badge text-bg-secondary">No vigente</span>
-                  {% endif %}
-                </td>
-                <td class="text-end">
-                  <div class="btn-group btn-group-sm" role="group">
-                    <a class="btn btn-outline-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">🔍 Ver</a>
-
-                    {% if puede_editar %}
-                      <a class="btn btn-outline-primary" href="{{ url_for('contratos.editar_contrato', contrato_id=c.id) }}">✏️ Editar</a>
-                      <a class="btn btn-outline-secondary" href="{{ url_for('contratos.generar_contrato', contrato_id=c.id) }}">📄 Generar</a>
-                    {% endif %}
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="trabajador-block-head">
+        <div>
+          <h2 id="contratos-trabajador" class="cs-section-kicker mb-1">Contratos del trabajador</h2>
+          <div class="text-muted small">Historial contractual completo del trabajador.</div>
         </div>
 
-        <p class="text-muted small mb-0">
-          Nota: Puedes revisar contratos no vigentes para regularizaciones (por ejemplo, anexos retroactivos).
-        </p>
-
         {% if puede_editar %}
-          <div class="mt-3">
+          <div class="d-flex flex-wrap gap-2 justify-content-lg-end trabajador-actions">
             <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id, next=request.args.get('next')) }}"
                class="btn btn-primary">
               ➕ Crear contrato
             </a>
           </div>
         {% endif %}
+      </div>
 
-      {% else %}
-        <p class="text-muted">Este trabajador aún no registra contratos.</p>
-        {% if puede_editar %}
-          <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id, next=request.args.get('next')) }}"
-             class="btn btn-primary">
-            ➕ Crear contrato
-          </a>
+      {% if contratos %}
+        {% if contrato_contexto %}
+          <div class="alert alert-info d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-2 py-2">
+            <div>
+              <strong>Contrato seleccionado para documentos:</strong> #{{ contrato_contexto.id }}
+              · {{ contrato_contexto.tipo_contrato or "Sin tipo" }}
+              · {% if contrato_contexto.fecha_inicio %}{{ contrato_contexto.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}sin inicio{% endif %}
+              → {% if contrato_contexto.fecha_termino %}{{ contrato_contexto.fecha_termino.strftime("%d-%m-%Y") }}{% else %}sin término{% endif %}
+            </div>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('contratos.contrato_detalle', contrato_id=contrato_contexto.id) }}">Ver contrato seleccionado</a>
+          </div>
         {% endif %}
+
+        <div class="trabajador-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-striped table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Tipo</th>
+                  <th>Inicio</th>
+                  <th>Término</th>
+                  <th>Empleador</th>
+                  <th>Obra</th>
+                  <th>Cargo</th>
+                  <th>Estado</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in contratos %}
+                <tr>
+                  <td><a href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">#{{ c.id }}</a></td>
+                  <td>{{ c.tipo_contrato or "-" }}</td>
+                  <td>{% if c.fecha_inicio %}{{ c.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</td>
+                  <td>{% if c.fecha_termino %}{{ c.fecha_termino.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</td>
+                  <td>{{ c.empleador.razon_social if c.empleador else "-" }}</td>
+                  <td>{{ c.obra.nombre if c.obra else "-" }}</td>
+                  <td>{{ c.cargo.nombre if c.cargo else "-" }}</td>
+                  <td>
+                    {% if c.estado_contrato == "VIGENTE" %}
+                      <span class="badge text-bg-success">Vigente</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">No vigente</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <div class="btn-group btn-group-sm trabajador-row-actions" role="group" aria-label="Acciones contrato">
+                      <a class="btn btn-outline-secondary" href="{{ url_for('contratos.contrato_detalle', contrato_id=c.id) }}">🔍 Ver</a>
+
+                      {% if puede_editar %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('contratos.editar_contrato', contrato_id=c.id) }}">✏️ Editar</a>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('contratos.generar_contrato', contrato_id=c.id) }}">📄 Generar</a>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id, contrato_id=c.id) }}">🎯 Usar</a>
+                        <div class="btn-group btn-group-sm" role="group">
+                          <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            🧩 Anexos
+                          </button>
+                          <ul class="dropdown-menu dropdown-menu-end cs-dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('anexos.anexo_extension', contrato_id=c.id) }}">➕ Extensión</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('anexos_cambio_sueldo.nuevo', contrato_id=c.id) }}">💰 Cambio sueldo</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('anexos_cambio_cargo.nuevo', contrato_id=c.id) }}">🧰 Cambio cargo</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('anexos_indefinidos.nuevo', contrato_id=c.id) }}">📌 Indefinido</a></li>
+                          </ul>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p class="text-muted small mb-0 mt-2">
+          Nota: Puedes revisar contratos no vigentes para regularizaciones o trazabilidad documental.
+        </p>
+      {% else %}
+        <div class="trabajador-empty">
+          <p class="text-muted mb-0">Este trabajador aún no registra contratos.</p>
+        </div>
       {% endif %}
 
       <hr class="my-4">
@@ -206,330 +906,272 @@
       <!-- ==========================
            INASISTENCIAS
       =========================== -->
-      <h2 class="cs-section-kicker mb-3">Inasistencias</h2>
+      <div class="trabajador-block-head">
+        <div>
+          <h2 id="inasistencias-trabajador" class="cs-section-kicker mb-1">Inasistencias</h2>
+          <div class="text-muted small">Vista rápida de los registros recientes del trabajador.</div>
+        </div>
 
-      <div class="d-flex flex-wrap gap-2">
-        {% if puede_editar %}
-          <a class="btn btn-primary" href="{{ url_for('inasistencias.nuevo', trabajador_id=trabajador.id, next=request.args.get('next')) }}">
-            ➕ Registrar inasistencia
+        <div class="d-flex flex-wrap gap-2 trabajador-actions">
+          {% if puede_editar %}
+            <a class="btn btn-primary" href="{{ url_for('inasistencias.nuevo', trabajador_id=trabajador.id, next=request.args.get('next')) }}">
+              ➕ Registrar inasistencia
+            </a>
+          {% endif %}
+
+          <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.listado', trabajador_id=trabajador.id, mes=mes_actual) }}">
+            📅 Ver mes actual ({{ mes_actual }})
           </a>
-        {% endif %}
-
-        <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.listado', trabajador_id=trabajador.id, mes=mes_actual) }}">
-          📅 Ver mes actual ({{ mes_actual }})
-        </a>
-        <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.listado', trabajador_id=trabajador.id) }}">
-          📚 Ver todas
-        </a>
+          <a class="btn btn-outline-secondary" href="{{ url_for('inasistencias.listado', trabajador_id=trabajador.id) }}">
+            📚 Ver todas
+          </a>
+        </div>
       </div>
 
       {% if inasistencias_ultimas %}
-        <p class="text-muted small mt-2 mb-0">Mostrando registros de los últimos 30 días.</p>
+        <p class="text-muted small mt-2">Mostrando registros de los últimos 30 días.</p>
 
-        <div class="table-responsive mt-2">
-          <table class="table table-sm align-middle table-striped table-hover">
-            <thead class="table-light">
-              <tr>
-                <th style="width:140px;">Fecha</th>
-                <th style="width:120px;">Tipo</th>
-                <th style="width:120px;">Tiempo</th>
-                <th>Motivo</th>
-                <th>Observación</th>
-                <th class="text-end" style="width:180px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for it in inasistencias_ultimas %}
-              <tr>
-                <td>{{ it.fecha }}</td>
-                <td>
-                  {% if it.tipo == "DIA" %}
-                    <span class="badge text-bg-secondary">Día</span>
-                  {% else %}
-                    <span class="badge text-bg-success">Horas</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if it.tipo == "HORAS" %}
-                    {{ inasistencias_fmt_hhmm(it.minutos_ausentes) }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td>{{ it.motivo }}</td>
-                <td>{{ it.observacion or "" }}</td>
-                <td class="text-end">
-                  {% if puede_editar %}
-                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('inasistencias.editar', item_id=it.id, next=request.args.get('next')) }}">
-                      ✏️ Editar
-                    </a>
-                  {% else %}
-                    <span class="text-muted small">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="trabajador-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-striped table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:140px;">Fecha</th>
+                  <th style="width:120px;">Tipo</th>
+                  <th style="width:120px;">Tiempo</th>
+                  <th>Motivo</th>
+                  <th>Observación</th>
+                  <th class="text-end" style="width:180px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for it in inasistencias_ultimas %}
+                <tr>
+                  <td>{{ it.fecha }}</td>
+                  <td>
+                    {% if it.tipo == "DIA" %}
+                      <span class="badge text-bg-secondary">Día</span>
+                    {% else %}
+                      <span class="badge text-bg-success">Horas</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if it.tipo == "HORAS" %}
+                      {{ inasistencias_fmt_hhmm(it.minutos_ausentes) }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td>{{ it.motivo }}</td>
+                  <td>{{ it.observacion or "" }}</td>
+                  <td class="text-end">
+                    {% if puede_editar %}
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('inasistencias.editar', item_id=it.id, next=request.args.get('next')) }}">
+                        ✏️ Editar
+                      </a>
+                    {% else %}
+                      <span class="text-muted small">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       {% else %}
-        <p class="text-muted mt-2 mb-0">No hay inasistencias registradas en los últimos 30 días.</p>
-      {% endif %}
-
-      <hr class="my-4">
-
-      <!-- ==========================
-           DATOS PERSONALES / CONTACTO / ETC
-      =========================== -->
-      <h2 class="cs-section-kicker mb-3">Datos personales</h2>
-      <div class="row g-3">
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">RUT</div>
-          <div class="fw-semibold">{{ rut_formateado or trabajador.rut }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Nombres</div>
-          <div class="fw-semibold">{{ trabajador.nombres }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Apellido paterno</div>
-          <div class="fw-semibold">{{ trabajador.ap_paterno }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Apellido materno</div>
-          <div class="fw-semibold">{{ trabajador.ap_materno or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Fecha nacimiento</div>
-          <div class="fw-semibold">{% if trabajador.fecha_nacimiento %}{{ trabajador.fecha_nacimiento.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Nacionalidad</div>
-          <div class="fw-semibold">{{ trabajador.nacionalidad or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Sexo</div>
-          <div class="fw-semibold">{{ trabajador.sexo or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Estado civil</div>
-          <div class="fw-semibold">{{ trabajador.estado_civil or "-" }}</div>
-        </div>
-      </div>
-
-      <hr class="my-4">
-
-      <h2 class="cs-section-kicker mb-3">Contacto</h2>
-      <div class="row g-3">
-        <div class="col-12 col-md-6">
-          <div class="small text-muted text-uppercase">Dirección</div>
-          <div class="fw-semibold">{{ trabajador.direccion or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-3">
-          <div class="small text-muted text-uppercase">Comuna</div>
-          <div class="fw-semibold">{{ trabajador.comuna or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-3">
-          <div class="small text-muted text-uppercase">Teléfono</div>
-          <div class="fw-semibold">{{ trabajador.telefono or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-3">
-          <div class="small text-muted text-uppercase">Teléfono emergencia</div>
-          <div class="fw-semibold">{{ trabajador.telefono_emergencia or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-6">
-          <div class="small text-muted text-uppercase">Correo</div>
-          <div class="fw-semibold">{{ trabajador.correo or "-" }}</div>
-        </div>
-      </div>
-
-      <hr class="my-4">
-
-      <h2 class="cs-section-kicker mb-3">Datos bancarios</h2>
-      <div class="row g-3">
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Banco</div>
-          <div class="fw-semibold">{% if trabajador.banco %}{{ trabajador.banco.nombre }}{% else %}-{% endif %}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Tipo de cuenta</div>
-          <div class="fw-semibold">{{ trabajador.tipo_cuenta or "-" }}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">N° de cuenta</div>
-          <div class="fw-semibold">{{ trabajador.cuenta_numero or "-" }}</div>
-        </div>
-      </div>
-
-      {% if trabajador.pago_tercero_activo %}
-        <hr class="my-4">
-        <h2 class="cs-section-kicker mb-3">Pago a tercero</h2>
-        <div class="row g-3">
-          <div class="col-12 col-md-3"><div class="small text-muted text-uppercase">Activo</div><div class="fw-semibold">Sí</div></div>
-          <div class="col-12 col-md-3"><div class="small text-muted text-uppercase">RUT tercero</div><div class="fw-semibold">{{ trabajador.pago_tercero_rut or "-" }}</div></div>
-          <div class="col-12 col-md-6"><div class="small text-muted text-uppercase">Nombre tercero</div><div class="fw-semibold">{{ trabajador.pago_tercero_nombre or "-" }}</div></div>
-          <div class="col-12 col-md-4"><div class="small text-muted text-uppercase">Banco tercero</div><div class="fw-semibold">{% if trabajador.pago_tercero_banco %}{{ trabajador.pago_tercero_banco.nombre }}{% else %}-{% endif %}</div></div>
-          <div class="col-12 col-md-4"><div class="small text-muted text-uppercase">Tipo cuenta tercero</div><div class="fw-semibold">{{ trabajador.pago_tercero_tipo_cuenta or "-" }}</div></div>
-          <div class="col-12 col-md-4"><div class="small text-muted text-uppercase">N° cuenta tercero</div><div class="fw-semibold">{{ trabajador.pago_tercero_cuenta_numero or "-" }}</div></div>
+        <div class="trabajador-empty">
+          <p class="text-muted mb-0">No hay inasistencias registradas en los últimos 30 días.</p>
         </div>
       {% endif %}
 
       <hr class="my-4">
 
-      <h2 class="cs-section-kicker mb-3">Situación laboral</h2>
-      <div class="row g-3">
-        <div class="col-12 col-md-6">
-          <div class="small text-muted text-uppercase">Obra actual</div>
-          <div class="fw-semibold">
-            {% if trabajador.obra %}
-              {{ trabajador.obra.nombre }}
-              {% if trabajador.obra.centro_costo %}
-                <div class="text-muted small">{{ trabajador.obra.centro_costo }}</div>
-              {% endif %}
-            {% else %}
-              <span class="text-muted">Sin obra asignada</span>
-            {% endif %}
+      {% if documentos_recientes %}
+        <div class="card border-0 trabajador-recent-docs-card mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+              <div>
+                <div class="trabajador-card-kicker">Documentos recientes</div>
+                <h3 class="h6 mb-0">Últimos documentos generados o registrados</h3>
+              </div>
+              <span class="badge text-bg-light border">{{ documentos_recientes|length }} visible(s)</span>
+            </div>
+
+            <div class="list-group list-group-flush trabajador-recent-docs-list">
+              {% for doc in documentos_recientes %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                    <div>
+                      <div class="fw-semibold">{{ doc.titulo }}</div>
+                      <div class="small text-muted">
+                        {{ doc.grupo }} · {{ doc.fecha or "-" }}
+                        {% if doc.estado %}
+                          · <span class="badge text-bg-light border">{{ doc.estado }}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                      {% if doc.ver_url %}
+                        <a class="btn btn-outline-secondary" href="{{ doc.ver_url }}">🔍 Ver</a>
+                      {% endif %}
+                      {% if puede_editar and doc.editar_url %}
+                        <a class="btn btn-outline-primary" href="{{ doc.editar_url }}">✏️ Editar</a>
+                      {% endif %}
+                      {% if puede_editar and doc.generar_url %}
+                        <a class="btn btn-outline-secondary" href="{{ doc.generar_url }}">♻️ Regenerar</a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
           </div>
         </div>
-
-        <div class="col-12 col-md-6">
-          <div class="small text-muted text-uppercase">Cargo actual</div>
-          <div class="fw-semibold">
-            {% if trabajador.cargo %}
-              {{ trabajador.cargo.nombre }}
-            {% else %}
-              <span class="text-muted">Sin cargo asignado</span>
-            {% endif %}
-          </div>
-        </div>
-
-        <div class="col-12 col-md-4"><div class="small text-muted text-uppercase">Estado trabajador</div><div class="fw-semibold">{{ trabajador.estado_trabajador or "-" }}</div></div>
-        <div class="col-12 col-md-4"><div class="small text-muted text-uppercase">Tipo trabajador</div><div class="fw-semibold">{{ trabajador.tipo_trabajador or "-" }}</div></div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Fecha ingreso empresa</div>
-          <div class="fw-semibold">{% if trabajador.fecha_ingreso_empresa %}{{ trabajador.fecha_ingreso_empresa.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</div>
-        </div>
-        <div class="col-12 col-md-4">
-          <div class="small text-muted text-uppercase">Fecha egreso empresa</div>
-          <div class="fw-semibold">{% if trabajador.fecha_egreso_empresa %}{{ trabajador.fecha_egreso_empresa.strftime("%d-%m-%Y") }}{% else %}-{% endif %}</div>
-        </div>
-      </div>
+      {% endif %}
 
       <!-- ==========================
            HUB DOCUMENTAL
       =========================== -->
-      <hr class="my-4">
-
-      <h2 class="cs-section-kicker mb-3">Documentos asociados</h2>
+      <h2 id="documentos-trabajador" class="cs-section-kicker mb-3">Documentos asociados</h2>
 
       {% if contrato_contexto %}
         <p class="text-muted small">
-          {% if contrato_vigente_actual %}
-            Mostrando documentos del <strong>contrato vigente #{{ contrato_contexto.id }}</strong>.
-          {% else %}
-            No hay contrato vigente. Mostrando documentos del <strong>último contrato #{{ contrato_contexto.id }}</strong>
+          Mostrando documentos del <strong>contrato seleccionado #{{ contrato_contexto.id }}</strong>.
+          Para operar con otro contrato, presiona <strong>“Usar”</strong> en la tabla de contratos.
+          {% if contrato_contexto.estado_contrato != "VIGENTE" %}
             <span class="badge text-bg-secondary ms-2">No vigente</span>
           {% endif %}
         </p>
 
-        {% if acciones_documentos and puede_editar %}
-          <div class="d-flex flex-wrap gap-2 mb-2">
-            {% for a in acciones_documentos %}
-              <a class="{{ a.get('class') }}" href="{{ a.get('url') }}">{{ a.get('label') }}</a>
-            {% endfor %}
-          </div>
-          <p class="text-muted small mb-3">Tip: Estas son acciones. Los documentos generados aparecen abajo, ordenados por tipo.</p>
-        {% elif acciones_documentos and (not puede_editar) %}
-          <div class="alert alert-light border mb-3">
-            <div class="fw-semibold">Acciones deshabilitadas</div>
-            <div class="text-muted small mb-0">
-              Tu perfil está en modo lectura. Puedes revisar documentos, pero no generarlos ni editarlos.
+        {% set docns = namespace(total_items=0, grupos_visibles=0) %}
+        {% for g in documentos_grupos %}
+          {% set items_list = g.get('items', []) %}
+          {% if items_list %}
+            {% set docns.total_items = docns.total_items + (items_list|length) %}
+            {% set docns.grupos_visibles = docns.grupos_visibles + 1 %}
+          {% endif %}
+        {% endfor %}
+
+        {% if docns.total_items > 0 %}
+          <div class="row g-3 mb-3 trabajador-doc-kpi">
+            <div class="col-12 col-md-4">
+              <div class="card border-0 h-100">
+                <div class="card-body">
+                  <div class="trabajador-kpi-label">Grupos con documentos</div>
+                  <div class="trabajador-kpi-value is-accent">{{ docns.grupos_visibles }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="card border-0 h-100">
+                <div class="card-body">
+                  <div class="trabajador-kpi-label">Documentos visibles</div>
+                  <div class="trabajador-kpi-value is-accent">{{ docns.total_items }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <div class="card border-0 h-100">
+                <div class="card-body">
+                  <div class="trabajador-kpi-label">Contrato contexto</div>
+                  <div class="trabajador-kpi-value">#{{ contrato_contexto.id }}</div>
+                </div>
+              </div>
             </div>
           </div>
-        {% endif %}
 
-        {% if documentos_grupos %}
           <div class="d-grid gap-3">
             {% for g in documentos_grupos %}
               {% set items_list = g.get('items', []) %}
-
-              <div class="card shadow-sm">
-                <div class="card-body border-bottom d-flex justify-content-between align-items-start gap-2">
-                  <div>
-                    <div class="fw-bold">
-                      {{ g.get('titulo') }}
-                      {% if items_list %}
+              {% if items_list %}
+                <div class="card shadow-sm">
+                  <div class="card-body border-bottom d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                    <div>
+                      <div class="fw-bold">
+                        {{ g.get('titulo') }}
                         <span class="badge text-bg-success ms-2">{{ items_list|length }}</span>
-                      {% else %}
-                        <span class="badge text-bg-secondary ms-2">0</span>
+                      </div>
+                      {% if g.get('subtitulo') %}
+                        <div class="text-muted small mt-1">{{ g.get('subtitulo') }}</div>
                       {% endif %}
                     </div>
-                    {% if g.get('subtitulo') %}
-                      <div class="text-muted small mt-1">{{ g.get('subtitulo') }}</div>
+
+                    {% if g.get('ver_todos_url') %}
+                      <a class="btn btn-sm btn-outline-secondary" href="{{ g.get('ver_todos_url') }}">📚 Ver todos</a>
                     {% endif %}
                   </div>
 
-                  {% if g.get('ver_todos_url') %}
-                    <a class="btn btn-sm btn-outline-secondary" href="{{ g.get('ver_todos_url') }}">📚 Ver todos</a>
-                  {% endif %}
-                </div>
-
-                <div class="card-body">
-                  {% if items_list %}
-                    <div class="table-responsive">
-                      <table class="table table-sm align-middle table-striped table-hover mb-0">
-                        <thead class="table-light">
-                          <tr>
-                            <th style="width:140px;">Fecha</th>
-                            <th>Documento</th>
-                            <th class="text-end" style="width:240px;">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {% for it in items_list %}
-                          <tr>
-                            <td>{{ it.get('fecha') }}</td>
-                            <td>{{ it.get('titulo') }}</td>
-                            <td class="text-end">
-                              <div class="btn-group btn-group-sm" role="group">
-                                {% if it.get('ver_url') %}
-                                  <a class="btn btn-outline-secondary" href="{{ it.get('ver_url') }}">🔍 Ver</a>
+                  <div class="card-body">
+                    <div class="trabajador-table-wrap">
+                      <div class="table-responsive">
+                        <table class="table table-sm align-middle table-striped table-hover mb-0">
+                          <thead class="table-light">
+                            <tr>
+                              <th style="width:140px;">Fecha</th>
+                              <th>Documento</th>
+                              <th class="text-end" style="width:240px;">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for it in items_list %}
+                            <tr>
+                              <td>{{ it.get('fecha') }}</td>
+                              <td>
+                                <div class="fw-semibold">{{ it.get('titulo') }}</div>
+                                {% if it.get('estado') %}
+                                  <span class="badge text-bg-light border mt-1">{{ it.get('estado') }}</span>
                                 {% endif %}
-                                {% if puede_editar %}
-                                  {% if it.get('editar_url') %}
-                                    <a class="btn btn-outline-primary" href="{{ it.get('editar_url') }}">✏️ Editar</a>
+                              </td>
+                              <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                  {% if it.get('ver_url') %}
+                                    <a class="btn btn-outline-secondary" href="{{ it.get('ver_url') }}">🔍 Ver</a>
                                   {% endif %}
-                                  {% if it.get('generar_url') %}
-                                    <a class="btn btn-outline-secondary" href="{{ it.get('generar_url') }}">♻️ Regenerar</a>
+                                  {% if puede_editar %}
+                                    {% if it.get('editar_url') %}
+                                      <a class="btn btn-outline-primary" href="{{ it.get('editar_url') }}">✏️ Editar</a>
+                                    {% endif %}
+                                    {% if it.get('generar_url') %}
+                                      <a class="btn btn-outline-secondary" href="{{ it.get('generar_url') }}">♻️ Regenerar</a>
+                                    {% endif %}
                                   {% endif %}
-                                {% endif %}
-                              </div>
-                            </td>
-                          </tr>
-                          {% endfor %}
-                        </tbody>
-                      </table>
+                                </div>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  {% else %}
-                    <p class="text-muted mb-0">Aún no hay documentos en esta sección.</p>
-                  {% endif %}
+                  </div>
                 </div>
-              </div>
-
+              {% endif %}
             {% endfor %}
           </div>
         {% else %}
-          <p class="text-muted">No hay grupos documentales configurados para este contrato.</p>
+          <div class="trabajador-empty">
+            <p class="text-muted mb-0">
+              No hay documentos asociados al contrato de contexto seleccionado. Cuando se generen contratos, anexos u otros documentos laborales, aparecerán aquí.
+            </p>
+          </div>
         {% endif %}
 
       {% else %}
-        <p class="text-muted">No se pueden listar documentos porque el trabajador no registra contratos.</p>
-        {% if puede_editar %}
-          <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id, next=request.args.get('next')) }}"
-             class="btn btn-primary">
-            ➕ Crear contrato
-          </a>
-        {% endif %}
+        <div class="trabajador-empty">
+          <p class="text-muted mb-0">No se pueden listar documentos porque el trabajador no registra contratos.</p>
+
+          {% if puede_editar %}
+            <div class="mt-3">
+              <a href="{{ url_for('contratos.nuevo_contrato', trabajador_id=trabajador.id, next=request.args.get('next')) }}"
+                 class="btn btn-primary">
+                ➕ Crear contrato
+              </a>
+            </div>
+          {% endif %}
+        </div>
       {% endif %}
 
     </div>

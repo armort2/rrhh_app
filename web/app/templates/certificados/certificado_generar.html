@@ -1,0 +1,47 @@
+{# /web/app/templates/certificados/certificado_generar.html #}
+{% extends "base.html" %}
+{% block title %}Generar Certificado #{{ cert.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header mb-3">
+    <h1 class="section-title">Generar certificado</h1>
+    <div class="section-subtitle">
+      {{ cert.trabajador.ap_paterno }} {{ cert.trabajador.ap_materno or '' }}, {{ cert.trabajador.nombres }}
+      · {{ cert.trabajador.rut_completo }}
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form class="row g-2" method="post">
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Formato</label>
+          <select class="form-select" name="formato">
+            <option value="PDF" {% if formato=="PDF" %}selected{% endif %}>PDF</option>
+            <option value="DOCX" {% if formato=="DOCX" %}selected{% endif %}>DOCX</option>
+            <option value="AMBOS" {% if formato=="AMBOS" %}selected{% endif %}>DOCX + PDF</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-8">
+          <label class="form-label">Objetivo (opcional)</label>
+          <input class="form-control"
+                 name="OBJETIVO"
+                 value="{{ vals.OBJETIVO or cert.objetivo or '' }}"
+                 placeholder="Ej: presentación bancaria / arriendo / trámite...">
+        </div>
+
+        <div class="col-12 d-grid mt-2">
+          <button class="btn btn-primary" type="submit">Generar</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

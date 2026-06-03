@@ -1,0 +1,242 @@
+{# web/app/templates/parametros_laborales/listado.html #}
+{% extends "base.html" %}
+{% block title %}Parámetros Laborales{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  {% set hoy = now().date() if now is defined else none %}
+  {% set periodo_actual = hoy.strftime("%Y-%m") if hoy else "" %}
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+    <div class="section-header mb-0">
+      <div class="info-chip mb-2">Motor laboral</div>
+      <h1 class="section-title">Parámetros Laborales</h1>
+      <div class="section-subtitle">
+        Administración centralizada de UF, UTM, sueldo mínimo, topes imponibles y parámetros de gratificación.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-primary" href="{{ url_for('parametros_laborales.importar_previred') }}">
+        ⬆ Importar PDF Previred
+      </a>
+      <a class="btn btn-primary" href="{{ url_for('parametros_laborales.nuevo') }}">
+        + Nuevo parámetro
+      </a>
+    </div>
+  </div>
+
+  {% if ultimo %}
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card border-success-subtle shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+            <div>
+              <div class="fw-semibold">Último período cargado</div>
+              <div class="text-muted small">
+                Referencia rápida del registro más reciente.
+              </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              {% if ultimo.periodo == periodo_actual %}
+                <span class="badge rounded-pill text-bg-success">Vigente</span>
+              {% endif %}
+              <span class="badge rounded-pill text-bg-dark">{{ ultimo.periodo }}</span>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-6 col-md-2">
+              <div class="text-muted small">UF</div>
+              <div class="fw-semibold">
+                {{ ultimo.uf|fmt_cl(2) if ultimo.uf is not none else "-" }}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <div class="text-muted small">UTM</div>
+              <div class="fw-semibold">
+                {{ ultimo.utm|fmt_cl if ultimo.utm is not none else "-" }}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-2">
+              <div class="text-muted small">UTA</div>
+              <div class="fw-semibold">
+                {{ ultimo.uta|fmt_cl if ultimo.uta is not none else "-" }}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Sueldo mínimo</div>
+              <div class="fw-semibold">
+                {{ ultimo.renta_minima_dependiente|fmt_cl if ultimo.renta_minima_dependiente is not none else "-" }}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Tope gratificación</div>
+              <div class="fw-semibold">
+                {{ ultimo.gratificacion_25_por_ciento_tope_mensual|fmt_cl if ultimo.gratificacion_25_por_ciento_tope_mensual is not none else "-" }}
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Fuente</div>
+              <div class="fw-semibold">
+                {% if (ultimo.fuente or "")|upper == "PREVIRED" %}
+                  <span class="badge rounded-pill text-bg-light border">📄 PREVIRED</span>
+                {% elif ultimo.fuente %}
+                  <span class="badge rounded-pill text-bg-light border">{{ ultimo.fuente }}</span>
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {% if ultimo.fuente_documento %}
+          <div class="text-muted small mt-3">
+            Documento fuente: <strong>{{ ultimo.fuente_documento }}</strong>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+          <div class="fw-semibold">Histórico de parámetros</div>
+          <div class="text-muted small">
+            Vista consolidada por período para trazabilidad y consulta.
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('parametros_laborales.importar_previred') }}">
+            📄 Histórico Previred
+          </a>
+        </div>
+      </div>
+
+      {% if rows %}
+      <div class="table-responsive">
+        <table class="table align-middle table-hover">
+          <thead>
+            <tr>
+              <th>Período</th>
+              <th>Vigencia</th>
+              <th class="text-end">UF</th>
+              <th class="text-end">UTM</th>
+              <th class="text-end">Sueldo mínimo</th>
+              <th class="text-end">Tope AFP</th>
+              <th class="text-end">Tope Gratificación</th>
+              <th>Fuente</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            {% set es_periodo_actual = (row.periodo == periodo_actual) %}
+            <tr {% if es_periodo_actual %}class="table-success-subtle"{% endif %}>
+              <td>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fw-semibold">{{ row.periodo }}</span>
+
+                  {% if es_periodo_actual %}
+                    <span class="badge rounded-pill text-bg-success">Vigente</span>
+                  {% endif %}
+
+                  {% if loop.first %}
+                    <span class="badge rounded-pill text-bg-light border">Más reciente</span>
+                  {% endif %}
+                </div>
+              </td>
+
+              <td>
+                <div>{{ row.fecha_vigencia_desde.strftime("%d-%m-%Y") if row.fecha_vigencia_desde else "-" }}</div>
+                <div class="text-muted small">
+                  al {{ row.fecha_vigencia_hasta.strftime("%d-%m-%Y") if row.fecha_vigencia_hasta else "-" }}
+                </div>
+              </td>
+
+              <td class="text-end">
+                {{ row.uf|fmt_cl(2) if row.uf is not none else "-" }}
+              </td>
+
+              <td class="text-end">
+                {{ row.utm|fmt_cl if row.utm is not none else "-" }}
+              </td>
+
+              <td class="text-end">
+                {{ row.renta_minima_dependiente|fmt_cl if row.renta_minima_dependiente is not none else "-" }}
+              </td>
+
+              <td class="text-end">
+                {{ row.tope_imponible_afp|fmt_cl if row.tope_imponible_afp is not none else "-" }}
+              </td>
+
+              <td class="text-end">
+                {{ row.gratificacion_25_por_ciento_tope_mensual|fmt_cl if row.gratificacion_25_por_ciento_tope_mensual is not none else "-" }}
+              </td>
+
+              <td>
+                {% if (row.fuente or "")|upper == "PREVIRED" %}
+                  <span class="badge rounded-pill text-bg-light border">📄 PREVIRED</span>
+                {% elif row.fuente %}
+                  <span class="badge rounded-pill text-bg-light border">{{ row.fuente }}</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+
+                {% if row.fuente_documento %}
+                  <div class="text-muted small mt-1 text-truncate" style="max-width: 260px;" title="{{ row.fuente_documento }}">
+                    {{ row.fuente_documento }}
+                  </div>
+                {% endif %}
+              </td>
+
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
+                  <a class="btn btn-sm btn-outline-primary"
+                     href="{{ url_for('parametros_laborales.editar', parametro_id=row.id) }}">
+                    Editar
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <div class="fw-semibold mb-2">Aún no hay parámetros laborales cargados.</div>
+        <div class="text-muted mb-3">
+          Comienza creando el primer período para alimentar finiquitos y futuros cálculos laborales.
+        </div>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <a class="btn btn-outline-primary" href="{{ url_for('parametros_laborales.importar_previred') }}">
+            ⬆ Importar PDF Previred
+          </a>
+          <a class="btn btn-primary" href="{{ url_for('parametros_laborales.nuevo') }}">
+            Crear primer registro
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

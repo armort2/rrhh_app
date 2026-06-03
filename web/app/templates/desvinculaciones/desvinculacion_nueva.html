@@ -11,7 +11,6 @@
       <h1 class="section-title">Nueva desvinculación</h1>
       <div class="section-subtitle">
         {{ trabajador.nombres }} {{ trabajador.ap_paterno }} {{ trabajador.ap_materno }}
-        · Contrato vigente <strong>#{{ contrato.id }}</strong>
       </div>
       <div class="section-divider"></div>
     </div>
@@ -24,9 +23,96 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-3 align-items-stretch">
+
+        <div class="col-12 col-xl-5">
+          <div class="h-100 border rounded-3 p-2 p-md-3 bg-white">
+            <div class="small text-muted text-uppercase mb-2">
+              Contrato seleccionado para desvinculación
+            </div>
+
+            <label for="contrato_selector" class="form-label mb-2">Contrato a finalizar</label>
+            <select
+              id="contrato_selector"
+              class="form-select"
+              onchange="if(this.value){ window.location='{{ url_for('desvinculaciones.nueva_desvinculacion', trabajador_id=trabajador.id) }}?contrato_id=' + this.value; }"
+            >
+              {% for c in contratos_vigentes %}
+                <option value="{{ c.id }}" {% if contrato and c.id == contrato.id %}selected{% endif %}>
+                  #{{ c.id }}
+                  · {{ c.tipo_contrato or 'Sin tipo' }}
+                  · Inicio: {% if c.fecha_inicio %}{{ c.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}--{% endif %}
+                  · {{ c.empleador.razon_social if c.empleador else 'Sin empleador' }}
+                </option>
+              {% endfor %}
+            </select>
+
+            <div class="form-text mt-2 mb-0">
+              Selecciona el contrato específico que deseas terminar para este trabajador.
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-7">
+          {% if contrato %}
+            <div class="h-100 border rounded-3 p-2 p-md-3 bg-light">
+              <div class="small text-muted text-uppercase mb-2">
+                Resumen del contrato seleccionado
+              </div>
+
+              <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                  <div class="small text-muted">Contrato</div>
+                  <div class="fw-semibold">#{{ contrato.id }}</div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                  <div class="small text-muted">Tipo</div>
+                  <div class="fw-semibold">{{ contrato.tipo_contrato or "-" }}</div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                  <div class="small text-muted">Fecha inicio</div>
+                  <div class="fw-semibold">
+                    {% if contrato.fecha_inicio %}{{ contrato.fecha_inicio.strftime("%d-%m-%Y") }}{% else %}-{% endif %}
+                  </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                  <div class="small text-muted">Estado</div>
+                  <div><span class="badge text-bg-success">VIGENTE</span></div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                  <div class="small text-muted">Empleador</div>
+                  <div class="fw-semibold">{{ contrato.empleador.razon_social if contrato.empleador else "-" }}</div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                  <div class="small text-muted">Obra</div>
+                  <div class="fw-semibold">{{ contrato.obra.nombre if contrato.obra else "-" }}</div>
+                </div>
+
+                <div class="col-12">
+                  <div class="small text-muted">Cargo</div>
+                  <div class="fw-semibold">{{ contrato.cargo.nombre if contrato.cargo else "-" }}</div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
     <div class="card-body">
       <form method="post" action="{{ url_for('desvinculaciones.crear_desvinculacion', trabajador_id=trabajador.id) }}">
+        <input type="hidden" name="contrato_id" value="{{ contrato.id if contrato else '' }}">
+
         <div class="row g-3">
           <div class="col-12">
             <label for="causal_id" class="form-label">Causal de término</label>
@@ -50,14 +136,21 @@
 
           <div class="col-12">
             <label for="motivo_detalle" class="form-label">Motivo / detalle (opcional)</label>
-            <textarea name="motivo_detalle" id="motivo_detalle" rows="3"
-                      class="form-control"
-                      placeholder="Ej: reestructuración, término de faena, renuncia presentada, etc."></textarea>
+            <textarea
+              name="motivo_detalle"
+              id="motivo_detalle"
+              rows="3"
+              class="form-control"
+              placeholder="Ej: reestructuración, término de faena, renuncia presentada, etc."
+            ></textarea>
           </div>
         </div>
 
         <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
-          <a class="btn btn-secondary" href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}">Cancelar</a>
+          <a class="btn btn-secondary"
+             href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=trabajador.id) }}">
+            Cancelar
+          </a>
           <button type="submit" class="btn btn-primary">Guardar borrador</button>
         </div>
       </form>

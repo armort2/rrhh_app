@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 
 from ...extensions import db
 from ...models import User, Role, Obra
+from ...services.system_health import build_system_health
 from . import bp
 
 
@@ -273,3 +274,11 @@ def users_reset_password(user_id):
 
     flash("Contraseña restablecida. Se marcó 'must_change_password'.", "info")
     return redirect(url_for("admin.users_edit", user_id=user_id))
+
+
+@bp.get("/salud-sistema")
+@login_required
+def salud_sistema():
+    _require_admin()
+    health = build_system_health()
+    return render_template("admin/salud_sistema.html", health=health)

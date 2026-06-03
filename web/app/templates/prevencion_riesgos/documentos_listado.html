@@ -1,0 +1,144 @@
+{# web/app/templates/prevencion_riesgos/documentos_listado.html #}
+{% extends "base.html" %}
+
+{% block title %}Documentos preventivos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page">
+
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4 card cs-list-hero p-3">
+    <div>
+      <div class="cs-module-eyebrow">🦺 Prevención de Riesgos</div>
+      <h1 class="section-title">Documentos preventivos</h1><div class="section-divider"></div>
+      <p class="text-muted mb-0">Control documental preventivo por trabajador, obra, tipo y vencimiento.</p>
+    </div>
+
+    <div class="cs-page-actions">
+      <a href="{{ url_for('prevencion_riesgos.documento_nuevo') }}" class="btn btn-primary">Nuevo documento</a>
+      <a href="{{ url_for('prevencion_riesgos.dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
+    </div>
+  </div>
+
+  <form method="get" class="card shadow-sm mb-3 cs-filter-card cs-filter-form" data-filter-form data-filter-count-target="#docs-filter-count">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Buscar trabajador</label>
+          <input type="text" name="q" class="form-control" value="{{ trabajador_q or '' }}" placeholder="Nombre, apellido o RUT">
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label">Obra</label>
+          <select name="obra_id" class="form-select">
+            <option value="">Todas las obras autorizadas</option>
+            {% for obra in obras %}
+              <option value="{{ obra.id }}" {% if obra_id == obra.id %}selected{% endif %}>{{ obra.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label">Tipo</label>
+          <select name="tipo_documento" class="form-select">
+            <option value="">Todos</option>
+            {% for value, label in tipos_documento %}
+              <option value="{{ value }}" {% if tipo_documento == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="">Todos</option>
+            {% for value, label in estados_documento %}
+              <option value="{{ value }}" {% if estado == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-auto">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-secondary">Limpiar</a>
+          <span id="docs-filter-count" class="cs-filter-count is-empty ms-md-2">0 filtros activos</span>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="card shadow-sm cs-table-card">
+    <div class="table-responsive cs-table-wrap">
+      <table class="table table-hover align-middle mb-0 cs-polished-table">
+        <thead class="table-light">
+          <tr>
+            <th>Trabajador</th>
+            <th>RUT</th>
+            <th>Obra</th>
+            <th>Tipo</th>
+            <th>Emisión</th>
+            <th>Vencimiento</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in documentos %}
+            <tr>
+              <td class="fw-semibold">
+                {{ doc.trabajador.ap_paterno }} {{ doc.trabajador.ap_materno or '' }}, {{ doc.trabajador.nombres }}
+              </td>
+              <td>{{ doc.trabajador|rut_trabajador }}</td>
+              <td>{{ doc.obra.nombre if doc.obra else 'Sin obra' }}</td>
+              <td>{{ doc.tipo_documento }}</td>
+              <td>{{ doc.fecha_emision.strftime('%d-%m-%Y') }}</td>
+              <td>{{ doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else '-' }}</td>
+              <td>
+                {% if doc.estado == 'VIGENTE' %}
+                  <span class="badge bg-success">Vigente</span>
+                {% elif doc.estado == 'POR_VENCER' %}
+                  <span class="badge bg-warning text-dark">Por vencer</span>
+                {% elif doc.estado == 'VENCIDO' %}
+                  <span class="badge bg-danger">Vencido</span>
+                {% elif doc.estado == 'PENDIENTE' %}
+                  <span class="badge bg-secondary">Pendiente</span>
+                {% elif doc.estado == 'ANULADO' %}
+                  <span class="badge bg-dark">Anulado</span>
+                {% else %}
+                  <span class="badge bg-dark">{{ doc.estado }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('prevencion_riesgos.documento_detalle', documento_id=doc.id) }}" class="btn btn-outline-primary">
+                    Ver
+                  </a>
+                  <a href="{{ url_for('prevencion_riesgos.documento_editar', documento_id=doc.id) }}" class="btn btn-outline-warning">
+                    Editar
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="8" class="cs-empty-table-cell">
+                <div class="cs-empty-state is-table" role="status">
+                  <div class="cs-empty-icon" aria-hidden="true">📄</div>
+                  <div>
+                    <h2 class="cs-empty-title">Sin documentos preventivos</h2>
+                    <p class="cs-empty-text">No hay documentos preventivos con los filtros seleccionados. Limpia filtros o registra un nuevo documento.</p>
+                    <div class="cs-empty-actions">
+                      <a href="{{ url_for('prevencion_riesgos.documentos_listado') }}" class="btn btn-outline-secondary btn-sm">Limpiar filtros</a>
+                      <a href="{{ url_for('prevencion_riesgos.documento_nuevo') }}" class="btn btn-primary btn-sm">Nuevo documento</a>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

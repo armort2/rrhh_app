@@ -4,58 +4,58 @@
 {% block title %}Detalle de contrato · #{{ contrato.id }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 cs-detail-page">
 
   {% set next_url = request.args.get("next") %}
   {% set rut_show = (rut_trabajador_formateado or contrato.trabajador.rut) %}
 
-  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
-    <div class="section-header mb-0">
-      <h1 class="section-title">Detalle de contrato</h1>
-      <div class="section-subtitle">
-        Trabajador:
-        <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
-        · RUT: {{ rut_show }}
-        · Contrato: <span class="fw-semibold">#{{ contrato.id }}</span>
+  <div class="card shadow-sm contrato-hero-card mb-3">
+    <div class="card-body">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div class="section-header mb-0">
+          <h1 class="section-title">Detalle de contrato</h1>
+          <div class="section-subtitle">
+            Trabajador:
+            <strong>{{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}</strong>
+            · RUT: {{ rut_show }}
+            · Contrato: <span class="fw-semibold">#{{ contrato.id }}</span>
 
-        {% if contrato.estado_contrato %}
-          {% if contrato.estado_contrato == "VIGENTE" %}
-            <span class="badge text-bg-success ms-2">Vigente</span>
-          {% elif contrato.estado_contrato == "TERMINADO" %}
-            <span class="badge text-bg-secondary ms-2">Terminado</span>
-          {% else %}
-            <span class="badge text-bg-secondary ms-2">{{ contrato.estado_contrato }}</span>
-          {% endif %}
-        {% endif %}
+            {% if contrato.estado_contrato %}
+              {% if contrato.estado_contrato == "VIGENTE" %}
+                <span class="badge text-bg-success ms-2">Vigente</span>
+              {% elif contrato.estado_contrato == "TERMINADO" %}
+                <span class="badge text-bg-secondary ms-2">Terminado</span>
+              {% else %}
+                <span class="badge text-bg-secondary ms-2">{{ contrato.estado_contrato }}</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          <div class="section-divider"></div>
+        </div>
+
+        <a class="btn btn-outline-secondary"
+           href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id, contrato_id=contrato.id, next=next_url) if next_url else url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id, contrato_id=contrato.id) }}">
+          ⬅ Volver a ficha
+        </a>
       </div>
-      <div class="section-divider"></div>
-    </div>
 
-    <div class="d-flex gap-2 flex-wrap">
-      <a class="btn btn-outline-secondary"
-         href="{{ url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id, next=next_url) if next_url else url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id) }}">
-        ⬅ Volver a ficha
-      </a>
+      <div class="contrato-action-bar mt-3">
+        <a class="btn btn-outline-primary" href="{{ url_for('contratos.editar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.editar_contrato', contrato_id=contrato.id) }}">✏️ Editar contrato</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}">📁 Documentos</a>
+        <a class="btn btn-primary" href="{{ url_for('contratos.generar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.generar_contrato', contrato_id=contrato.id) }}">📄 Generar contrato</a>
 
-      <a class="btn btn-outline-primary"
-         href="{{ url_for('contratos.editar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.editar_contrato', contrato_id=contrato.id) }}">
-        ✏️ Editar
-      </a>
-
-      <a class="btn btn-outline-secondary"
-         href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}">
-        📁 Documentos
-      </a>
-
-      <a class="btn btn-primary"
-         href="{{ url_for('contratos.generar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.generar_contrato', contrato_id=contrato.id) }}">
-        📄 Generar contrato
-      </a>
-
-      <a class="btn btn-outline-primary"
-         href="{{ url_for('anexos.anexo_extension', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos.anexo_extension', contrato_id=contrato.id) }}">
-        ➕ Anexo extensión
-      </a>
+        <div class="dropdown">
+          <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            🧩 Anexos de contrato
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end cs-dropdown-menu contrato-anexos-menu">
+            <li><a class="dropdown-item" href="{{ url_for('anexos.anexo_extension', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos.anexo_extension', contrato_id=contrato.id) }}">➕ Anexo extensión</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('anexos_cambio_sueldo.nuevo', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos_cambio_sueldo.nuevo', contrato_id=contrato.id) }}">💰 Cambio de sueldo</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('anexos_cambio_cargo.nuevo', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos_cambio_cargo.nuevo', contrato_id=contrato.id) }}">🧰 Cambio de cargo</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('anexos_indefinidos.nuevo', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos_indefinidos.nuevo', contrato_id=contrato.id) }}">📌 Paso a indefinido</a></li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 

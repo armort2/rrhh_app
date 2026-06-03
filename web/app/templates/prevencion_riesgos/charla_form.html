@@ -1,0 +1,133 @@
+{# web/app/templates/prevencion_riesgos/charla_form.html #}
+{% extends "base.html" %}
+{% set es_edicion = (modo|default('crear') == 'editar') %}
+
+{% block title %}{% if es_edicion %}Editar charla de seguridad{% else %}Nueva charla de seguridad{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-form-page">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <div class="text-muted small text-uppercase fw-semibold">Prevención de Riesgos</div>
+      <h1 class="h3 mb-1">{% if es_edicion %}Editar charla de seguridad{% else %}Nueva charla de seguridad{% endif %}</h1>
+      <p class="text-muted mb-0">Busca trabajadores y agrega sus contratos como asistentes.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if es_edicion %}<a href="{{ url_for('prevencion_riesgos.charla_detalle', charla_id=charla.id) }}" class="btn btn-outline-secondary">Volver al detalle</a>{% endif %}
+      <a href="{{ url_for('prevencion_riesgos.charlas_listado') }}" class="btn btn-outline-secondary">Volver al listado</a>
+    </div>
+  </div>
+
+  <form method="post" class="card shadow-sm" data-prevencion-contrato-selector data-mode="multiple" data-api-url="{{ url_for('prevencion_riesgos.api_contratos_selector') }}">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Datos de la charla</h2>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-5">
+          <label class="form-label">Título</label>
+          <input type="text" name="titulo" class="form-control" value="{{ charla.titulo if es_edicion else '' }}" required>
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label class="form-label">Tipo</label>
+          <select name="tipo" class="form-select" required>
+            <option value="">Seleccionar</option>
+            {% for value, label in tipos_charla %}
+              <option value="{{ value }}" {% if es_edicion and charla.tipo == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <label class="form-label">Obra</label>
+          <select name="obra_id" class="form-select" required>
+            <option value="">Seleccionar obra</option>
+            {% for obra in obras %}
+              <option value="{{ obra.id }}" {% if es_edicion and charla.obra_id == obra.id %}selected{% endif %}>{{ obra.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <label class="form-label">Fecha</label>
+          <input type="date" name="fecha" class="form-control" value="{% if es_edicion and charla.fecha %}{{ charla.fecha.strftime('%Y-%m-%d') }}{% else %}{{ today.strftime('%Y-%m-%d') }}{% endif %}" required>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <label class="form-label">Relator</label>
+          <input type="text" name="relator" class="form-control" value="{{ charla.relator if es_edicion and charla.relator else '' }}">
+        </div>
+
+        <div class="col-12 col-lg-2">
+          <label class="form-label">Duración min.</label>
+          <input type="number" name="duracion_minutos" class="form-control" value="{{ charla.duracion_minutos if es_edicion and charla.duracion_minutos else '' }}" min="1">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Tema / contenido</label>
+          <textarea name="tema" class="form-control" rows="3">{% if es_edicion and charla.tema %}{{ charla.tema }}{% endif %}</textarea>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Observación</label>
+          <textarea name="observacion" class="form-control" rows="2">{% if es_edicion and charla.observacion %}{{ charla.observacion }}{% endif %}</textarea>
+        </div>
+      </div>
+
+      <h2 class="h5 mb-3">Asistentes por contrato</h2>
+
+      <div class="row g-3">
+        <div class="col-12 col-xl-6">
+          <label class="form-label">Buscar trabajador / contrato</label>
+          <input type="text" id="buscadorContrato" data-contrato-search class="form-control" autocomplete="off" placeholder="Nombre, apellidos, RUT o ID de contrato">
+          <div id="resultadosContrato" data-contrato-results class="list-group mt-2 shadow-sm d-none"></div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+          <label class="form-label">Contratos seleccionados</label>
+          <div id="contratosSeleccionados" data-contratos-selected class="border rounded-3 p-3 bg-light" style="min-height: 90px;">
+            {% if es_edicion and charla.asistentes %}
+              {% for asistente in charla.asistentes %}
+                {% if asistente.contrato_id and asistente.contrato %}
+                  <div class="selected-contract border rounded-3 p-2 bg-white mb-2" data-id="{{ asistente.contrato_id }}">
+                    <input type="hidden" name="contrato_ids" value="{{ asistente.contrato_id }}">
+                    <div class="d-flex justify-content-between gap-2">
+                      <div>
+                        <div class="fw-semibold">{{ asistente.trabajador.ap_paterno }} {{ asistente.trabajador.ap_materno or '' }}, {{ asistente.trabajador.nombres }}</div>
+                        <div class="small text-muted">
+                          Contrato #{{ asistente.contrato_id }}
+                          {% if asistente.contrato.cargo %} · {{ asistente.contrato.cargo.nombre }}{% endif %}
+                          {% if asistente.contrato.obra %} · {{ asistente.contrato.obra.nombre }}{% endif %}
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-danger js-remove-contract">Quitar</button>
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            <div id="emptySelected" data-empty-selected class="text-muted {% if es_edicion and charla.asistentes %}d-none{% endif %}">
+              Aún no has agregado asistentes.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end gap-2">
+      {% if es_edicion %}
+        <a href="{{ url_for('prevencion_riesgos.charla_detalle', charla_id=charla.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      {% else %}
+        <a href="{{ url_for('prevencion_riesgos.charlas_listado') }}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar charla</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/prevencion_contratos_selector.js') }}"></script>
+{% endblock %}

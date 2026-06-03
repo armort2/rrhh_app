@@ -1,0 +1,171 @@
+{# web/app/templates/acuerdos_pago/acuerdos_pago_detalle.html #}
+{% extends "base.html" %}
+
+{% block title %}Acuerdo de Pago #{{ acuerdo.numero }} · GRUPO CS{% endblock %}
+
+{% block content %}
+
+{# cache-busting para descargas (evita que el navegador “recuerde” el PDF viejo) #}
+{% set cache_bust = (acuerdo.emitido_version or 0) %}
+
+<div class="container py-3 cs-detail-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Acuerdo de Pago #{{ acuerdo.numero }}</h1>
+      <div class="section-subtitle">
+        {{ tipo_labels.get(acuerdo.tipo, acuerdo.tipo.value if acuerdo.tipo else '-') }}
+        · {{ acuerdo.fecha_acuerdo }}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('acuerdos_pago.listado') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+
+      {% if acuerdo.estado not in ['ANULADO','PAGADO'] %}
+        <a href="{{ url_for('acuerdos_pago.editar', acuerdo_id=acuerdo.id) }}" class="btn btn-primary">
+          <i class="bi bi-pencil-square me-1"></i> Editar
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <div class="text-muted small">Trabajador</div>
+          {% if acuerdo.trabajador %}
+            <div class="fw-semibold">{{ acuerdo.trabajador.ap_paterno }} {{ acuerdo.trabajador.ap_materno or '' }}, {{ acuerdo.trabajador.nombres }}</div>
+            <div class="text-muted">{{ acuerdo.trabajador.rut_completo }}</div>
+          {% else %}
+            <div class="text-muted">-</div>
+          {% endif %}
+        </div>
+
+        <div class="col-6 col-lg-2">
+          <div class="text-muted small">Estado</div>
+          <div class="fw-semibold">
+            {% if acuerdo.estado == 'EMITIDO' %}
+              <span class="badge text-bg-success">EMITIDO</span>
+            {% elif acuerdo.estado == 'BORRADOR' %}
+              <span class="badge text-bg-secondary">BORRADOR</span>
+            {% elif acuerdo.estado == 'ANULADO' %}
+              <span class="badge text-bg-warning">ANULADO</span>
+            {% elif acuerdo.estado == 'PAGADO' %}
+              <span class="badge text-bg-primary">PAGADO</span>
+            {% else %}
+              <span class="badge text-bg-light">{{ acuerdo.estado }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+          <div class="text-muted small">Monto total</div>
+          <div class="fw-semibold">${{ "{:,.0f}".format(acuerdo.monto_total or 0).replace(",", ".") }}</div>
+        </div>
+
+        <div class="col-6 col-lg-1">
+          <div class="text-muted small">Cuotas</div>
+          <div class="fw-semibold">{{ acuerdo.cuotas }}</div>
+        </div>
+
+        <div class="col-6 col-lg-2">
+          <div class="text-muted small">Mes inicio</div>
+          <div class="fw-semibold">{{ acuerdo.mes_inicio_descuento or '-' }}</div>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted small">Concepto</div>
+          <div class="fw-semibold">{{ acuerdo.concepto }}</div>
+        </div>
+
+        {% if acuerdo.observaciones %}
+        <div class="col-12">
+          <div class="text-muted small">Observaciones</div>
+          <div>{{ acuerdo.observaciones }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# =========================
+     DOCUMENTOS + ACCIONES
+     ========================= #}
+  <div class="card shadow-sm">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+      <div class="text-muted">
+        Documentos:
+        {% if acuerdo.docx_ruta or acuerdo.pdf_ruta %}
+          <span class="fw-semibold">Disponibles</span>
+          <span class="text-muted">
+            ({{ 'DOCX' if acuerdo.docx_ruta else '' }}{% if acuerdo.docx_ruta and acuerdo.pdf_ruta %}/{% endif %}{{ 'PDF' if acuerdo.pdf_ruta else '' }})
+          </span>
+        {% else %}
+          <span class="fw-semibold">DOCX/PDF</span> <span class="text-muted">(sin emitir)</span>
+        {% endif %}
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap cs-detail-actions">
+
+        {# Botón Emitir (solo si no está anulado/pagado y aún no emitido) #}
+        {% if acuerdo.estado not in ['ANULADO','PAGADO'] and acuerdo.estado != 'EMITIDO' %}
+          <form method="post" action="{{ url_for('acuerdos_pago.emitir', acuerdo_id=acuerdo.id) }}"
+                onsubmit="return confirm('¿Emitir este acuerdo y generar DOCX + PDF?');">
+            <button class="btn btn-success" type="submit">
+              <i class="bi bi-file-earmark-check me-1"></i> Emitir (DOCX/PDF)
+            </button>
+          </form>
+        {% endif %}
+
+        {# Descargas (cache-busting con v=...) #}
+        {% if acuerdo.docx_ruta %}
+          <a class="btn btn-outline-primary"
+             href="{{ url_for('acuerdos_pago.descargar_docx', acuerdo_id=acuerdo.id) }}?v={{ cache_bust }}">
+            <i class="bi bi-file-earmark-word me-1"></i> Descargar DOCX
+          </a>
+        {% endif %}
+
+        {% if acuerdo.pdf_ruta %}
+          <a class="btn btn-outline-danger"
+             href="{{ url_for('acuerdos_pago.descargar_pdf', acuerdo_id=acuerdo.id) }}?v={{ cache_bust }}">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF
+          </a>
+        {% endif %}
+
+        {# Anular / Reabrir #}
+        {% if acuerdo.estado != 'ANULADO' %}
+          <form method="post" action="{{ url_for('acuerdos_pago.anular', acuerdo_id=acuerdo.id) }}"
+                onsubmit="return confirm('¿Anular este acuerdo?');">
+            <button class="btn btn-outline-warning" type="submit">
+              <i class="bi bi-x-circle me-1"></i> Anular
+            </button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('acuerdos_pago.reabrir', acuerdo_id=acuerdo.id) }}"
+                onsubmit="return confirm('¿Reabrir este acuerdo como BORRADOR?');">
+            <button class="btn btn-outline-success" type="submit">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Reabrir
+            </button>
+          </form>
+        {% endif %}
+
+      </div>
+    </div>
+
+    {# Nota inferior (opcional, pero útil) #}
+    {% if acuerdo.estado == 'EMITIDO' and (not acuerdo.docx_ruta or not acuerdo.pdf_ruta) %}
+      <div class="card-footer">
+        <div class="text-muted small">
+          ⚠️ El acuerdo está marcado como EMITIDO, pero falta ruta de DOCX/PDF registrada. Revisa la generación de documentos.
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -2,10 +2,37 @@
 {% extends "base.html" %}
 {% block title %}Solicitud de Fondos{% endblock %}
 
-{% block content %}
-<div class="container-fluid py-3">
+{% macro fmt_clp(val) -%}
+  {%- if val is none -%}
+    0
+  {%- else -%}
+    {%- if val is number -%}
+      {{ ("{:,.0f}".format(val)).replace(",", ".") }}
+    {%- else -%}
+      {%- set s = (val|string)|trim -%}
+      {%- set s = s.replace(",", ".") -%}
+      {%- if "." in s -%}{%- set s = s.split(".")[0] -%}{%- endif -%}
+      {%- set s = s.replace(".", "").replace(" ", "") -%}
+      {{ ("{:,.0f}".format(s|int)).replace(",", ".") }}
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
 
-  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+{% macro page_url(p) -%}
+  {{ url_for(
+      'solicitudes_fondos.listado',
+      page=p,
+      centro_costo=centro_costo or None,
+      estado=estado or None,
+      desde=desde or None,
+      hasta=hasta or None
+  ) }}
+{%- endmacro %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3 card cs-list-hero p-3">
     <div class="section-header mb-0">
       <h1 class="section-title">Solicitud de Fondos</h1>
       <div class="section-subtitle">Gestión quincenal y fin de mes por Centro de Costo (Obra).</div>
@@ -13,15 +40,19 @@
     </div>
 
     {% if current_user.has_role("ADMIN", "OPERADOR") %}
-      <div class="d-flex gap-2">
-        <a class="btn btn-primary" href="{{ url_for('solicitudes_fondos.nueva') }}">Nueva solicitud</a>
+      <div class="cs-page-actions">
+        <a class="btn btn-outline-primary" href="{{ url_for('solicitudes_fondos.nominas_banco') }}">
+          🏦 Nóminas banco (SF)
+        </a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.reportes_solicitudes_fondos') }}">📊 Reportes</a>
+      <a class="btn btn-primary" href="{{ url_for('solicitudes_fondos.nueva') }}">Nueva solicitud</a>
       </div>
     {% endif %}
   </div>
 
-  <div class="card mb-3">
+  <div class="card mb-3 cs-filter-card">
     <div class="card-body">
-      <form method="get" class="row g-2 align-items-end">
+      <form method="get" class="row g-2 align-items-end cs-filter-form" data-filter-form data-filter-count-target="#sf-filter-count">
         <div class="col-12 col-md-5">
           <label class="form-label">Centro de Costo</label>
           <select name="centro_costo" class="form-select">
@@ -52,18 +83,41 @@
           <input type="date" class="form-control" name="hasta" value="{{ hasta or '' }}">
         </div>
 
-        <div class="col-12 d-flex gap-2 mt-2">
+        <div class="col-12 d-flex gap-2 mt-2 align-items-center flex-wrap">
           <button class="btn btn-outline-primary" type="submit">Filtrar</button>
           <a class="btn btn-outline-secondary" href="{{ url_for('solicitudes_fondos.listado') }}">Limpiar</a>
+          <span id="sf-filter-count" class="cs-filter-count is-empty ms-md-auto">0 filtros activos</span>
         </div>
       </form>
     </div>
   </div>
 
-  <div class="card">
+  <div class="cs-table-meta">
+    <div class="text-muted small">
+      {% if pagination and pagination.total %}
+        Mostrando
+        <strong>{{ ((pagination.page - 1) * pagination.per_page) + 1 }}</strong>
+        a
+        <strong>{{ ((pagination.page - 1) * pagination.per_page) + (solicitudes|length) }}</strong>
+        de
+        <strong>{{ pagination.total }}</strong>
+        solicitudes.
+      {% else %}
+        Sin registros.
+      {% endif %}
+    </div>
+
+    {% if pagination and pagination.pages > 1 %}
+      <div class="text-muted small">
+        Página <strong>{{ pagination.page }}</strong> de <strong>{{ pagination.pages }}</strong>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card cs-table-card">
     <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
+      <div class="table-responsive cs-table-wrap">
+        <table class="table table-hover mb-0 align-middle cs-polished-table">
           <thead>
             <tr>
               <th style="width:110px;">N°</th>
@@ -71,23 +125,46 @@
               <th style="width:140px;">Fecha</th>
               <th style="width:140px;">Período</th>
               <th style="width:140px;">Estado</th>
+
+              <th style="width:150px;" class="text-end">Remu</th>
+              <th style="width:150px;" class="text-end">Rend</th>
+              <th style="width:170px;" class="text-end">Contrat./Prov.</th>
+              <th style="width:150px;" class="text-end">Varios</th>
+              <th style="width:160px;" class="text-end">Total</th>
+
               <th style="width:120px;" class="text-end">Acción</th>
             </tr>
           </thead>
+
           <tbody>
             {% if not solicitudes %}
               <tr>
-                <td colspan="6" class="text-center text-muted py-4">Sin registros.</td>
+                <td colspan="11" class="cs-empty-table-cell">
+                  <div class="cs-empty-state is-table" role="status">
+                    <div class="cs-empty-icon" aria-hidden="true">💸</div>
+                    <div>
+                      <h2 class="cs-empty-title">Sin solicitudes en esta vista</h2>
+                      <p class="cs-empty-text">No hay solicitudes de fondos con los filtros aplicados. Puedes limpiar los filtros o crear una nueva solicitud.</p>
+                      <div class="cs-empty-actions">
+                        <a href="{{ url_for('solicitudes_fondos.listado') }}" class="btn btn-outline-secondary btn-sm">Limpiar filtros</a>
+                        {% if current_user.has_role("ADMIN", "OPERADOR") %}
+                          <a href="{{ url_for('solicitudes_fondos.nueva') }}" class="btn btn-primary btn-sm">Nueva solicitud</a>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </td>
               </tr>
             {% else %}
               {% for s in solicitudes %}
+                {% set e = (s.estado or '')|upper %}
                 <tr>
                   <td>#{{ s.numero }}</td>
                   <td>
                     <div class="fw-semibold">{{ s.centro_costo }}</div>
                     <div class="text-muted small">
-                      {% if s.obra %}
-                        Ref: {{ s.obra.codigo }} · {{ s.obra.nombre }}
+                      {% if s.obra_id and (s.obra_codigo or s.obra_nombre) %}
+                        Ref: {{ s.obra_codigo or "-" }} · {{ s.obra_nombre or "-" }}
                       {% else %}
                         —
                       {% endif %}
@@ -96,8 +173,27 @@
                   <td>{{ s.fecha_solicitud }}</td>
                   <td>{{ s.periodo_tipo }}</td>
                   <td>
-                    <span class="badge {{ badge_estado(s.estado) }}">{{ s.estado }}</span>
+                    {% if e == "PAGADA" %}
+                      <span class="badge rounded-pill text-bg-success">PAGADA</span>
+                    {% elif e == "APROBADA" %}
+                      <span class="badge rounded-pill text-bg-success">APROBADA</span>
+                    {% elif e == "RECHAZADA" %}
+                      <span class="badge rounded-pill text-bg-danger">RECHAZADA</span>
+                    {% elif e == "ENVIADA" %}
+                      <span class="badge rounded-pill text-bg-info">ENVIADA</span>
+                    {% else %}
+                      <span class="badge rounded-pill text-bg-secondary">{{ e or "—" }}</span>
+                    {% endif %}
                   </td>
+
+                  {% set t = (tot_map.get(s.id) if tot_map is defined else none) %}
+
+                  <td class="text-end">{{ fmt_clp(t["REMU"] if t else 0) }}</td>
+                  <td class="text-end">{{ fmt_clp(t["REND"] if t else 0) }}</td>
+                  <td class="text-end">{{ fmt_clp(t["TERC"] if t else 0) }}</td>
+                  <td class="text-end">{{ fmt_clp(t["VAR"]  if t else 0) }}</td>
+                  <td class="text-end fw-semibold">{{ fmt_clp(t["TOTAL"] if t else 0) }}</td>
+
                   <td class="text-end">
                     <a class="btn btn-sm btn-outline-primary"
                        href="{{ url_for('solicitudes_fondos.detalle', solicitud_id=s.id) }}">
@@ -112,6 +208,50 @@
       </div>
     </div>
   </div>
+
+  {% if pagination and pagination.pages > 1 %}
+    <nav class="mt-3" aria-label="Paginación solicitudes de fondos">
+      <ul class="pagination pagination-sm flex-wrap mb-0">
+
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_prev %}{{ page_url(1) }}{% else %}#{% endif %}">
+            « Primera
+          </a>
+        </li>
+
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_prev %}{{ page_url(pagination.prev_num) }}{% else %}#{% endif %}">
+            ‹ Anterior
+          </a>
+        </li>
+
+        {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+          {% if p %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ page_url(p) }}">{{ p }}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">…</span>
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_next %}{{ page_url(pagination.next_num) }}{% else %}#{% endif %}">
+            Siguiente ›
+          </a>
+        </li>
+
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_next %}{{ page_url(pagination.pages) }}{% else %}#{% endif %}">
+            Última »
+          </a>
+        </li>
+
+      </ul>
+    </nav>
+  {% endif %}
 
 </div>
 {% endblock %}

@@ -1,0 +1,98 @@
+{# /web/app/templates/certificados/editar.html #}
+{% extends "base.html" %}
+{% block title %}Editar certificado #{{ cert.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Editar · Certificado #{{ cert.id }}</h1>
+      <div class="section-subtitle">
+        {{ cert.trabajador.ap_paterno }} {{ cert.trabajador.ap_materno or '' }}, {{ cert.trabajador.nombres }}
+        · {{ cert.trabajador.rut_completo }}
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      {% if current_user.has_role("ADMIN","OPERADOR") %}
+
+        {# ✅ Acción principal: Generar PDF (por defecto) #}
+        <a class="btn btn-success"
+           href="{{ url_for('certificados.generar',
+                            certificado_id=cert.id,
+                            formato='PDF',
+                            next=url_for('certificados.editar', certificado_id=cert.id)) }}">
+          Generar PDF
+        </a>
+
+        {# Opcional: acceso “puntual” a DOCX (para edición manual) #}
+        <a class="btn btn-outline-dark"
+           href="{{ url_for('certificados.generar',
+                            certificado_id=cert.id,
+                            formato='DOCX',
+                            next=url_for('certificados.editar', certificado_id=cert.id)) }}">
+          Generar DOCX
+        </a>
+
+        <form method="post" action="{{ url_for('certificados.anular', certificado_id=cert.id) }}"
+              onsubmit="return confirm('¿Anular certificado #{{ cert.id }}?');">
+          <button class="btn btn-outline-danger" type="submit">Anular</button>
+        </form>
+      {% endif %}
+
+      <a class="btn btn-outline-secondary" href="{{ url_for('certificados.listado') }}">Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form class="row g-2" method="post" action="{{ url_for('certificados.guardar', certificado_id=cert.id) }}">
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" name="tipo">
+            {% for t in TIPOS_CERT %}
+              <option value="{{ t }}" {% if cert.tipo==t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-8">
+          <label class="form-label">Objetivo</label>
+          <input class="form-control" name="objetivo" value="{{ cert.objetivo or '' }}">
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Estado</label>
+          <input class="form-control" value="{{ cert.estado }}" disabled>
+        </div>
+
+        <div class="col-12 col-md-8">
+          <label class="form-label">Archivo emitido</label>
+          {# Mostramos PDF si existe, si no DOCX, si no "-" #}
+          <input class="form-control"
+                 value="{{ cert.pdf_ruta or cert.docx_ruta or '-' }}"
+                 disabled>
+          {% if cert.pdf_ruta or cert.docx_ruta %}
+            <div class="form-text">
+              {% if cert.pdf_ruta %}PDF: {{ cert.pdf_ruta }}{% endif %}
+              {% if cert.pdf_ruta and cert.docx_ruta %}<span class="mx-1">·</span>{% endif %}
+              {% if cert.docx_ruta %}DOCX: {{ cert.docx_ruta }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+
+        {% if current_user.has_role("ADMIN","OPERADOR") %}
+        <div class="col-12 d-grid mt-2">
+          <button class="btn btn-primary" type="submit">Guardar cambios</button>
+        </div>
+        {% endif %}
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

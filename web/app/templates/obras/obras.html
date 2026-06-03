@@ -15,7 +15,6 @@
         <div class="section-divider"></div>
       </div>
 
-
       <div class="d-flex gap-2 flex-wrap">
         <a class="btn btn-primary" href="{{ url_for('obras.nueva_obra') }}">
           ➕ Nueva obra
@@ -34,11 +33,13 @@
               <th>Dirección</th>
               <th>Comuna</th>
               <th>Estado</th>
+              <th>Contacto</th>
               <th class="text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {% for o in obras %}
+              {% set has_contact = (o.obra_administrativo_nombre or o.obra_administrativo_correo or o.obra_administrativo_telefono or o.obra_administrativo_rut or o.obra_administrativo_cargo) %}
               <tr>
                 <td>{{ o.codigo }}</td>
                 <td>{{ o.nombre }}</td>
@@ -49,7 +50,13 @@
                   <span class="badge rounded-pill {% if o.estado == 'ACTIVA' %}text-bg-success{% else %}text-bg-secondary{% endif %}">
                     {{ o.estado }}
                   </span>
-
+                </td>
+                <td>
+                  {% if has_contact %}
+                    <span class="badge rounded-pill text-bg-primary">OK</span>
+                  {% else %}
+                    <span class="badge rounded-pill text-bg-secondary">Pendiente</span>
+                  {% endif %}
                 </td>
                 <td class="text-right">
                   <div class="d-flex justify-content-end gap-2 flex-wrap">

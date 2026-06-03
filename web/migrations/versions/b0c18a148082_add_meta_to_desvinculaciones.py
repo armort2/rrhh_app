@@ -5,7 +5,7 @@ Revises: aa3e2df5c1ee
 Create Date: 2026-01-12 18:12:31.457843
 
 """
-from alembic import op
+from alembic import op, context
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -23,6 +23,13 @@ def upgrade():
     # - En desvinculaciones: renombrar metadata -> meta si corresponde, o crear meta si no existe
 
     bind = op.get_bind()
+
+    # En modo --sql Alembic usa MockConnection, no hay inspección posible.
+    if context.is_offline_mode():
+        # Asumimos que la columna no existe aún (migración histórica), y emitimos el DDL directo.
+        op.add_column("desvinculaciones", sa.Column("meta", sa.dialects.postgresql.JSONB(), nullable=True))
+        return
+
     insp = sa.inspect(bind)
 
     cols = {c["name"] for c in insp.get_columns("desvinculaciones")}

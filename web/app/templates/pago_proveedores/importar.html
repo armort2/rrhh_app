@@ -1,0 +1,55 @@
+{# web/app/templates/pago_proveedores/importar.html #}
+{% extends "base.html" %}
+{% block title %}Importar pago proveedores{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="section-header">
+    <div class="section-title">Importar nómina de pago a proveedores</div>
+    <div class="section-subtitle">Sube el Excel (Pagador, RUT, Nro. Fact., Monto). El sistema generará nóminas Santander por pagador.</div>
+    <div class="section-divider"></div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="card">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <label class="form-label">Archivo Excel</label>
+          <input type="file" name="archivo" class="form-control" accept=".xlsx" required>
+          <div class="form-text">Formato esperado: columnas Pagador, RUT, Nro. Fact., Monto.</div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+          <label class="form-label">Año</label>
+          <input type="number" name="anio" class="form-control" value="{{ default_anio }}" min="2020" max="2100" required>
+        </div>
+
+        <div class="col-6 col-lg-3">
+          <label class="form-label">Mes</label>
+          <input type="number" name="mes" class="form-control" value="{{ default_mes }}" min="1" max="12" required>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-info mb-0">
+            <strong>Reglas:</strong>
+            <ul class="mb-0">
+              <li>Se agrupa por <strong>Pagador + Proveedor (RUT)</strong>.</li>
+              <li>Hasta <strong>11 facturas por fila</strong>. Si hay más, se crea otra fila para el mismo proveedor.</li>
+              <li>RUT beneficiario se toma desde <code>terceros.rut_cta_num</code> + <code>terceros.rut_cta_dv</code> (fallback al rut del tercero).</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('pago_proveedores.listado') }}">Volver</a>
+      <button class="btn btn-primary">
+        <i class="bi bi-gear"></i> Procesar y generar
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

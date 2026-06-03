@@ -1,191 +1,517 @@
 {# web/app/templates/base.html #}
 <!doctype html>
 <html lang="es">
-<head>
-    <meta charset="utf-8">
-    <title>
-      {{ config.SYSTEM_NAME or "Grupo CS · Sistema Interno RRHH" }}
-      {% if self.title() %} · {% block title %}{% endblock %}{% endif %}
-    </title>
+    <head>
+        <meta charset="utf-8">
+        <title>
+            {{ config.SYSTEM_NAME or "Grupo CS · Sistema Interno RRHH" }}
+            {% if self.title() %} · {% block title %}{% endblock %}{% endif %}
+        </title>
 
-    <meta name="description" content="Plataforma interna para la gestión de personas, contratos y otros del Grupo CS.">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Plataforma interna para la gestión de personas, contratos y otros del Grupo CS.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-          crossorigin="anonymous">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+              rel="stylesheet"
+              integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+              crossorigin="anonymous">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='ui-normalizacion-v5-20260603') }}">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-<body>
-    {% set ep = request.endpoint or "" %}
-    {% set is_login = (ep == 'auth.login') or (ep == 'auth.login_post') %}
+    </head>
 
-    <header class="topbar">
-        <div class="topbar-left">
-            <img src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}" alt="Grupo CS" class="logo">
-            <div class="topbar-text">
-                <div class="system-name">{{ config.SYSTEM_NAME or "Sistema Grupo CS" }}</div>
-                <div class="system-tagline">{{ config.SYSTEM_TAGLINE or "Gestión de Personas y Prevención" }}</div>
+    <body>
+        {% set ep = request.endpoint or "" %}
+        {% set is_login = (ep == 'auth.login') or (ep == 'auth.login_post') %}
+
+        <a class="skip-link" href="#contenido-principal">Saltar al contenido principal</a>
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <a href="{{ url_for('core.index') }}" class="brand-home-link" aria-label="Ir al inicio del Sistema Grupo CS">
+                    <img src="{{ url_for('static', filename='img/grupo_cs_logo.png') }}" alt="Grupo CS" class="logo">
+                    <div class="topbar-text">
+                        <div class="system-name">{{ config.SYSTEM_NAME or "Sistema Grupo CS" }}</div>
+                        <div class="system-tagline">{{ config.SYSTEM_TAGLINE or "Gestión de Personas y Prevención" }}</div>
+                    </div>
+                </a>
             </div>
-        </div>
 
-        {% if not is_login %}
-        <div class="topbar-right">
-            <nav class="nav-links">
+            {% if not is_login %}
+                <div class="topbar-right">
+                    <nav class="nav-links">
 
-                <a href="{{ url_for('core.index') }}"
-                   class="{% if request.path == url_for('core.index') %}active{% endif %}"
-                   {% if request.path == url_for('core.index') %}aria-current="page"{% endif %}>
-                    Inicio
-                </a>
+                        <a href="{{ url_for('core.index') }}"
+                           class="{% if request.path == url_for('core.index') %}active{% endif %}"
+                           {% if request.path == url_for('core.index') %}aria-current="page"{% endif %}>
+                            Inicio
+                        </a>
 
-                <a href="{{ url_for('trabajadores.listado_trabajadores') }}"
-                   class="{% if request.path.startswith('/trabajadores') %}active{% endif %}"
-                   {% if request.path.startswith('/trabajadores') %}aria-current="page"{% endif %}>
-                    Trabajadores
-                </a>
+                        {# ========================== PERSONAS ========================== #}
+                        <div class="dropdown">
+                            <a class="dropdown-toggle {% if request.path.startswith('/trabajadores') or request.path.startswith('/obras') or request.path.startswith('/terceros') %}active{% endif %}"
+                               href="#"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                👥 Personas
+                            </a>
 
-                <a href="/obras/"
-                   class="{% if request.path.startswith('/obras') %}active{% endif %}"
-                   {% if request.path.startswith('/obras') %}aria-current="page"{% endif %}>
-                    Obras
-                </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('trabajadores.listado_trabajadores') }}">
+                                        <span class="dd-ico">🧑‍🏭</span><span class="dd-txt">Trabajadores</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="/obras/">
+                                        <span class="dd-ico">🏗️</span><span class="dd-txt">Obras</span>
+                                    </a>
+                                </li>
 
-                <a href="/contratos/"
-                   class="{% if request.path.startswith('/contratos') %}active{% endif %}"
-                   {% if request.path.startswith('/contratos') %}aria-current="page"{% endif %}>
-                    Contratos
-                </a>
+                                {% if current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('terceros.listado') }}">
+                                            <span class="dd-ico">🤝</span><span class="dd-txt">Terceros</span>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </div>
 
-                <a href="/anexos/"
-                   class="{% if request.path.startswith('/anexos') and ('indef' not in request.path|lower) %}active{% endif %}"
-                   {% if request.path.startswith('/anexos') and ('indef' not in request.path|lower) %}aria-current="page"{% endif %}>
-                    Anexos plazo fijo
-                </a>
+                        {# ========================== DOCUMENTOS ========================== #}
+                        <div class="dropdown">
+                            {% set is_docs =
+                                request.path.startswith('/contratos')
+                                or request.path.startswith('/anexos')
+                                or request.path.startswith('/anexos-cambio-sueldo')
+                                or request.path.startswith('/anexos-masivos')
+                                or request.path.startswith('/certificados')
+                                or request.path.startswith('/desvinculaciones')
+                                or request.path.startswith('/vacaciones')
+                                or request.path.startswith('/contratos/vencimientos')
 
-                <a href="{{ url_for('anexos_indefinidos.listado_global') }}"
-                   class="{% if ep.startswith('anexos_indefinidos.') or ('indef' in request.path|lower) %}active{% endif %}"
-                   {% if ep.startswith('anexos_indefinidos.') or ('indef' in request.path|lower) %}aria-current="page"{% endif %}>
-                    Anexos indefinidos
-                </a>
+                            %}
+                            <a class="dropdown-toggle {% if is_docs %}active{% endif %}"
+                               href="#"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                📄 Documentos
+                            </a>
 
-                <a href="{{ url_for('desvinculaciones.listado') }}"
-                   class="{% if request.path.startswith('/desvinculaciones') %}active{% endif %}"
-                   {% if request.path.startswith('/desvinculaciones') %}aria-current="page"{% endif %}>
-                    Desvinculaciones
-                </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="/contratos/">
+                                        <span class="dd-ico">📝</span><span class="dd-txt">Contratos</span>
+                                    </a>
+                                </li>
 
-                {# ==========================
-                   MÓDULOS OPERATIVOS (por rol)
-                   ========================== #}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('contratos_vencimientos.listado') }}">
+                                        <span class="dd-ico">⏳</span>
+                                        <span class="dd-txt">Contratos por vencer</span>
+                                    </a>
+                                </li>
 
-                {# Inasistencias / Horas Extras / Anticipos: ADMIN/OPERADOR #}
-                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR") %}
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item submenu-toggle" href="#" role="button" aria-expanded="false">
+                                        <span class="dd-ico">📎</span>
+                                        <span class="dd-txt">Anexos de contrato</span>
+                                        <span class="submenu-caret">›</span>
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-submenu-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="/anexos/">
+                                                <span class="dd-ico">📎</span><span class="dd-txt">Plazo fijo</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('anexos_cambio_sueldo.listado') }}">
+                                                <span class="dd-ico">💰</span><span class="dd-txt">Cambio de sueldo</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('anexos_cambio_cargo.listado') }}">
+                                                <span class="dd-ico">🧰</span><span class="dd-txt">Cambio de cargo</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('anexos_indefinidos.listado_global') }}">
+                                                <span class="dd-ico">📌</span><span class="dd-txt">Indefinidos</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('anexos_masivos.listado') }}">
+                                                <span class="dd-ico">📚</span><span class="dd-txt">Masivos</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
 
-                    <a href="{{ url_for('inasistencias.listado') }}"
-                       class="{% if request.path.startswith('/inasistencias') %}active{% endif %}"
-                       {% if request.path.startswith('/inasistencias') %}aria-current="page"{% endif %}>
-                        Inasistencias
-                    </a>
+                                {% if current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('certificados.listado') }}">
+                                            <span class="dd-ico">✅</span><span class="dd-txt">Certificados</span>
+                                        </a>
+                                    </li>
+                                {% endif %}
 
-                    <!-- ✅ FIX DEFINITIVO HORAS EXTRAS -->
-                    <a href="{{ url_for('horas_extras.listado') }}"
-                       class="{% if ep.startswith('horas_extras.') or ('horas' in request.path|lower and 'extra' in request.path|lower) %}active{% endif %}"
-                       {% if ep.startswith('horas_extras.') or ('horas' in request.path|lower and 'extra' in request.path|lower) %}aria-current="page"{% endif %}>
-                        Horas Extras
-                    </a>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('vacaciones.index') }}">
+                                        <span class="dd-ico">🏖️</span><span class="dd-txt">Vacaciones</span>
+                                    </a>
+                                </li>
 
-                    <a href="{{ url_for('anticipos.listado') }}"
-                       class="{% if request.path.startswith('/anticipos') %}active{% endif %}"
-                       {% if request.path.startswith('/anticipos') %}aria-current="page"{% endif %}>
-                        Anticipos
-                    </a>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('desvinculaciones.listado') }}">
+                                        <span class="dd-ico">🚪</span><span class="dd-txt">Desvinculaciones</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
 
-                {% endif %}
+                        {# ========================== OPERACIÓN ========================== #}
+                        {% if current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR") %}
+                            <div class="dropdown">
+                                {% set is_ops =
+                                    request.path.startswith('/inasistencias')
+                                    or ('horas' in request.path|lower and 'extra' in request.path|lower)
+                                    or request.path.startswith('/anticipos')
+                                    or request.path.startswith('/sueldos')
+                                    or request.path.startswith('/extras-remuneracion')
+                                %}
+                                <a class="dropdown-toggle {% if is_ops %}active{% endif %}"
+                                   href="#"
+                                   role="button"
+                                   data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    🧰 Operación
+                                </a>
 
-                {# Terceros: ADMIN/OPERADOR/REVISOR (lectura para revisor la controla el blueprint) #}
-                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
-                    <a href="{{ url_for('terceros.listado') }}"
-                       class="{% if request.path.startswith('/terceros') %}active{% endif %}"
-                       {% if request.path.startswith('/terceros') %}aria-current="page"{% endif %}>
-                        Terceros
-                    </a>
-                {% endif %}
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('inasistencias.listado') }}">
+                                            <span class="dd-ico">📅</span><span class="dd-txt">Inasistencias</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('horas_extras.listado') }}">
+                                            <span class="dd-ico">⏱️</span><span class="dd-txt">Horas Extras</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('horas_extras.pactos_listado') }}">
+                                            <span class="dd-ico">📜</span>
+                                            <span class="dd-txt">Pactos horas extra</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('anticipos.listado') }}">
+                                            <span class="dd-ico">💸</span><span class="dd-txt">Anticipos</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('sueldos.listado') }}">
+                                            <span class="dd-ico">💰</span><span class="dd-txt">Sueldos</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('extras_remuneracion.listado') }}">
+                                            <span class="dd-ico">🎁</span>
+                                            <span class="dd-txt">Bonos, Tratos y Extras</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        {% endif %}
 
-                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
-                    <a href="{{ url_for('solicitudes_fondos.listado') }}"
-                        class="{% if request.path.startswith('/solicitudes-fondos') %}active{% endif %}"
-                        {% if request.path.startswith('/solicitudes-fondos') %}aria-current="page"{% endif %}>
-                        Solicitud de fondos
-                    </a>
-                {% endif %}
-                
-                {% if current_user is defined and current_user.is_authenticated and current_user.has_role("ADMIN") %}
-                    <span class="nav-sep"> | </span>
+                        {# ========================== PREVENCIÓN ========================== #}
+                        {% if current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                            <div class="dropdown">
+                                {% set is_prevencion =
+                                    request.path.startswith('/prevencion-riesgos')
+                                %}
+                                <a class="dropdown-toggle {% if is_prevencion %}active{% endif %}"
+                                   href="#"
+                                   role="button"
+                                   data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    🦺 Prevención
+                                </a>
 
-                    <a href="{{ url_for('horarios.horarios_listado') }}"
-                       class="{% if request.path.startswith('/horarios') %}active{% endif %}"
-                       {% if request.path.startswith('/horarios') %}aria-current="page"{% endif %}>
-                        Horarios
-                    </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('prevencion_riesgos.dashboard') }}">
+                                            <span class="dd-ico">📊</span>
+                                            <span class="dd-txt">Dashboard preventivo</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('prevencion_riesgos.matriz') }}">
+                                            <span class="dd-ico">✅</span>
+                                            <span class="dd-txt">Matriz preventiva</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('prevencion_riesgos.epp_listado') }}">
+                                            <span class="dd-ico">🧤</span>
+                                            <span class="dd-txt">Entregas de EPP</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('prevencion_riesgos.charlas_listado') }}">
+                                            <span class="dd-ico">👷</span>
+                                            <span class="dd-txt">Charlas de seguridad</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('prevencion_riesgos.documentos_listado') }}">
+                                            <span class="dd-ico">📁</span>
+                                            <span class="dd-txt">Documentos preventivos</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('prevencion_riesgos.tipos_epp') }}">
+                                            <span class="dd-ico">🥾</span>
+                                            <span class="dd-txt">Tipos de EPP</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        {% endif %}
 
-                    <a href="{{ url_for('admin.users_list') }}"
-                       class="{% if request.path.startswith('/admin') or request.path.startswith('/usuarios') %}active{% endif %}"
-                       {% if request.path.startswith('/admin') or request.path.startswith('/usuarios') %}aria-current="page"{% endif %}>
-                        Usuarios
-                    </a>
-                {% endif %}
-            </nav>
+                        {# ========================== FLUJO ========================== #}
+                        {% if current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                            <div class="dropdown">
+                                {% set is_cash =
+                                    request.path.startswith('/solicitudes-fondos')
+                                    or ep.startswith('rendiciones_gastos.')
+                                    or request.path.startswith('/egresos')
+                                    or request.path.startswith('/acuerdos-pago')
+                                    or request.path.startswith('/transferencias-bancarias')
+                                    or request.path.startswith('/pago-proveedores')
+                                %}
+                                <a class="dropdown-toggle {% if is_cash %}active{% endif %}"
+                                   href="#"
+                                   role="button"
+                                   data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    🧾 Flujo
+                                </a>
 
-            {% if current_user is defined and current_user.is_authenticated %}
-                <div class="user-session">
-                    <span class="user-label">Conectado como</span>
-                    <span class="user-name">{{ current_user.username }}</span>
-                    <a href="{{ url_for('auth.logout') }}" class="btn-logout">Salir</a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('solicitudes_fondos.listado') }}">
+                                            <span class="dd-ico">📤</span><span class="dd-txt">Solicitud de fondos</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('rendiciones_gastos.listado') }}">
+                                            <span class="dd-ico">🧾</span><span class="dd-txt">Rendiciones</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('transferencias_bancarias.listado') }}">
+                                            <span class="dd-ico">🏦</span><span class="dd-txt">Transferencias bancarias</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('pago_proveedores.listado') }}">
+                                            <span class="dd-ico">🤝</span><span class="dd-txt">Pago a proveedores</span>
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('egresos.listado') }}">
+                                            <span class="dd-ico">📄</span><span class="dd-txt">Egresos</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('acuerdos_pago.listado') }}">
+                                            <span class="dd-ico">🧾</span><span class="dd-txt">Acuerdos de Pago</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        {# ========================== DASHBOARD (NUEVO) ========================== #}
+                        {% if current_user.is_authenticated and current_user.has_role("ADMIN", "OPERADOR", "REVISOR") %}
+                            <div class="dropdown">
+                                {% set is_dash = request.path.startswith('/dashboard') or request.path.startswith('/reporteria') %}
+                                <a class="dropdown-toggle {% if is_dash %}active{% endif %}"
+                                   href="#"
+                                   role="button"
+                                   data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    📊 Dashboard
+                                </a>
+
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('dashboard.personal_mes') }}">
+                                            <span class="dd-ico">👥</span>
+                                            <span class="dd-txt">Dotación mensual</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('dashboard.bienestar') }}">
+                                            <span class="dd-ico">💛</span>
+                                            <span class="dd-txt">Bienestar</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('dashboard.solicitudes_fondos') }}">
+                                            <span class="dd-ico">💸</span>
+                                            <span class="dd-txt">Solicitudes de fondos</span>
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('reporteria.index') }}">
+                                            <span class="dd-ico">📑</span>
+                                            <span class="dd-txt">Reportería</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        {# ========================== ADMIN ========================== #}
+                        {% if current_user.is_authenticated and current_user.has_role("ADMIN") %}
+                            <div class="dropdown">
+                                {% set is_admin =
+                                    request.path.startswith('/horarios')
+                                    or request.path.startswith('/admin')
+                                    or request.path.startswith('/usuarios')
+                                    or request.path.startswith('/feriados')
+                                    or request.path.startswith('/cargos')
+                                    or request.path.startswith('/parametros-laborales')
+                                %}
+                                <a class="dropdown-toggle {% if is_admin %}active{% endif %}"
+                                href="#"
+                                role="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                    🛠️ Admin
+                                </a>
+
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('horarios.horarios_listado') }}">
+                                            <span class="dd-ico">🕒</span><span class="dd-txt">Horarios</span>
+                                        </a>
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('feriados.listado') }}">
+                                            <span class="dd-ico">🗓️</span><span class="dd-txt">Feriados</span>
+                                        </a>
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('core.cargos_listado') }}">
+                                            <span class="dd-ico">🧰</span><span class="dd-txt">Cargos</span>
+                                        </a>
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('parametros_laborales.listado') }}">
+                                            <span class="dd-ico">📐</span><span class="dd-txt">Parámetros laborales</span>
+                                        </a>
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('admin.salud_sistema') }}">
+                                            <span class="dd-ico">🩺</span><span class="dd-txt">Salud del sistema</span>
+                                        </a>
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('admin.users_list') }}">
+                                            <span class="dd-ico">👤</span><span class="dd-txt">Usuarios</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                    </nav>
+
+                    {% if current_user.is_authenticated %}
+                        <div class="user-session">
+                            <span class="user-label">Conectado como</span>
+                            <span class="user-name">{{ current_user.nombre or current_user.username }}</span>
+                            <a href="{{ url_for('auth.logout') }}" class="btn-logout">Salir</a>
+                        </div>
+                    {% endif %}
                 </div>
             {% endif %}
-        </div>
-        {% endif %}
-    </header>
+        </header>
 
-    <main class="content">
-        <div class="container mt-3">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-container">
-                        {% for cat, m in messages %}
-                          {% set bs = "warning" %}
-                          {% if cat in ["success"] %}{% set bs = "success" %}
-                          {% elif cat in ["error", "danger"] %}{% set bs = "danger" %}
-                          {% elif cat in ["info"] %}{% set bs = "info" %}
-                          {% endif %}
+        <main class="content" id="contenido-principal">
+            <div class="container mt-3">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-container">
+                            {% for cat, m in messages %}
+                                {% set bs = "warning" %}
+                                {% if cat in ["success"] %}{% set bs = "success" %}
+                                {% elif cat in ["error", "danger"] %}{% set bs = "danger" %}
+                                {% elif cat in ["info"] %}{% set bs = "info" %}
+                                {% endif %}
+                                {% set flash_icon = "ℹ️" %}
+                                {% set flash_title = "Información" %}
+                                {% if bs == "success" %}
+                                    {% set flash_icon = "✅" %}
+                                    {% set flash_title = "Operación realizada" %}
+                                {% elif bs == "danger" %}
+                                    {% set flash_icon = "⚠️" %}
+                                    {% set flash_title = "Revisar acción" %}
+                                {% elif bs == "warning" %}
+                                    {% set flash_icon = "🟠" %}
+                                    {% set flash_title = "Atención" %}
+                                {% endif %}
+                                <div class="alert alert-{{ bs }} alert-dismissible fade show mb-2 cs-flash-message" role="alert" data-auto-dismiss="8000">
+                                    <div class="cs-flash-icon" aria-hidden="true">{{ flash_icon }}</div>
+                                    <div class="cs-flash-body">
+                                        <div class="cs-flash-title">{{ flash_title }}</div>
+                                        <div class="cs-flash-text">{{ m }}</div>
+                                    </div>
+                                    <div class="cs-flash-progress" aria-hidden="true">
+                                        <span class="cs-flash-progress-bar"></span>
+                                    </div>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar mensaje"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            </div>
 
-                          <div class="alert alert-{{ bs }} alert-dismissible fade show mb-2" role="alert">
-                              {{ m }}
-                              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                          </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-        </div>
+            {% block content %}{% endblock %}
+        </main>
 
-        {% block content %}{% endblock %}
-    </main>
+        <footer class="footer">
+            <div class="container footer-inner">
+                <span>© 2026 Grupo CS · Sistema Interno RRHH</span>
+                <span class="footer-version">v{{ config.SYSTEM_VERSION }}</span>
+                <span class="footer-right">Desarrollado por AOE Asesorías 👨🏽‍💻</span>
+            </div>
+        </footer>
 
-    <footer class="footer">
-        <div class="container footer-inner">
-            <span>© {{ 2026 }} Grupo CS · Sistema Interno RRHH</span>
-            <span class="footer-right">Desarrollado por AOE Asesorías 👨🏽‍💻</span>
-        </div>
-    </footer>
+        <button type="button" class="back-to-top" data-back-to-top aria-label="Volver al inicio de la página">
+            <i class="bi bi-arrow-up-short" aria-hidden="true"></i>
+        </button>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-            crossorigin="anonymous"></script>
-</body>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="{{ url_for('static', filename='js/main.js', v='ux-acciones-20260515_203607') }}"></script>
+        {% block scripts %}{% endblock %}
+    </body>
 </html>

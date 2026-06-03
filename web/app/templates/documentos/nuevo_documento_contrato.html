@@ -3,87 +3,122 @@
 {% block title %}Nuevo documento · Contrato #{{ contrato.id }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <div>
-            <h1 class="card-title">Registrar documento</h1>
-            <p class="card-subtitle">
-                Contrato #{{ contrato.id }} ·
-                {{ contrato.trabajador.nombres }} {{ contrato.trabajador.ap_paterno }} {{ contrato.trabajador.ap_materno }}
-                ({{ contrato.trabajador.rut }})<br>
-                {% if contrato.empleador %}
-                    Empleador: {{ contrato.empleador.razon_social }}
-                {% endif %}
+{% set trabajador = contrato.trabajador %}
+{% set nombre_trabajador = trabajador.nombres ~ ' ' ~ trabajador.ap_paterno ~ (' ' ~ trabajador.ap_materno if trabajador.ap_materno else '') %}
+
+<div class="docs-contract-page docs-form-page cs-form-page">
+    <section class="docs-hero docs-form-hero reveal-on-scroll">
+        <div class="docs-hero-main">
+            <div class="docs-eyebrow">Expediente documental</div>
+            <h1>Registrar documento</h1>
+            <p>
+                Agrega un respaldo laboral al contrato #{{ contrato.id }}. Por ahora se registra el enlace de Nextcloud;
+                en la siguiente etapa podremos sincronizar PDFs automáticamente.
             </p>
+
+            <div class="docs-person-card">
+                <div class="docs-avatar" aria-hidden="true">{{ trabajador.nombres[:1] }}{{ trabajador.ap_paterno[:1] }}</div>
+                <div><strong>{{ nombre_trabajador }}</strong><span>RUT {{ trabajador.rut_completo or trabajador.rut }}</span></div>
+            </div>
         </div>
+
+        <div class="docs-hero-side">
+            <div class="docs-status-pill"><i class="bi bi-pencil-square" aria-hidden="true"></i> Carga manual</div>
+            <a href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}" class="btn btn-light">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Volver al expediente
+            </a>
+        </div>
+    </section>
+
+    <div class="docs-context-grid reveal-on-scroll">
+        <article class="docs-context-card">
+            <div class="docs-card-title"><i class="bi bi-briefcase" aria-hidden="true"></i> Contexto del contrato</div>
+            <dl class="docs-dl">
+                <div><dt>Empleador</dt><dd>{{ contrato.empleador.razon_social if contrato.empleador else 'Sin empleador asociado' }}</dd></div>
+                <div>
+                    <dt>Obra</dt>
+                    <dd>{% if contrato.obra %}{{ contrato.obra.nombre }}{% if contrato.obra.centro_costo %} · {{ contrato.obra.centro_costo }}{% endif %}{% else %}Sin obra asociada{% endif %}</dd>
+                </div>
+            </dl>
+        </article>
+
+        <article class="docs-context-card docs-nextcloud-card">
+            <div class="docs-card-title"><i class="bi bi-info-circle" aria-hidden="true"></i> Recomendación de carga</div>
+            <p>
+                Usa enlaces de Nextcloud del documento final en PDF cuando exista. Para documentos generados por el sistema,
+                conviene conservar el PDF firmado o la versión oficial enviada al trabajador.
+            </p>
+        </article>
     </div>
 
-    <div class="card-body">
-        <form method="post" class="form">
-            {# Preselección opcional desde querystring: ?tipo_documento=CONTRATO #}
+    <section class="docs-main-card docs-form-card reveal-on-scroll">
+        <div class="docs-section-header">
+            <div>
+                <span class="docs-eyebrow">Nuevo respaldo</span>
+                <h2>Datos del documento</h2>
+                <p>Completa la clasificación y el enlace para dejar trazabilidad dentro del expediente laboral.</p>
+            </div>
+        </div>
+
+        <form method="post" class="form docs-polished-form needs-validation" novalidate>
             {% set tipo_pre = request.args.get("tipo_documento", "") %}
 
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="tipo_documento">Tipo de documento / carpeta</label>
-                    <select name="tipo_documento" id="tipo_documento" required>
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <label for="tipo_documento" class="form-label">Tipo de documento / carpeta</label>
+                    <select name="tipo_documento" id="tipo_documento" class="form-select" required>
                         <option value="">-- Selecciona tipo --</option>
                         {% for value, label in documento_tipos %}
-                            <option value="{{ value }}" {% if tipo_pre and tipo_pre == value %}selected{% endif %}>
-                                {{ label }}
-                            </option>
+                            <option value="{{ value }}" {% if tipo_pre and tipo_pre == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
-                    {% if tipo_pre %}
-                        <small class="text-muted">Tipo preseleccionado desde el detalle del contrato.</small>
-                    {% endif %}
+                    <div class="invalid-feedback">Selecciona el tipo documental.</div>
+                    {% if tipo_pre %}<div class="form-text">Tipo preseleccionado desde el expediente del contrato.</div>{% endif %}
                 </div>
 
-                <div class="form-group">
-                    <label for="fecha_documento">Fecha del documento</label>
-                    <input type="date" name="fecha_documento" id="fecha_documento">
-                    <small class="text-muted">
-                        Opcional. Si la dejas en blanco, el sistema aplicará la fecha por defecto definida para este tipo de documento.
-                    </small>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="fecha_documento" class="form-label">Fecha del documento</label>
+                    <input type="date" name="fecha_documento" id="fecha_documento" class="form-control">
+                    <div class="form-text">Opcional; si queda vacío se usa la fecha definida por defecto.</div>
                 </div>
 
-                <div class="form-group">
-                    <label for="extension">Formato del archivo</label>
-                    <select name="extension" id="extension">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="extension" class="form-label">Formato</label>
+                    <select name="extension" id="extension" class="form-select">
                         <option value="pdf">PDF</option>
                         <option value="docx">Word (.docx)</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="estado">Estado del documento</label>
-                    <select name="estado" id="estado">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="estado" class="form-label">Estado del documento</label>
+                    <select name="estado" id="estado" class="form-select">
                         <option value="VIGENTE">Vigente</option>
                         <option value="REEMPLAZADO">Reemplazado</option>
                         <option value="ANULADO">Anulado</option>
                     </select>
                 </div>
 
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label for="enlace_nextcloud">Enlace al archivo en Nextcloud</label>
-                    <input type="url" name="enlace_nextcloud" id="enlace_nextcloud"
-                           placeholder="Pega aquí el enlace compartido (opcional)">
-                    <small class="text-muted">
-                        Más adelante automatizamos la subida; por ahora puedes pegar aquí el link.
-                    </small>
+                <div class="col-12 col-lg-8">
+                    <label for="enlace_nextcloud" class="form-label">Enlace al archivo en Nextcloud</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-cloud" aria-hidden="true"></i></span>
+                        <input type="url" name="enlace_nextcloud" id="enlace_nextcloud" class="form-control" placeholder="https://...">
+                    </div>
+                    <div class="form-text">Puedes pegar un enlace compartido o un vínculo interno accesible para usuarios autorizados.</div>
                 </div>
             </div>
 
-            <div class="form-actions">
-                <a href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}"
-                   class="btn btn-secondary">
-                    ⬅ Cancelar
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    💾 Guardar documento
-                </button>
+            <div class="docs-form-help mt-4">
+                <div class="docs-help-icon">💡</div>
+                <div><strong>Próximo paso sugerido:</strong> habilitar sincronización desde la carpeta del trabajador para detectar liquidaciones PDF y anexos ya almacenados en Nextcloud.</div>
+            </div>
+
+            <div class="form-actions docs-form-actions mt-4">
+                <a href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i> Cancelar</a>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save" aria-hidden="true"></i> Guardar documento</button>
             </div>
         </form>
-    </div>
+    </section>
 </div>
 {% endblock %}

@@ -3,17 +3,63 @@
 {% block title %}Nuevo proceso sueldo mínimo{% endblock %}
 
 {% block content %}
+{% set v = preset or {} %}
+{% set es_preset_20260622 = v.get('key') == '2026-06-22' %}
 <div class="container-fluid py-3">
 
   <div class="section-header mb-4">
-    <h1 class="section-title">Nuevo proceso · Sueldo mínimo</h1>
+    <h1 class="section-title">
+      {% if v.get('titulo') %}{{ v.get('titulo') }}{% else %}Nuevo proceso · Sueldo mínimo{% endif %}
+    </h1>
     <div class="section-subtitle">
-      Crea una nómina de trabajadores vigentes con jornada igual o superior al mínimo definido y sueldo base inferior al ingreso mínimo mensual vigente.
+      Crea una nómina de contratos vigentes para generar anexos masivos de reajuste del ingreso mínimo mensual.
     </div>
     <div class="section-divider"></div>
   </div>
 
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <div class="fw-semibold mb-1">Procesos de sueldo mínimo disponibles</div>
+          <div class="text-muted small">
+            Selecciona el proceso por fecha para precargar ley, vigencia, monto objetivo y regla de búsqueda.
+          </div>
+        </div>
+
+        <div class="btn-group flex-wrap" role="group" aria-label="Procesos sueldo mínimo">
+          <a
+            href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo', proceso='2026-06-22') }}"
+            class="btn btn-sm {% if preset_key == '2026-06-22' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+          >
+            22-06-2026 · $553.553
+          </a>
+          <a
+            href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo', proceso='2026-01-14') }}"
+            class="btn btn-sm {% if preset_key == '2026-01-14' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+          >
+            14-01-2026 · $539.000
+          </a>
+          <a
+            href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo') }}"
+            class="btn btn-sm {% if not preset_key %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+          >
+            Personalizado
+          </a>
+        </div>
+      </div>
+
+      {% if v.get('alerta') %}
+        <div class="alert alert-info border-0 mt-3 mb-0 small">
+          <i class="bi bi-info-circle me-1"></i>{{ v.get('alerta') }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
   <form method="post" class="card shadow-sm border-0">
+    <input type="hidden" name="preset_key" value="{{ preset_key or '' }}">
+
     <div class="card-body">
       <div class="row g-3">
 
@@ -23,7 +69,8 @@
             type="text"
             name="nombre"
             class="form-control"
-            placeholder="Ej.: Ajuste sueldo mínimo marzo 2026"
+            value="{{ v.get('nombre', '') }}"
+            placeholder="Ej.: Ajuste sueldo mínimo junio 2026"
             required
           >
         </div>
@@ -34,6 +81,7 @@
             type="date"
             name="fecha_anexo"
             class="form-control"
+            value="{{ v.get('fecha_anexo', '') }}"
             required
           >
         </div>
@@ -44,8 +92,45 @@
             type="date"
             name="fecha_vigencia"
             class="form-control"
+            value="{{ v.get('fecha_vigencia', '') }}"
             required
           >
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Sueldo mínimo objetivo</label>
+          <input
+            type="text"
+            name="sueldo_base_objetivo"
+            class="form-control"
+            value="{{ v.get('sueldo_base_objetivo', '') }}"
+            placeholder="Ej.: 553553"
+          >
+          <div class="form-text">
+            Si queda vacío, se usará Parámetros Laborales según la vigencia.
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Filtro de sueldo actual</label>
+          <select name="modo_filtro_sueldo" class="form-select">
+            {% set modo = v.get('modo_filtro_sueldo', 'INFERIOR') %}
+            <option value="INFERIOR" {% if modo == 'INFERIOR' %}selected{% endif %}>Inferior al objetivo</option>
+            <option value="EXACTO" {% if modo == 'EXACTO' %}selected{% endif %}>Exactamente igual a</option>
+          </select>
+          <div class="form-text">Para el proceso 22-06-2026 debe quedar en “exactamente igual a”.</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Sueldo actual requerido</label>
+          <input
+            type="text"
+            name="sueldo_base_actual_requerido"
+            class="form-control"
+            value="{{ v.get('sueldo_base_actual_requerido', '') }}"
+            placeholder="Ej.: 539000"
+          >
+          <div class="form-text">Se usa cuando el filtro es “exactamente igual a”.</div>
         </div>
 
         <div class="col-md-3">
@@ -54,11 +139,11 @@
             type="number"
             name="horas_minimas"
             class="form-control"
-            value="40"
-            min="1"
+            value="{{ v.get('horas_minimas', 40) }}"
+            min="0"
             required
           >
-          <div class="form-text">Por defecto: 40 horas.</div>
+          <div class="form-text">Usa 0 para no filtrar por jornada.</div>
         </div>
 
         <div class="col-md-3">
@@ -67,7 +152,8 @@
             type="text"
             name="ley_s_minimo_nro"
             class="form-control"
-            placeholder="Ej.: 21.751"
+            value="{{ v.get('ley_s_minimo_nro', '') }}"
+            placeholder="Ej.: 21.830"
           >
         </div>
 
@@ -77,6 +163,7 @@
             type="date"
             name="ley_s_minimo_fecha_publicacion"
             class="form-control"
+            value="{{ v.get('ley_s_minimo_fecha_publicacion', '') }}"
           >
         </div>
 
@@ -111,6 +198,7 @@
               name="usar_articulo_tercero"
               id="usar_articulo_tercero"
               value="1"
+              {% if v.get('usar_articulo_tercero') %}checked{% endif %}
             >
             <label class="form-check-label" for="usar_articulo_tercero">
               Incluir artículo tercero (retroactividad u otra cláusula adicional)
@@ -128,7 +216,7 @@
             class="form-control"
             rows="4"
             placeholder="Ej.: Las diferencias de remuneración generadas entre la fecha de vigencia del nuevo sueldo base y la suscripción del presente anexo serán pagadas retroactivamente en la liquidación correspondiente..."
-          ></textarea>
+          >{{ v.get('articulo_tercero_texto', '') }}</textarea>
         </div>
 
         <div class="col-12">
@@ -138,16 +226,23 @@
             class="form-control"
             rows="3"
             placeholder="Notas internas del proceso."
-          ></textarea>
+          >{{ v.get('observaciones', '') }}</textarea>
         </div>
 
         <div class="col-12">
-          <div class="alert alert-info mb-0">
-            <strong>Dato importante:</strong>
-            el sueldo objetivo se tomará automáticamente desde
-            <strong>Parámetros Laborales → renta mínima dependiente</strong>,
-            según la fecha de vigencia indicada.
-          </div>
+          {% if es_preset_20260622 %}
+            <div class="alert alert-warning mb-0">
+              <strong>Control recomendado:</strong>
+              antes de aplicar el proceso, revisa la nómina candidata. El sistema buscará contratos vigentes con sueldo base exacto de
+              <strong>$539.000</strong> y generará el anexo hacia <strong>$553.553</strong>, con vigencia desde el <strong>01-05-2026</strong>.
+            </div>
+          {% else %}
+            <div class="alert alert-info mb-0">
+              <strong>Dato importante:</strong>
+              si no informas un sueldo objetivo, el sistema lo tomará automáticamente desde
+              <strong>Parámetros Laborales → renta mínima dependiente</strong>, según la fecha de vigencia indicada.
+            </div>
+          {% endif %}
         </div>
 
       </div>

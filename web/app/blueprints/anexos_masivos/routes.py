@@ -21,6 +21,51 @@ from ...services.anexos_masivos import (
 from . import bp
 
 
+ARTICULO_TERCERO_S_MINIMO_20260622 = (
+    "Por tratarse de un reajuste legal con efecto retroactivo a contar del 1 de mayo de 2026, "
+    "el Empleador pagará en la liquidación de remuneraciones correspondiente al mes de junio de 2026 "
+    "las diferencias de sueldo base que se hubieren devengado entre dicha fecha y la fecha de suscripción "
+    "del presente anexo, calculadas conforme a la normativa vigente y considerando los períodos efectivamente trabajados."
+)
+
+PROCESOS_SUELDO_MINIMO = {
+    "2026-01-14": {
+        "key": "2026-01-14",
+        "titulo": "Sueldo mínimo · proceso 14-01-2026",
+        "nombre": "Ajuste sueldo mínimo 14-01-2026",
+        "fecha_anexo": "2026-01-14",
+        "fecha_vigencia": "2026-01-01",
+        "horas_minimas": 40,
+        "ley_s_minimo_nro": "21.751",
+        "ley_s_minimo_fecha_publicacion": "2025-06-28",
+        "sueldo_base_objetivo": "539000",
+        "sueldo_base_actual_requerido": "",
+        "modo_filtro_sueldo": "INFERIOR",
+        "usar_articulo_tercero": False,
+        "articulo_tercero_texto": "",
+        "observaciones": "Proceso histórico de reajuste de sueldo mínimo enero 2026.",
+        "alerta": "Proceso histórico: busca contratos vigentes con sueldo base inferior al objetivo informado.",
+    },
+    "2026-06-22": {
+        "key": "2026-06-22",
+        "titulo": "Sueldo mínimo · proceso 22-06-2026",
+        "nombre": "Ajuste sueldo mínimo Ley 21.830 · 22-06-2026",
+        "fecha_anexo": "2026-06-22",
+        "fecha_vigencia": "2026-05-01",
+        "horas_minimas": 0,
+        "ley_s_minimo_nro": "21.830",
+        "ley_s_minimo_fecha_publicacion": "2026-06-22",
+        "sueldo_base_objetivo": "553553",
+        "sueldo_base_actual_requerido": "539000",
+        "modo_filtro_sueldo": "EXACTO",
+        "usar_articulo_tercero": True,
+        "articulo_tercero_texto": ARTICULO_TERCERO_S_MINIMO_20260622,
+        "observaciones": "Filtro especial: contratos vigentes con sueldo base exactamente $539.000. Vigencia retroactiva desde mayo 2026.",
+        "alerta": "Este proceso busca solo contratos vigentes con sueldo base exacto de $539.000 y los reajusta a $553.553.",
+    },
+}
+
+
 def obras_visibles_query():
     q = Obra.query.filter(Obra.estado == "ACTIVA")
     if current_user.has_role("ADMIN"):
@@ -82,13 +127,15 @@ def listado():
 @role_required("ADMIN", "OPERADOR")
 def nuevo_sueldo_minimo():
     obras = obras_visibles_query().order_by(Obra.nombre).all()
+    preset_key = (request.form.get("preset_key") or request.args.get("proceso") or "").strip()
+    preset = PROCESOS_SUELDO_MINIMO.get(preset_key)
 
     if request.method == "POST":
         try:
             nombre = (request.form.get("nombre") or "").strip()
             fecha_anexo = datetime.strptime(request.form["fecha_anexo"], "%Y-%m-%d").date()
             fecha_vigencia = datetime.strptime(request.form["fecha_vigencia"], "%Y-%m-%d").date()
-            horas_minimas = int(request.form.get("horas_minimas") or 40)
+            horas_minimas = int(request.form.get("horas_minimas") or 0)
             observaciones = (request.form.get("observaciones") or "").strip() or None
             obra_ids = request.form.getlist("obra_ids", type=int)
 
@@ -99,12 +146,22 @@ def nuevo_sueldo_minimo():
                 if ley_s_minimo_fecha_publicacion_raw else None
             )
 
+            sueldo_base_objetivo = (request.form.get("sueldo_base_objetivo") or "").strip() or None
+            sueldo_base_actual_requerido = (request.form.get("sueldo_base_actual_requerido") or "").strip() or None
+            modo_filtro_sueldo = (request.form.get("modo_filtro_sueldo") or "INFERIOR").strip().upper()
+
             usar_articulo_tercero = bool(request.form.get("usar_articulo_tercero"))
             articulo_tercero_texto = (request.form.get("articulo_tercero_texto") or "").strip() or None
             formato_generacion = (request.form.get("formato_generacion") or "AMBOS").strip().upper()
 
             if not nombre:
                 raise ValueError("Debes indicar un nombre para el proceso.")
+
+            if horas_minimas < 0:
+                raise ValueError("Las horas semanales mínimas no pueden ser negativas.")
+
+            if modo_filtro_sueldo == "EXACTO" and not sueldo_base_actual_requerido:
+                raise ValueError("Para el filtro exacto debes indicar el sueldo base actual requerido.")
 
             if not current_user.has_role("ADMIN"):
                 obra_ids_autorizadas = {o.id for o in (current_user.obras or [])}
@@ -122,6 +179,9 @@ def nuevo_sueldo_minimo():
                 articulo_tercero_texto=articulo_tercero_texto,
                 formato_generacion=formato_generacion,
                 observaciones=observaciones,
+                sueldo_base_objetivo=sueldo_base_objetivo,
+                sueldo_base_actual_requerido=sueldo_base_actual_requerido,
+                modo_filtro_sueldo=modo_filtro_sueldo,
             )
 
             if proceso.total_detalles == 0:
@@ -138,15 +198,19 @@ def nuevo_sueldo_minimo():
             return redirect(url_for("anexos_masivos.detalle", proceso_id=proceso.id))
 
         except ValueError as e:
+            db.session.rollback()
             flash(str(e), "error")
         except Exception as e:
+            db.session.rollback()
             flash(f"No fue posible crear el proceso: {e}", "error")
 
     return render_template(
         "anexos_masivos/form_sueldo_minimo.html",
         obras=obras,
+        preset=preset,
+        preset_key=preset_key,
+        procesos_sueldo_minimo=PROCESOS_SUELDO_MINIMO,
     )
-
 
 @bp.route("/nuevo/ley-40-horas", methods=["GET", "POST"])
 @role_required("ADMIN", "OPERADOR")

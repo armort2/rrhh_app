@@ -596,11 +596,31 @@ def import_cargos_trabajadores(csv_path, encoding):
 @click.command("seed-roles")
 @with_appcontext
 def seed_roles():
-    for name in ("ADMIN", "OPERADOR", "REVISOR"):
-        if not Role.query.filter_by(name=name).first():
-            db.session.add(Role(name=name))
+    """Crea/normaliza los roles institucionales del sistema.
+
+    Mantiene ADMIN/OPERADOR/REVISOR por compatibilidad y agrega los roles
+    funcionales nuevos definidos en services/access_control.py.
+    """
+    from .services.access_control import get_role_definitions
+
+    created = []
+    existing = []
+    for definition in get_role_definitions():
+        name = definition.name.strip().upper()
+        role = Role.query.filter_by(name=name).first()
+        if role:
+            existing.append(name)
+            continue
+        db.session.add(Role(name=name))
+        created.append(name)
+
     db.session.commit()
-    click.echo("Roles sembrados: ADMIN, OPERADOR, REVISOR")
+    if created:
+        click.echo("Roles creados: " + ", ".join(created))
+    else:
+        click.echo("No se crearon roles nuevos.")
+    if existing:
+        click.echo("Roles ya existentes: " + ", ".join(existing))
 
 
 @click.command("create-admin")

@@ -61,7 +61,8 @@
         </div>
 
         <form method="post" class="form docs-polished-form needs-validation" novalidate>
-            {% set tipo_pre = request.args.get("tipo_documento", "") %}
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            {% set tipo_pre = tipo_preseleccion or request.args.get("tipo_documento", "") %}
 
             <div class="row g-3">
                 <div class="col-12 col-lg-6">

@@ -1,0 +1,216 @@
+{# web/app/templates/gestion_rrhh/index.html #}
+{% extends "base.html" %}
+{% block title %}Bandeja de Gestión RRHH{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 gestion-rrhh-page">
+  <div class="card shadow-sm gestion-hero mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+          <div class="gestion-eyebrow">🧭 Sistema Grupo CS</div>
+          <h1 class="section-title mb-1">Bandeja de Gestión RRHH</h1>
+          <p class="text-muted mb-0">
+            Tareas priorizadas desde cumplimiento laboral, contratos, remuneraciones y prevención.
+            Corte: {{ bandeja.fecha.strftime('%d-%m-%Y') if bandeja.fecha else '-' }}.
+          </p>
+        </div>
+        <div class="gestion-hero-actions">
+          <a class="btn btn-outline-secondary" href="{{ url_for('gestion_rrhh.plan_mensual') }}">🗓️ Plan mensual</a>
+          <a class="btn btn-outline-secondary" href="{{ url_for('cumplimiento_laboral.index') }}">📊 Ver cumplimiento</a>
+          <a class="btn btn-primary" href="{{ url_for('gestion_rrhh.exportar_csv', prioridad=filtros.prioridad, categoria=filtros.categoria, q=filtros.q) }}">⬇️ Exportar CSV</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Total tareas</div>
+          <div class="gestion-kpi-value">{{ bandeja.resumen.total }}</div>
+          <div class="gestion-kpi-note">Gestiones detectadas automáticamente.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100 is-danger">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Prioridad alta</div>
+          <div class="gestion-kpi-value">{{ bandeja.resumen.alta }}</div>
+          <div class="gestion-kpi-note">Conviene resolver primero.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100 is-warning">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Prioridad media</div>
+          <div class="gestion-kpi-value">{{ bandeja.resumen.media }}</div>
+          <div class="gestion-kpi-note">Seguimiento operativo.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100 is-info">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Próximos 7 días / vencidos</div>
+          <div class="gestion-kpi-value">{{ bandeja.resumen.proximos_7 }}</div>
+          <div class="gestion-kpi-note">Incluye vencidos, hoy y vencimientos urgentes.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm gestion-filter-card">
+        <div class="card-body">
+          <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label">Prioridad</label>
+              <select class="form-select" name="prioridad">
+                <option value="todas" {% if filtros.prioridad == 'todas' %}selected{% endif %}>Todas</option>
+                {% for key, label in bandeja.prioridades.items() %}
+                  <option value="{{ key }}" {% if filtros.prioridad == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Categoría</label>
+              <select class="form-select" name="categoria">
+                <option value="todas" {% if filtros.categoria == 'todas' %}selected{% endif %}>Todas</option>
+                {% for key, label in bandeja.categorias.items() %}
+                  <option value="{{ key }}" {% if filtros.categoria == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Buscar</label>
+              <input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Trabajador, obra, estado, detalle...">
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button class="btn btn-primary" type="submit">Filtrar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm gestion-plan-card h-100">
+        <div class="card-body">
+          <div class="gestion-eyebrow">Plan de ataque</div>
+          <h2 class="h6 mb-2">Gestión recomendada</h2>
+          {% set urgentes = bandeja.tareas[:3] %}
+          {% if urgentes %}
+            <ol class="gestion-priority-list mb-0">
+              {% for t in urgentes %}
+                <li>
+                  <span class="badge text-bg-{{ t.prioridad_class }}">{{ t.prioridad_label }}</span>
+                  <strong>{{ t.titulo }}</strong>
+                  <small>{{ t.contexto or t.detalle }}</small>
+                </li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <div class="alert alert-success mb-0 small">Sin tareas críticas detectadas. Ese sí que es cierre contable emocional 😄</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm gestion-list-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+            <div>
+              <div class="gestion-eyebrow">Mesa de control</div>
+              <h2 class="h5 mb-0">Tareas priorizadas</h2>
+            </div>
+            <span class="badge text-bg-light border">{{ tareas|length }} visible(s)</span>
+          </div>
+
+          {% if tareas %}
+            <div class="gestion-task-stack">
+              {% for t in tareas %}
+                <article class="gestion-task-card is-{{ t.prioridad }}">
+                  <div class="gestion-task-icon" aria-hidden="true">{{ t.icono }}</div>
+                  <div class="gestion-task-main">
+                    <div class="gestion-task-head">
+                      <div>
+                        <div class="gestion-task-meta">
+                          <span class="badge text-bg-{{ t.prioridad_class }}">{{ t.prioridad_label }}</span>
+                          <span class="badge text-bg-light border">{{ t.categoria_label }}</span>
+                          <span class="badge text-bg-light border">{{ t.estado }}</span>
+                        </div>
+                        <h3>{{ t.titulo }}</h3>
+                      </div>
+                      <span class="gestion-task-deadline">{{ t.dias_texto }}</span>
+                    </div>
+
+                    <p class="gestion-task-detail">{{ t.detalle }}</p>
+                    {% if t.contexto %}
+                      <div class="gestion-task-context">{{ t.contexto }}</div>
+                    {% endif %}
+
+                    <div class="gestion-task-actions">
+                      {% if t.url %}
+                        <a class="btn btn-sm btn-primary" href="{{ t.url }}">{{ t.action_label }}</a>
+                      {% endif %}
+                      {% if t.secondary_url %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ t.secondary_url }}">{{ t.secondary_label }}</a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="gestion-empty-state">
+              <div class="gestion-empty-icon">✅</div>
+              <h3>Sin tareas para los filtros seleccionados</h3>
+              <p>Prueba cambiando prioridad, categoría o texto de búsqueda.</p>
+              <a class="btn btn-outline-secondary" href="{{ url_for('gestion_rrhh.index') }}">Limpiar filtros</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm gestion-side-card mb-3">
+        <div class="card-body">
+          <div class="gestion-eyebrow">Distribución</div>
+          <h2 class="h6 mb-3">Tareas por categoría</h2>
+          <div class="gestion-category-list">
+            {% for key, label in bandeja.categorias.items() %}
+              {% set count = bandeja.resumen.categorias.get(key, 0) %}
+              <a href="{{ url_for('gestion_rrhh.index', categoria=key) }}" class="gestion-category-row">
+                <span>{{ label }}</span>
+                <strong>{{ count }}</strong>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm gestion-side-card">
+        <div class="card-body">
+          <div class="gestion-eyebrow">Atajos</div>
+          <h2 class="h6 mb-3">Módulos relacionados</h2>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-secondary text-start" href="{{ url_for('cumplimiento_laboral.index') }}">📊 Cumplimiento laboral</a>
+            <a class="btn btn-outline-secondary text-start" href="{{ url_for('contratos_vencimientos.listado') }}">⏳ Contratos por vencer</a>
+            <a class="btn btn-outline-secondary text-start" href="{{ url_for('anexos_masivos.listado') }}">📚 Anexos masivos</a>
+            <a class="btn btn-outline-secondary text-start" href="{{ url_for('prevencion_riesgos.matriz') }}">🦺 Matriz preventiva</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

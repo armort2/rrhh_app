@@ -42,9 +42,9 @@
     function defaultHorasPorTipo(tipo) {
       const map = {
         PART_TIME: 18,
-        INDEFINIDO: 44,
-        PLAZO_FIJO: 44,
-        FAENA: 44
+        INDEFINIDO: 42,
+        PLAZO_FIJO: 42,
+        FAENA: 42
       };
       return map[tipo] || "";
     }

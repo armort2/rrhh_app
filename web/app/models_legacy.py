@@ -81,8 +81,17 @@ class User(db.Model, UserMixin):
         return check_password_hash(self.password_hash, password)
 
     def has_role(self, *role_names: str) -> bool:
-        user_roles_ = {r.name for r in self.roles}
-        return any(rn in user_roles_ for rn in role_names)
+        wanted = {(rn or "").strip().upper() for rn in role_names if (rn or "").strip()}
+        user_roles_ = {(r.name or "").strip().upper() for r in self.roles}
+        return bool(user_roles_.intersection(wanted))
+
+    def can(self, permission: str) -> bool:
+        from .services.access_control import user_can
+        return user_can(self, permission)
+
+    def has_any_permission(self, *permissions: str) -> bool:
+        from .services.access_control import user_has_any_permission
+        return user_has_any_permission(self, *permissions)
 
     def can_access_obra(self, obra_id: int | None) -> bool:
         """

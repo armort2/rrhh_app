@@ -1,33 +1,35 @@
 # Sistema Grupo CS - Inventario Técnico
 
-Reporte generado automáticamente desde `/srv/rrhh_app`.
+Reporte actualizado para el parche Fase 1 de expediente documental.
 
 ## 1. Resumen general
 
-- Archivos Python: 134
-- Templates HTML/Jinja: 137
+- Archivos totales versionables detectados: 443
+- Archivos Python: 133
+- Templates HTML/Jinja: 167
 - Archivos CSS: 1
-- Archivos JS: 0
-- Plantillas DOCX: 22
-- Documentos Markdown: 6
+- Archivos JS: 38
+- Plantillas DOCX: 23
+- Documentos Markdown: 35
+- Blueprints con carpeta propia: 33
 
 ## 2. Blueprints detectados
 
 - `acuerdos_pago` — Python: 2, templates asociados: 3
-- `admin` — Python: 2, templates asociados: 2
+- `admin` — Python: 2, templates asociados: 5
 - `anexos` — Python: 2, templates asociados: 5
 - `anexos_cambio_cargo` — Python: 2, templates asociados: 4
 - `anexos_cambio_sueldo` — Python: 2, templates asociados: 4
 - `anexos_indefinidos` — Python: 2, templates asociados: 6
-- `anexos_masivos` — Python: 2, templates asociados: 4
+- `anexos_masivos` — Python: 2, templates asociados: 5
 - `anticipos` — Python: 2, templates asociados: 8
-- `certificados` — Python: 3, templates asociados: 4
+- `certificados` — Python: 2, templates asociados: 4
 - `contratos` — Python: 2, templates asociados: 5
 - `contratos_vencimientos` — Python: 2, templates asociados: 1
 - `core` — Python: 2, templates asociados: 0
 - `dashboard` — Python: 2, templates asociados: 3
 - `desvinculaciones` — Python: 2, templates asociados: 6
-- `documentos` — Python: 2, templates asociados: 3
+- `documentos` — Python: 2, templates asociados: 4
 - `egresos` — Python: 2, templates asociados: 3
 - `extras_remuneracion` — Python: 2, templates asociados: 3
 - `feriados` — Python: 2, templates asociados: 2
@@ -37,8 +39,10 @@ Reporte generado automáticamente desde `/srv/rrhh_app`.
 - `obras` — Python: 2, templates asociados: 3
 - `pago_proveedores` — Python: 2, templates asociados: 6
 - `parametros_laborales` — Python: 2, templates asociados: 3
+- `prevencion_riesgos` — Python: 6, templates asociados: 15
 - `rendiciones_gastos` — Python: 2, templates asociados: 6
-- `solicitudes_fondos` — Python: 2, templates asociados: 9
+- `reporteria` — Python: 2, templates asociados: 10
+- `solicitudes_fondos` — Python: 2, templates asociados: 10
 - `sueldos` — Python: 1, templates asociados: 5
 - `terceros` — Python: 2, templates asociados: 5
 - `trabajadores` — Python: 3, templates asociados: 4
@@ -49,126 +53,144 @@ Reporte generado automáticamente desde `/srv/rrhh_app`.
 
 | Archivo | Líneas | KB |
 |---|---:|---:|
-| `web/app/blueprints/solicitudes_fondos/routes.py` | 2642 | 95.3 |
-| `web/app/models_legacy.py` | 2294 | 85.6 |
-| `web/app/blueprints/anticipos/routes.py` | 2182 | 73.0 |
-| `web/app/blueprints/desvinculaciones/routes.py` | 2037 | 68.2 |
-| `web/app/blueprints/rendiciones_gastos/routes.py` | 1522 | 47.2 |
+| `web/app/blueprints/solicitudes_fondos/routes.py` | 3071 | 111.6 |
+| `web/app/models_legacy.py` | 2320 | 86.7 |
+| `web/app/blueprints/anticipos/routes.py` | 2275 | 79.0 |
+| `web/app/blueprints/desvinculaciones/routes.py` | 2098 | 70.2 |
+| `web/app/blueprints/rendiciones_gastos/routes.py` | 1686 | 52.3 |
 | `web/app/blueprints/horas_extras/routes.py` | 1520 | 52.5 |
-| `web/app/blueprints/vacaciones/routes.py` | 1170 | 38.4 |
+| `web/app/blueprints/trabajadores/routes.py` | 1484 | 56.5 |
+| `web/app/services/anexos_masivos.py` | 1237 | 42.6 |
+| `web/app/blueprints/vacaciones/routes.py` | 1200 | 39.8 |
 | `web/app/blueprints/dashboard/routes.py` | 1156 | 38.3 |
 | `web/app/blueprints/sueldos/routes.py` | 1132 | 37.6 |
-| `web/app/blueprints/trabajadores/routes.py` | 1068 | 38.7 |
-| `web/app/blueprints/contratos/routes.py` | 930 | 34.9 |
+| `web/app/blueprints/reporteria/routes.py` | 1111 | 45.1 |
+| `web/app/blueprints/prevencion_riesgos/routes.py` | 1086 | 37.0 |
+| `web/app/blueprints/contratos/routes.py` | 980 | 37.1 |
+| `web/app/cli.py` | 886 | 33.8 |
 | `web/app/blueprints/extras_remuneracion/routes.py` | 873 | 28.5 |
-| `web/app/cli.py` | 866 | 33.2 |
-| `web/app/services/anexos_masivos.py` | 841 | 28.5 |
-| `web/app/services/bank_nominas.py` | 836 | 32.1 |
+| `web/app/services/bank_nominas.py` | 871 | 33.3 |
 | `web/app/blueprints/inasistencias/routes.py` | 791 | 25.3 |
 | `web/app/services/desvinculaciones_docs.py` | 761 | 25.9 |
 | `web/app/services/docx_engine.py` | 727 | 22.1 |
 | `web/app/blueprints/anexos_indefinidos/routes.py` | 671 | 22.9 |
+| `web/app/services/finiquitos_calc.py` | 652 | 21.8 |
 | `web/app/blueprints/acuerdos_pago/routes.py` | 638 | 20.5 |
 | `web/app/blueprints/pago_proveedores/routes.py` | 617 | 20.4 |
 | `web/app/blueprints/certificados/routes.py` | 569 | 17.6 |
-| `web/app/blueprints/anexos/routes.py` | 536 | 18.8 |
-| `web/app/services/acuerdos_pago_docs.py` | 531 | 17.3 |
-| `web/app/blueprints/anexos_cambio_sueldo/routes.py` | 525 | 19.2 |
-| `web/app/services/solicitudes_fondos_nominas_banco.py` | 501 | 16.9 |
-| `web/app/blueprints/anexos_cambio_cargo/routes.py` | 498 | 18.0 |
-| `web/app/blueprints/contratos_vencimientos/routes.py` | 466 | 15.2 |
-| `web/app/blueprints/egresos/routes.py` | 443 | 14.2 |
-| `web/app/services/finiquitos_calc.py` | 443 | 13.8 |
 
 ## 4. Templates HTML/Jinja más grandes
 
 | Template | Líneas | KB |
 |---|---:|---:|
-| `web/app/templates/trabajadores/trabajador_detalle.html` | 900 | 39.4 |
-| `web/app/templates/solicitudes_fondos/detalle.html` | 868 | 42.5 |
-| `web/app/templates/contratos_vencimientos/listado.html` | 834 | 32.3 |
-| `web/app/templates/desvinculaciones/finiquito_generar.html` | 788 | 34.7 |
-| `web/app/templates/horas_extras/pacto_form.html` | 698 | 23.6 |
-| `web/app/templates/dashboard/solicitudes_fondos.html` | 672 | 24.0 |
-| `web/app/templates/trabajadores/nuevo_trabajador.html` | 663 | 31.1 |
+| `web/app/templates/trabajadores/trabajador_detalle.html` | 1180 | 54.4 |
+| `web/app/templates/solicitudes_fondos/detalle.html` | 1005 | 50.3 |
 | `web/app/templates/solicitudes_fondos/solicitudes_fondos_imprimir_pdf.html` | 662 | 20.4 |
-| `web/app/templates/trabajadores/trabajador_editar.html` | 617 | 30.1 |
-| `web/app/templates/anticipos/anticipos_detalle.html` | 558 | 21.5 |
-| `web/app/templates/dashboard/personal_mes.html` | 539 | 19.6 |
-| `web/app/templates/rendiciones_gastos/detalle.html` | 526 | 22.7 |
+| `web/app/templates/trabajadores/trabajador_editar.html` | 569 | 28.6 |
+| `web/app/templates/anticipos/anticipos_detalle.html` | 566 | 21.9 |
+| `web/app/templates/rendiciones_gastos/detalle.html` | 559 | 24.3 |
+| `web/app/templates/trabajadores/nuevo_trabajador.html` | 558 | 27.9 |
+| `web/app/templates/dashboard/solicitudes_fondos.html` | 551 | 21.0 |
+| `web/app/templates/desvinculaciones/finiquito_generar.html` | 547 | 25.1 |
+| `web/app/templates/base.html` | 546 | 32.6 |
+| `web/app/templates/anexos_masivos/detalle.html` | 530 | 21.5 |
 | `web/app/templates/extras_remuneracion/lote_detalle.html` | 485 | 22.1 |
-| `web/app/templates/anexos_masivos/detalle.html` | 472 | 17.5 |
-| `web/app/templates/inasistencias/revision.html` | 438 | 18.7 |
-| `web/app/templates/horas_extras/revision_remu.html` | 425 | 18.9 |
-| `web/app/templates/egresos/egreso_form.html` | 424 | 15.0 |
-| `web/app/templates/contratos/contratos.html` | 419 | 17.3 |
-| `web/app/templates/base.html` | 415 | 23.2 |
-| `web/app/templates/transferencias_bancarias/crear.html` | 401 | 11.8 |
-| `web/app/templates/contratos/contrato_generar.html` | 381 | 13.1 |
-| `web/app/templates/desvinculaciones/desvinculaciones_listado.html` | 378 | 15.2 |
-| `web/app/templates/contratos/contrato_editar.html` | 370 | 15.3 |
+| `web/app/templates/contratos_vencimientos/listado.html` | 457 | 20.9 |
+| `web/app/templates/dashboard/personal_mes.html` | 407 | 15.7 |
 | `web/app/templates/sueldos/sueldos_detalle.html` | 368 | 15.5 |
-| `web/app/templates/acuerdos_pago/acuerdos_pago_form.html` | 365 | 12.9 |
-| `web/app/templates/desvinculaciones/carta_aviso_generar.html` | 337 | 15.2 |
+| `web/app/templates/desvinculaciones/desvinculaciones_listado.html` | 355 | 14.7 |
+| `web/app/templates/contratos/contrato_generar.html` | 350 | 12.4 |
+| `web/app/templates/horas_extras/revision_remu.html` | 338 | 15.8 |
+| `web/app/templates/contratos/contratos.html` | 337 | 15.2 |
+| `web/app/templates/inasistencias/revision.html` | 334 | 14.9 |
 | `web/app/templates/dashboard/bienestar.html` | 333 | 12.3 |
+| `web/app/templates/contratos/contrato_detalle.html` | 333 | 15.3 |
 | `web/app/templates/parametros_laborales/form.html` | 327 | 11.9 |
-| `web/app/templates/contratos/nuevo_contrato.html` | 318 | 13.3 |
-| `web/app/templates/anticipos/anticipos_imprimir_pdf.html` | 291 | 7.5 |
+| `web/app/templates/contratos/contrato_editar.html` | 308 | 13.7 |
+| `web/app/templates/inasistencias/listado.html` | 299 | 12.4 |
 
 ## 5. Archivos estáticos
 
+
 ### CSS
 
-- `web/app/static/styles.css` — 1007 líneas, 19.7 KB
+- `web/app/static/styles.css` — 3833 líneas, 93.2 KB
 
 ### JS
 
-- No se detectaron archivos JS propios.
+- `web/app/static/js/acuerdos_pago_form.js` — 187 líneas, 5.7 KB
+- `web/app/static/js/anexos_cambio_cargo_form.js` — 43 líneas, 1.2 KB
+- `web/app/static/js/anexos_cambio_sueldo_form.js` — 87 líneas, 2.4 KB
+- `web/app/static/js/anexos_extension_nuevo.js` — 60 líneas, 1.7 KB
+- `web/app/static/js/anexos_indefinidos_generar.js` — 18 líneas, 0.6 KB
+- `web/app/static/js/anexos_masivos_detalle.js` — 32 líneas, 1.3 KB
+- `web/app/static/js/anticipos_detalle.js` — 23 líneas, 0.6 KB
+- `web/app/static/js/anticipos_edig.js` — 52 líneas, 1.6 KB
+- `web/app/static/js/certificados_nuevo.js` — 109 líneas, 3.3 KB
+- `web/app/static/js/contratos_form.js` — 65 líneas, 1.7 KB
+- `web/app/static/js/contratos_generar.js` — 23 líneas, 0.6 KB
+- `web/app/static/js/contratos_listado.js` — 118 líneas, 3.5 KB
+- `web/app/static/js/contratos_vencimientos_listado.js` — 385 líneas, 11.9 KB
+- `web/app/static/js/dashboard_personal_mes.js` — 151 líneas, 4.5 KB
+- `web/app/static/js/dashboard_solicitudes_fondos.js` — 80 líneas, 2.7 KB
+- `web/app/static/js/desvinculaciones_carta_aviso.js` — 46 líneas, 1.4 KB
+- `web/app/static/js/desvinculaciones_finiquito_generar.js` — 323 líneas, 14.2 KB
+- `web/app/static/js/desvinculaciones_listado.js` — 19 líneas, 0.5 KB
+- `web/app/static/js/documentos_contrato.js` — 62 líneas, 2.0 KB
+- `web/app/static/js/egresos_form.js` — 216 líneas, 6.8 KB
+- `web/app/static/js/extras_remuneracion_lote_detalle.js` — 106 líneas, 3.2 KB
+- `web/app/static/js/extras_remuneracion_lote_nuevo.js` — 43 líneas, 1.3 KB
+- `web/app/static/js/horarios_form.js` — 63 líneas, 2.0 KB
+- `web/app/static/js/horas_extras_pacto_form.js` — 398 líneas, 12.6 KB
+- `web/app/static/js/horas_extras_revision_remu.js` — 88 líneas, 3.0 KB
+- `web/app/static/js/inasistencias_form.js` — 223 líneas, 6.1 KB
+- `web/app/static/js/inasistencias_revision.js` — 98 líneas, 3.3 KB
+- `web/app/static/js/main.js` — 344 líneas, 12.0 KB
+- `web/app/static/js/obras_form.js` — 22 líneas, 0.7 KB
+- `web/app/static/js/pago_proveedores_listado.js` — 4 líneas, 0.2 KB
+- `web/app/static/js/prevencion_contratos_selector.js` — 155 líneas, 6.3 KB
+- `web/app/static/js/prevencion_epp_form.js` — 39 líneas, 1.1 KB
+- `web/app/static/js/rendiciones_detalle.js` — 33 líneas, 1.8 KB
+- `web/app/static/js/rendiciones_nueva.js` — 27 líneas, 0.8 KB
+- `web/app/static/js/solicitudes_fondos_detalle.js` — 47 líneas, 1.2 KB
+- `web/app/static/js/trabajadores_form.js` — 113 líneas, 3.6 KB
+- `web/app/static/js/transferencias_bancarias_crear.js` — 276 líneas, 7.3 KB
+- `web/app/static/js/vacaciones_form.js` — 126 líneas, 3.2 KB
 
 ## 6. Uso de estilos y scripts inline en templates
 
 | Template | `style=` | `<script>` |
 |---|---:|---:|
 | `web/app/templates/solicitudes_fondos/solicitudes_fondos_imprimir_pdf.html` | 35 | 0 |
-| `web/app/templates/contratos/contrato_detalle.html` | 20 | 0 |
+| `web/app/templates/dashboard/personal_mes.html` | 5 | 6 |
+| `web/app/templates/contratos/contrato_detalle.html` | 22 | 0 |
 | `web/app/templates/desvinculaciones/desvinculaciones_listado.html` | 18 | 1 |
 | `web/app/templates/solicitudes_fondos/detalle.html` | 12 | 2 |
 | `web/app/templates/contratos_vencimientos/listado.html` | 11 | 1 |
+| `web/app/templates/prevencion_riesgos/epp_form.html` | 7 | 2 |
+| `web/app/templates/dashboard/solicitudes_fondos.html` | 3 | 3 |
+| `web/app/templates/horarios/horario_form.html` | 5 | 2 |
 | `web/app/templates/anticipos/anticipos_imprimir.html` | 11 | 0 |
+| `web/app/templates/extras_remuneracion/lote_detalle.html` | 4 | 2 |
 | `web/app/templates/solicitudes_fondos/listado.html` | 10 | 0 |
+| `web/app/templates/transferencias_bancarias/crear.html` | 7 | 1 |
+| `web/app/templates/rendiciones_gastos/detalle.html` | 6 | 1 |
 | `web/app/templates/solicitudes_fondos/solicitudes_fondos_nominas_banco_historico.html` | 9 | 0 |
 | `web/app/templates/rendiciones_gastos/rendiciones_gastos_imprimir_pdf.html` | 8 | 0 |
-| `web/app/templates/transferencias_bancarias/crear.html` | 7 | 1 |
-| `web/app/templates/dashboard/personal_mes.html` | 5 | 2 |
-| `web/app/templates/dashboard/solicitudes_fondos.html` | 3 | 4 |
-| `web/app/templates/horas_extras/pactos_listado.html` | 7 | 0 |
-| `web/app/templates/rendiciones_gastos/detalle.html` | 6 | 1 |
-| `web/app/templates/rendiciones_gastos/listado.html` | 7 | 0 |
-| `web/app/templates/solicitudes_fondos/solicitudes_fondos_nominas_banco_preparar.html` | 7 | 0 |
-| `web/app/templates/sueldos/sueldos_detalle.html` | 7 | 0 |
-| `web/app/templates/trabajadores/nuevo_trabajador.html` | 3 | 4 |
-| `web/app/templates/extras_remuneracion/lote_detalle.html` | 4 | 2 |
-| `web/app/templates/horarios/horario_form.html` | 5 | 1 |
-| `web/app/templates/horas_extras/pacto_form.html` | 4 | 2 |
-| `web/app/templates/inasistencias/editar.html` | 5 | 1 |
 | `web/app/templates/inasistencias/nuevo.html` | 5 | 1 |
-| `web/app/templates/trabajadores/trabajador_detalle.html` | 6 | 0 |
-| `web/app/templates/acuerdos_pago/acuerdos_pago_listado.html` | 5 | 0 |
+| `web/app/templates/inasistencias/editar.html` | 5 | 1 |
+| `web/app/templates/rendiciones_gastos/listado.html` | 7 | 0 |
+| `web/app/templates/sueldos/sueldos_detalle.html` | 7 | 0 |
+| `web/app/templates/solicitudes_fondos/solicitudes_fondos_nominas_banco_preparar.html` | 7 | 0 |
 | `web/app/templates/anticipos/anticipos_detalle.html` | 4 | 1 |
-| `web/app/templates/certificados/listado.html` | 5 | 0 |
-| `web/app/templates/feriados/listado.html` | 5 | 0 |
-| `web/app/templates/anexos_masivos/detalle.html` | 3 | 1 |
-| `web/app/templates/contratos/contrato_generar.html` | 2 | 2 |
-| `web/app/templates/contratos/nuevo_contrato.html` | 2 | 2 |
-| `web/app/templates/egresos/egresos_listado.html` | 4 | 0 |
-| `web/app/templates/trabajadores/trabajador_editar.html` | 2 | 2 |
-| `web/app/templates/cargos/cargos_listado.html` | 3 | 0 |
-| `web/app/templates/contratos/contrato_editar.html` | 1 | 2 |
-| `web/app/templates/egresos/egreso_form.html` | 2 | 1 |
 | `web/app/templates/vacaciones/form.html` | 1 | 2 |
-| `web/app/templates/acuerdos_pago/acuerdos_pago_form.html` | 1 | 1 |
-| `web/app/templates/admin/user_form.html` | 2 | 0 |
-| `web/app/templates/anexos_cambio_cargo/nuevo.html` | 1 | 1 |
+| `web/app/templates/horas_extras/pacto_form.html` | 4 | 1 |
+| `web/app/templates/horas_extras/pactos_listado.html` | 7 | 0 |
+| `web/app/templates/base.html` | 0 | 2 |
+| `web/app/templates/anexos_masivos/detalle.html` | 3 | 1 |
+| `web/app/templates/trabajadores/nuevo_trabajador.html` | 3 | 1 |
+| `web/app/templates/trabajadores/trabajador_detalle.html` | 6 | 0 |
+| `web/app/templates/inasistencias/revision.html` | 2 | 1 |
 
 ## 7. Plantillas DOCX detectadas
 
@@ -177,9 +199,10 @@ Reporte generado automáticamente desde `/srv/rrhh_app`.
 - `web/app/document_templates/anexos/anexo_cambio_sueldo.docx` — 56.8 KB
 - `web/app/document_templates/anexos/anexo_extension_contrato.docx` — 415.0 KB
 - `web/app/document_templates/anexos/anexo_indefinido_contrato.docx` — 414.9 KB
+- `web/app/document_templates/anexos/anexo_reemplazo_dia.docx` — 57.3 KB
 - `web/app/document_templates/anexos/anexo_sueldo_minimo.docx` — 82.2 KB
 - `web/app/document_templates/certificados/certif_antiguedad.docx` — 345.8 KB
-- `web/app/document_templates/contratos/cargos.docx` — 43.8 KB
+- `web/app/document_templates/contratos/cargos.docx` — 46.8 KB
 - `web/app/document_templates/contratos/contrato_base.docx` — 424.2 KB
 - `web/app/document_templates/desvinculacion/1.docx` — 3102.4 KB
 - `web/app/document_templates/desvinculacion/4.docx` — 54.3 KB
@@ -197,120 +220,11 @@ Reporte generado automáticamente desde `/srv/rrhh_app`.
 
 ## 8. Archivos sospechosos o candidatos a revisión
 
-- `web/app/blueprints/certificados/services (eliminar).py` — 5.7 KB
-- `web/app/models_legacy.py` — 85.6 KB
-- `web/migrations/versions/3823802a0074_add_requiere_carta_y_carta_template_a_.py` — 1.8 KB
+- `web/app/models_legacy.py` — 86.7 KB
 
-## 9. Funciones helper repetidas o candidatas a centralización
+## 9. Notas Fase 1
 
-| Función | Apariciones | Archivos |
-|---|---:|---|
-| `_parse_date` | 8 | `web/app/blueprints/anexos_indefinidos/routes.py`<br>`web/app/blueprints/contratos_vencimientos/routes.py`<br>`web/app/blueprints/feriados/routes.py`<br>`web/app/blueprints/obras/routes.py`<br>`web/app/blueprints/parametros_laborales/routes.py`<br>`web/app/blueprints/vacaciones/routes.py`<br>`web/app/cli.py`<br>`web/app/import_contratos_quintero.py` |
-| `_to_decimal` | 6 | `web/app/blueprints/acuerdos_pago/routes.py`<br>`web/app/blueprints/egresos/routes.py`<br>`web/app/blueprints/extras_remuneracion/routes.py`<br>`web/app/services/bank_nominas.py`<br>`web/app/services/finiquitos_calc.py`<br>`web/app/services/solicitudes_fondos_nominas_banco.py` |
-| `_to_int` | 5 | `web/app/blueprints/acuerdos_pago/routes.py`<br>`web/app/blueprints/anticipos/routes.py`<br>`web/app/blueprints/egresos/routes.py`<br>`web/app/blueprints/extras_remuneracion/routes.py`<br>`web/app/blueprints/sueldos/routes.py` |
-| `_fmt_clp` | 5 | `web/app/blueprints/anexos_cambio_sueldo/routes.py`<br>`web/app/blueprints/desvinculaciones/routes.py`<br>`web/app/services/acuerdos_pago_docs.py`<br>`web/app/services/egresos_docs.py`<br>`web/app/services/extras_docs.py` |
-| `_fmt_fecha_es` | 5 | `web/app/blueprints/certificados/services (eliminar).py`<br>`web/app/services/acuerdos_pago_docs.py`<br>`web/app/services/certificados_docs.py`<br>`web/app/services/egresos_docs.py`<br>`web/app/services/pactos_hr_extras_docs.py` |
-| `format_rut` | 4 | `web/app/blueprints/anticipos/routes.py`<br>`web/app/blueprints/contratos/routes.py`<br>`web/app/blueprints/sueldos/routes.py`<br>`web/app/blueprints/trabajadores/routes.py` |
-| `_split_rut` | 3 | `web/app/blueprints/desvinculaciones/routes.py`<br>`web/app/blueprints/trabajadores/api.py`<br>`web/app/services/solicitudes_fondos_nominas_banco.py` |
-| `_format_rut` | 3 | `web/app/blueprints/horas_extras/routes.py`<br>`web/app/blueprints/inasistencias/routes.py`<br>`web/app/services/desvinculaciones_docs.py` |
-| `_to_date` | 2 | `web/app/blueprints/acuerdos_pago/routes.py`<br>`web/app/blueprints/egresos/routes.py` |
-| `_format_rut_documento` | 2 | `web/app/blueprints/anexos_cambio_cargo/routes.py`<br>`web/app/blueprints/anexos_cambio_sueldo/routes.py` |
-| `_parse_money` | 2 | `web/app/blueprints/anexos_cambio_sueldo/routes.py`<br>`web/app/services/import_anticipos.py` |
-| `_rut_sin_puntos_con_guion` | 2 | `web/app/blueprints/anticipos/routes.py`<br>`web/app/services/import_sueldos.py` |
-| `_money_to_int` | 2 | `web/app/blueprints/desvinculaciones/routes.py`<br>`web/app/services/desvinculaciones_docs.py` |
-| `_clp_int` | 2 | `web/app/blueprints/extras_remuneracion/routes.py`<br>`web/app/services/extras_csv.py` |
-| `_parse_date_yyyy_mm_dd` | 2 | `web/app/blueprints/horas_extras/routes.py`<br>`web/app/blueprints/pago_proveedores/routes.py` |
-| `_fmt_rut_from_user` | 2 | `web/app/blueprints/solicitudes_fondos/routes.py`<br>`web/app/blueprints/solicitudes_fondos/routes.py` |
-| `split_rut` | 2 | `web/app/blueprints/trabajadores/routes.py`<br>`web/app/services/import_anticipos.py` |
-| `parse_date` | 2 | `web/app/import_trabajadores_quintero.py`<br>`web/app/utils.py` |
-| `rut_completo` | 2 | `web/app/models_legacy.py`<br>`web/app/models_legacy.py` |
-| `_fmt_rut_cl` | 2 | `web/app/services/acuerdos_pago_docs.py`<br>`web/app/services/egresos_docs.py` |
-| `rut_trabajador_filter` | 1 | `web/app/__init__.py` |
-| `rut_any_filter` | 1 | `web/app/__init__.py` |
-| `rut_tercero_filter` | 1 | `web/app/__init__.py` |
-| `_to_clp_int` | 1 | `web/app/blueprints/acuerdos_pago/routes.py` |
-| `_normalize_rut` | 1 | `web/app/blueprints/admin/routes.py` |
-| `_clp_palabras_sin_pesos` | 1 | `web/app/blueprints/anexos_cambio_sueldo/routes.py` |
-| `_get_fecha_termino_referencial_y_sugerencia_desde` | 1 | `web/app/blueprints/anexos_indefinidos/routes.py` |
-| `_rut_con_puntos` | 1 | `web/app/blueprints/anticipos/routes.py` |
-| `_format_rut_show` | 1 | `web/app/blueprints/anticipos/routes.py` |
-| `_rut_trabajador_para_edig` | 1 | `web/app/blueprints/anticipos/routes.py` |
-| `_rut_digits` | 1 | `web/app/blueprints/certificados/routes.py` |
-| `_resolver_ruta_destino_nextcloud` | 1 | `web/app/blueprints/certificados/services (eliminar).py` |
-| `split_empleador_rut` | 1 | `web/app/blueprints/contratos/routes.py` |
-| `format_rut_raw` | 1 | `web/app/blueprints/contratos/routes.py` |
-| `_rut_completo_expr` | 1 | `web/app/blueprints/dashboard/routes.py` |
-| `_fecha_ingreso_efectiva_expr` | 1 | `web/app/blueprints/dashboard/routes.py` |
-| `_next_anniversary_date_expr` | 1 | `web/app/blueprints/dashboard/routes.py` |
-| `_parse_money_to_str` | 1 | `web/app/blueprints/desvinculaciones/routes.py` |
-| `_money_to_int_any` | 1 | `web/app/blueprints/desvinculaciones/routes.py` |
-| `_fmt_fecha_pago` | 1 | `web/app/blueprints/desvinculaciones/routes.py` |
-| `_fmt_fecha_ddmmyyyy` | 1 | `web/app/blueprints/desvinculaciones/routes.py` |
-| `_parse_fecha_pago_any` | 1 | `web/app/blueprints/desvinculaciones/routes.py` |
-| `_clp_sin_decimales` | 1 | `web/app/blueprints/extras_remuneracion/routes.py` |
-| `_fecha_termino_max_pacto` | 1 | `web/app/blueprints/horas_extras/routes.py` |
-| `_to_decimal_money` | 1 | `web/app/blueprints/solicitudes_fondos/routes.py` |
-| `_fmt_clp_text` | 1 | `web/app/blueprints/solicitudes_fondos/routes.py` |
-| `_rut_plain_from_user` | 1 | `web/app/blueprints/solicitudes_fondos/routes.py` |
-| `_split_rut_plain` | 1 | `web/app/blueprints/solicitudes_fondos/routes.py` |
-| `_parse_rut_parts_from_excel` | 1 | `web/app/blueprints/terceros/routes.py` |
-| `_parse_rut_cta` | 1 | `web/app/blueprints/terceros/routes.py` |
-| `trabajador_rut_formateado` | 1 | `web/app/blueprints/trabajadores/routes.py` |
-| `normalizar_y_guardar_rut_en_trabajador` | 1 | `web/app/blueprints/trabajadores/routes.py` |
-| `_fmt_fecha` | 1 | `web/app/blueprints/trabajadores/routes.py` |
-| `_bank_sanitize_text` | 1 | `web/app/blueprints/transferencias_bancarias/routes.py` |
-| `_format_rut_con_puntos` | 1 | `web/app/blueprints/vacaciones/routes.py` |
-| `_clean_rut_digits` | 1 | `web/app/cli.py` |
-| `_parse_rut_completo` | 1 | `web/app/cli.py` |
-| `normalizar_nombre_trabajador` | 1 | `web/app/config.py` |
-| `_normalizar_texto_simple` | 1 | `web/app/config.py` |
-| `rut_cta_completo` | 1 | `web/app/models_legacy.py` |
-| `ruta_nextcloud` | 1 | `web/app/models_legacy.py` |
-| `ruta_nextcloud_preferente` | 1 | `web/app/models_legacy.py` |
-| `ruta_completa` | 1 | `web/app/models_legacy.py` |
-| `ruta_docx_completa` | 1 | `web/app/models_legacy.py` |
-| `ruta_pdf_completa` | 1 | `web/app/models_legacy.py` |
-| `_formato_clp_sin_decimales` | 1 | `web/app/services/anexos_masivos.py` |
-| `obtener_parametro_vigente_para_fecha` | 1 | `web/app/services/anexos_masivos.py` |
-| `rut_plain_from_parts` | 1 | `web/app/services/bank_nominas.py` |
-| `rut_plain_from_str` | 1 | `web/app/services/bank_nominas.py` |
-| `_split_rut_dv` | 1 | `web/app/services/certificados_docs.py` |
-| `_format_rut_with_dots` | 1 | `web/app/services/certificados_docs.py` |
-| `fecha_larga_el` | 1 | `web/app/services/date_format.py` |
-| `_fmt_clp_blank_if_zero` | 1 | `web/app/services/egresos_docs.py` |
-| `_fmt_fecha_corta` | 1 | `web/app/services/extras_docs.py` |
-| `_money` | 1 | `web/app/services/finiquitos_calc.py` |
-| `fecha_base_feriado_proporcional` | 1 | `web/app/services/finiquitos_calc.py` |
-| `_clean_rut_compact` | 1 | `web/app/services/import_anticipos.py` |
-| `_is_valid_rut` | 1 | `web/app/services/import_sueldos.py` |
-| `clp_a_palabras` | 1 | `web/app/services/num_to_words_es.py` |
-| `rut_parts_from_plain` | 1 | `web/app/services/pago_proveedores_engine.py` |
-| `periodo_from_date` | 1 | `web/app/services/parametros_laborales.py` |
-| `normalizar_periodo` | 1 | `web/app/services/parametros_laborales.py` |
-| `obtener_parametro_por_fecha` | 1 | `web/app/services/parametros_laborales.py` |
-| `_money_to_decimal_str` | 1 | `web/app/services/previred_import.py` |
-| `rut_con_puntos` | 1 | `web/app/services/rut_format.py` |
-| `_rut_plain` | 1 | `web/app/services/solicitudes_fondos_nominas_banco.py` |
-| `collect_nomina_candidates` | 1 | `web/app/services/solicitudes_fondos_nominas_banco.py` |
-| `create_nomina_from_candidates` | 1 | `web/app/services/solicitudes_fondos_nominas_banco.py` |
-| `format_rut_parts` | 1 | `web/app/utils.py` |
-| `fecha_larga_es` | 1 | `web/app/utils.py` |
-| `format_rut_with_dots` | 1 | `web/app/utils.py` |
-
-## 10. Referencias a `models_legacy`
-
-- `web/app/models/__init__.py`
-- `web/app/models_legacy.py`
-
-## 11. Búsqueda de posibles secuencias de escape problemáticas
-
-- `web/app/blueprints/anexos/routes.py`
-- `web/app/blueprints/anexos_cambio_cargo/routes.py`
-- `web/app/blueprints/anexos_cambio_sueldo/routes.py`
-- `web/app/blueprints/anexos_indefinidos/routes.py`
-- `web/app/blueprints/anticipos/routes.py`
-- `web/app/blueprints/contratos/routes.py`
-- `web/app/blueprints/rendiciones_gastos/routes.py`
-- `web/app/services/anexos_masivos.py`
-- `web/app/services/extras_csv.py`
-- `web/app/services/extras_docs.py`
+- Se agregó `web/app/common/navigation.py` para validar redirecciones internas (`next` / `next_url`).
+- Se agregó `web/app/services/documentos_laborales.py` como base del expediente documental unificado.
+- La generación de contratos registra automáticamente DOCX/PDF en `documentos_laborales`.
+- El detalle del contrato ahora muestra checklist documental y últimos documentos registrados.

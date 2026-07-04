@@ -13,5 +13,3 @@ Flask-WTF
 WTForms
 pandas
 pdfplumber
-unzip
-zip

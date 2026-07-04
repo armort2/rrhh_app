@@ -1,0 +1,135 @@
+{# web/app/templates/cumplimiento_laboral/ley_karin.html #}
+{% extends "base.html" %}
+
+{% block title %}Ley Karin · Cumplimiento Laboral{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page cumplimiento-page">
+  <div class="card cs-list-hero p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <div class="cs-module-eyebrow">🧭 Cumplimiento Laboral</div>
+        <h1 class="section-title">Ley Karin · Protocolo operativo</h1>
+        <div class="section-divider"></div>
+        <p class="text-muted mb-0">
+          Checklist interno para ordenar la futura gestión de denuncias, medidas de resguardo, investigación y cierre documental.
+        </p>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('cumplimiento_laboral.index') }}">⬅ Volver al panel</a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning border-0 shadow-sm">
+    <strong>Nota operativa:</strong> esta pantalla no reemplaza la revisión jurídica ni preventiva. Es una pauta de control interno para preparar el módulo transaccional y evitar que los plazos se transformen en “duendes administrativos” 🧌.
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Etapa 1</div>
+          <h2 class="h5">Recepción de denuncia</h2>
+          <ul class="cumplimiento-checklist">
+            <li><span>□</span> Registrar fecha y hora de recepción.</li>
+            <li><span>□</span> Identificar denunciante, denunciado, empresa y obra.</li>
+            <li><span>□</span> Clasificar materia denunciada.</li>
+            <li><span>□</span> Entregar comprobante o copia del registro.</li>
+            <li><span>□</span> Evaluar confidencialidad y canal de contacto.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Etapa 2</div>
+          <h2 class="h5">Medidas de resguardo</h2>
+          <ul class="cumplimiento-checklist">
+            <li><span>□</span> Evaluar riesgo inmediato para las personas involucradas.</li>
+            <li><span>□</span> Registrar medidas temporales adoptadas.</li>
+            <li><span>□</span> Definir responsable interno del seguimiento.</li>
+            <li><span>□</span> Notificar solo a quienes corresponda.</li>
+            <li><span>□</span> Dejar respaldo documental de cada medida.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Etapa 3</div>
+          <h2 class="h5">Investigación y cierre</h2>
+          <ul class="cumplimiento-checklist">
+            <li><span>□</span> Asignar investigador o definir derivación.</li>
+            <li><span>□</span> Calendarizar entrevistas e hitos.</li>
+            <li><span>□</span> Adjuntar antecedentes y declaraciones.</li>
+            <li><span>□</span> Emitir informe de conclusión.</li>
+            <li><span>□</span> Registrar medidas finales y comunicación de cierre.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm cumplimiento-card mb-3">
+    <div class="card-body">
+      <div class="cumplimiento-kicker">Diseño del próximo módulo</div>
+      <h2 class="h5 mb-3">Campos recomendados para la base transaccional</h2>
+      <div class="row g-2">
+        {% for item in [
+          ('Folio', 'Número interno correlativo por denuncia.'),
+          ('Empresa / obra', 'Contexto laboral y centro de gestión.'),
+          ('Personas involucradas', 'Denunciante, denunciado, testigos y responsables.'),
+          ('Materia', 'Acoso laboral, acoso sexual, violencia u otra clasificación interna.'),
+          ('Medidas de resguardo', 'Acciones temporales, responsables y vigencia.'),
+          ('Hitos', 'Recepción, derivación, entrevistas, informe, cierre.'),
+          ('Documentos', 'Actas, respaldos, entrevistas, informe final.'),
+          ('Estado', 'Borrador, recibido, en investigación, cerrado, derivado/anulado.')
+        ] %}
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="cumplimiento-field-card">
+              <strong>{{ item[0] }}</strong>
+              <small>{{ item[1] }}</small>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm cumplimiento-card h-100">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Semáforo futuro</div>
+          <h2 class="h5 mb-3">Estados sugeridos</h2>
+          <div class="cumplimiento-mini-list">
+            <div><span>Recibida sin medidas registradas</span><strong class="text-danger">Crítico</strong></div>
+            <div><span>En investigación con hitos pendientes</span><strong class="text-warning">Atención</strong></div>
+            <div><span>Cierre pendiente de comunicación</span><strong class="text-warning">Atención</strong></div>
+            <div><span>Cerrada con respaldos completos</span><strong class="text-success">OK</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm cumplimiento-card h-100">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Próxima iteración</div>
+          <h2 class="h5 mb-3">Qué conviene implementar después</h2>
+          <ol class="mb-0 text-muted">
+            <li>Modelo de denuncias e hitos con migración controlada.</li>
+            <li>Formulario de recepción con PDF/acta imprimible.</li>
+            <li>Registro de medidas de resguardo y responsables.</li>
+            <li>Alertas por vencimiento de hitos.</li>
+            <li>Informe final exportable a PDF.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{# web/app/templates/admin/roles_matriz.html #}
+{% extends "base.html" %}
+{% block title %}Admin · Roles y permisos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div class="section-header mb-0">
+      <h1 class="section-title">Roles y permisos</h1>
+      <div class="section-subtitle">
+        Matriz funcional de acceso del Sistema Grupo CS. Esta V9 activa una barrera central por módulo: el navbar oculta opciones y Flask bloquea URL directas sin permiso.
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.users_list') }}">
+        <i class="bi bi-people"></i> Usuarios
+      </a>
+      <a class="btn btn-outline-primary" href="{{ url_for('admin.auditoria') }}">
+        <i class="bi bi-compass"></i> Bitácora
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <div class="card h-100 cs-metric-card">
+        <div class="card-body">
+          <div class="text-muted small">Roles definidos</div>
+          <div class="display-6 fw-bold">{{ total_roles }}</div>
+          <div class="small text-muted">Incluye roles nuevos y roles históricos de compatibilidad.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 cs-metric-card">
+        <div class="card-body">
+          <div class="text-muted small">Permisos base</div>
+          <div class="display-6 fw-bold">{{ total_permissions }}</div>
+          <div class="small text-muted">Permisos modulares usados para menús y futuras rutas críticas.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 cs-metric-card">
+        <div class="card-body">
+          <div class="text-muted small">Módulos protegidos</div>
+          <div class="display-6 fw-bold">{{ total_blueprint_rules }}</div>
+          <div class="small text-muted">Blueprints cubiertos por la barrera RBAC V9.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info cs-alert-soft">
+    <strong>Importante:</strong> los roles <code>OPERADOR</code> y <code>REVISOR</code> se mantienen por compatibilidad con rutas existentes. En esta V9 ya se bloquea acceso directo por URL a módulos no autorizados; si algún usuario queda muy restringido, basta ajustar sus roles desde Admin → Usuarios.
+  </div>
+
+  <div class="row g-3 mb-3">
+    {% for role in role_definitions %}
+      <div class="col-12 col-lg-4">
+        <div class="card h-100 role-card role-card-{{ role.name|lower|replace('_', '-') }}">
+          <div class="card-body">
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+              <div>
+                <div class="role-name">{{ role.name }}</div>
+                <div class="role-label">{{ role.label }}</div>
+              </div>
+              {% if role.name in ["OPERADOR", "REVISOR"] %}
+                <span class="badge text-bg-warning">Histórico</span>
+              {% elif role.name == "ADMIN" %}
+                <span class="badge text-bg-dark">Total</span>
+              {% else %}
+                <span class="badge text-bg-primary">Nuevo</span>
+              {% endif %}
+            </div>
+            <p class="text-muted small mb-2">{{ role.description }}</p>
+            {% if role.legacy_equivalent and role.name not in ["ADMIN", "OPERADOR", "REVISOR"] %}
+              <div class="small text-muted">Compatibilidad sugerida: <code>{{ role.legacy_equivalent }}</code></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="card-title mb-0">Matriz simple de permisos</div>
+        <div class="card-subtitle">✓ = permiso asignado por rol. ADMIN opera con comodín total.</div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 roles-matrix-table">
+          <thead>
+            <tr>
+              <th style="min-width: 260px;">Permiso</th>
+              {% for role in role_definitions %}
+                <th class="text-center text-nowrap">{{ role.name }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for group_label, permissions in permission_groups %}
+              <tr class="table-light">
+                <td colspan="{{ role_definitions|length + 1 }}" class="fw-bold text-uppercase small text-muted">
+                  {{ group_label }}
+                </td>
+              </tr>
+              {% for permission in permissions %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ permission_labels.get(permission, permission) }}</div>
+                    <code class="small">{{ permission }}</code>
+                  </td>
+                  {% for role in role_definitions %}
+                    {% set role_permissions = role.permissions %}
+                    <td class="text-center">
+                      {% if '*' in role_permissions or permission in role_permissions %}
+                        <span class="badge rounded-pill text-bg-success">✓</span>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="card-title mb-0">Protección V9 por módulo</div>
+        <div class="card-subtitle">Permisos exigidos por blueprint para lectura y operación. Los métodos POST/PUT/PATCH/DELETE y formularios operativos exigen permiso de escritura.</div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 roles-matrix-table">
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th>Blueprint</th>
+              <th>Permiso lectura</th>
+              <th>Permiso operación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rule in blueprint_rules %}
+              <tr>
+                <td class="fw-semibold">{{ rule.label }}</td>
+                <td><code>{{ rule.blueprint }}</code></td>
+                <td><code>{{ rule.read_permission }}</code></td>
+                <td>
+                  {% if rule.write_permission %}
+                    <code>{{ rule.write_permission }}</code>
+                  {% else %}
+                    <span class="text-muted">Solo lectura / sin escritura directa</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

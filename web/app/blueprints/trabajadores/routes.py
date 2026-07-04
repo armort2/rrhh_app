@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import re
 from datetime import date, timedelta
-from urllib.parse import urlparse
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from sqlalchemy import exists, and_, or_, func, String
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, load_only
 
+from ...common.navigation import safe_next_url
 from ...extensions import db
 from ...models import (
     Trabajador,
@@ -38,6 +37,7 @@ from ...models import (
     PrevDocumentoPreventivo,
 )
 from ...utils import parse_date, parse_int, parse_decimal
+from ...services.expediente_laboral import build_salud_expediente_trabajador, fmt_clp
 
 bp = Blueprint("trabajadores", __name__, url_prefix="/trabajadores")
 
@@ -77,13 +77,8 @@ def split_rut(raw: str) -> tuple[str, str]:
 
 
 def _safe_next_url(next_url: str | None) -> str | None:
-    if not next_url:
-        return None
-    u = urlparse(next_url)
-    # Permitimos solo rutas internas (sin scheme ni netloc)
-    if u.scheme or u.netloc:
-        return None
-    return next_url
+    # Alias local para compatibilidad con rutas existentes.
+    return safe_next_url(next_url, fallback=None) if next_url else None
 
 
 def _allowed_obra_ids_for_user() -> list[int]:
@@ -622,10 +617,7 @@ def detalle_trabajador(trabajador_id: int):
     }
 
     def _fmt_clp(valor) -> str:
-        try:
-            return "$" + f"{int(round(float(valor or 0))):,}".replace(",", ".")
-        except Exception:
-            return "$0"
+        return fmt_clp(valor)
 
     def _fmt_hhmm(minutos: int | None) -> str:
         if not minutos:
@@ -834,6 +826,59 @@ def detalle_trabajador(trabajador_id: int):
             })
     documentos_recientes = documentos_recientes[:8]
 
+    salud_expediente = build_salud_expediente_trabajador(
+        total_contratos=total_contratos,
+        total_contratos_vigentes=total_contratos_vigentes,
+        datos_faltantes=datos_faltantes,
+        documentos_recientes=documentos_recientes,
+        prevencion_resumen=prevencion_resumen,
+        contratos_por_vencer=contratos_por_vencer,
+    )
+
+    recomendaciones_ficha = []
+    if not contratos:
+        recomendaciones_ficha.append({
+            "icono": "➕",
+            "titulo": "Crear primer contrato",
+            "detalle": "El trabajador no registra contratos; es la puerta de entrada para operar documentos y cálculos.",
+            "url": url_for("contratos.nuevo_contrato", trabajador_id=trabajador.id, next=request.args.get("next")),
+            "class": "btn-primary",
+        })
+    if datos_faltantes:
+        recomendaciones_ficha.append({
+            "icono": "🧩",
+            "titulo": "Completar datos maestros",
+            "detalle": "Faltan datos relevantes para documentos, pagos o previsión.",
+            "url": url_for("trabajadores.editar_trabajador", trabajador_id=trabajador.id, next=request.args.get("next")),
+            "class": "btn-outline-warning",
+        })
+    if contratos_por_vencer:
+        contrato_vencimiento = contratos_por_vencer[0]["contrato"]
+        recomendaciones_ficha.append({
+            "icono": "⏳",
+            "titulo": "Definir continuidad contractual",
+            "detalle": f"Contrato #{contrato_vencimiento.id} vence en {contratos_por_vencer[0]['dias']} día(s).",
+            "url": url_for("contratos.contrato_detalle", contrato_id=contrato_vencimiento.id),
+            "class": "btn-outline-primary",
+        })
+    if prevencion_resumen.get("documentos_vencidos"):
+        recomendaciones_ficha.append({
+            "icono": "🦺",
+            "titulo": "Revisar prevención",
+            "detalle": "Hay documentos preventivos vencidos asociados al trabajador.",
+            "url": url_for("prevencion_riesgos.documentos_listado", trabajador_id=trabajador.id),
+            "class": "btn-outline-danger",
+        })
+    if contrato_contexto and not documentos_recientes:
+        recomendaciones_ficha.append({
+            "icono": "📄",
+            "titulo": "Generar o registrar documentos",
+            "detalle": f"El contrato de contexto #{contrato_contexto.id} no muestra documentos recientes.",
+            "url": url_for("documentos.documentos_por_contrato", contrato_id=contrato_contexto.id),
+            "class": "btn-outline-secondary",
+        })
+    recomendaciones_ficha = recomendaciones_ficha[:4]
+
     puede_editar_ficha = bool(
         current_user and (
             current_user.has_role("ADMIN")
@@ -999,6 +1044,8 @@ def detalle_trabajador(trabajador_id: int):
         datos_faltantes=datos_faltantes,
         resumen_ficha=resumen_ficha,
         timeline_items=timeline_items,
+        salud_expediente=salud_expediente,
+        recomendaciones_ficha=recomendaciones_ficha,
         fmt_clp=_fmt_clp,
     )
 

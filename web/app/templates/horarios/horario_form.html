@@ -37,7 +37,7 @@
               class="form-control"
               required
               value="{{ horario.nombre if horario else '' }}"
-              placeholder="Ej: Horario Normal (L-J 08-13/14-18; V 08-13/14-17)">
+              placeholder="Ej: Horario Normal (L-M 08-13/14-18; X-V 08-13/14-17)">
           </div>
 
           <div class="col-12 col-md-6 col-lg-4">
@@ -55,7 +55,7 @@
               name="descripcion"
               class="form-control"
               rows="4"
-              placeholder="Ej: Lunes a jueves, de 08:00 hrs. a 13:00 hrs., y de 14:00 hrs. a 18:00 hrs. Viernes, ...">{{ horario.descripcion if horario and horario.descripcion else '' }}</textarea>
+              placeholder="Ej: Lunes y Martes, de 08:00 hrs. a 13:00 hrs., y de 14:00 hrs. a 18:00 hrs. Miércoles a Viernes, ...">{{ horario.descripcion if horario and horario.descripcion else '' }}</textarea>
             <div class="form-text">Este texto es el que se mostrará/inyectará en el contrato.</div>
           </div>
         </div>
@@ -123,7 +123,7 @@
         </div>
 
         <div class="text-muted small mb-4">
-          Recomendación: usa “Orden” para controlar el tramo 1 y 2 del mismo día (ej: 08:00-13:00 orden 1; 14:00-18:00 orden 2).
+          Recomendación: usa “Orden” para controlar el tramo 1 y 2 del mismo día (ej: 08:00-13:00 orden 1; 14:00-18:00 orden 2, o 14:00-17:00 para jornada reducida).
         </div>
 
         <div class="d-flex justify-content-end gap-2">

@@ -8,6 +8,35 @@
 
   {% set next_url = request.args.get("next") %}
   {% set rut_show = (rut_trabajador_formateado or contrato.trabajador.rut) %}
+  {% set documento_checklist = documento_checklist|default({
+    'puede_generar': false,
+    'items': [
+      {
+        'label': 'Checklist documental',
+        'status': 'Revisar',
+        'severity': 'warning',
+        'detail': 'No se recibió el contexto documental desde la ruta. La pantalla queda operativa, pero conviene revisar el parche backend.'
+      }
+    ]
+  }, true) %}
+  {% set documento_checklist_items = documento_checklist_items|default(documento_checklist.get('items', []), true) %}
+  {% set documentos_registrados = documentos_registrados|default([]) %}
+  {% set contrato_360 = contrato_360|default({
+    'estado_operativo': 'Sin análisis',
+    'estado_clase': 'secondary',
+    'estado_detalle': 'No se recibió contexto 360 desde la ruta.',
+    'score': 0,
+    'score_label': 'Revisar',
+    'score_class': 'secondary',
+    'antiguedad': '-',
+    'dias_transcurridos': none,
+    'dias_restantes': none,
+    'sueldo_minimo_fmt': 'No cargado',
+    'sueldo_base_fmt': '-',
+    'documentos_count': 0,
+    'alertas': [],
+    'acciones': []
+  }, true) %}
 
   <div class="card shadow-sm contrato-hero-card mb-3">
     <div class="card-body">
@@ -59,10 +88,231 @@
     </div>
   </div>
 
+  <div class="row g-3 mb-3 contrato-360-grid">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 contrato-360-card contrato-360-score-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+            <div>
+              <div class="contrato-360-kicker">Contrato 360</div>
+              <h2 class="h6 mb-0">Salud operativa</h2>
+            </div>
+            <span class="badge text-bg-{{ contrato_360.get('score_class', 'secondary') }}">{{ contrato_360.get('score_label', 'Revisar') }}</span>
+          </div>
+
+          <div class="contrato-360-score">
+            <strong>{{ contrato_360.get('score', 0) }}</strong>
+            <span>/100</span>
+          </div>
+          <div class="progress contrato-360-progress mt-2" role="progressbar" aria-label="Salud operativa del contrato" aria-valuenow="{{ contrato_360.get('score', 0) }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar bg-{{ contrato_360.get('score_class', 'secondary') }}" style="width: {{ contrato_360.get('score', 0) }}%"></div>
+          </div>
+
+          <div class="contrato-360-status mt-3 is-{{ contrato_360.get('estado_clase', 'secondary') }}">
+            <div class="fw-semibold">{{ contrato_360.get('estado_operativo', 'Sin análisis') }}</div>
+            <div class="small text-muted">{{ contrato_360.get('estado_detalle', '') }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 contrato-360-card">
+        <div class="card-body">
+          <div class="contrato-360-kicker">Indicadores clave</div>
+          <h2 class="h6 mb-3">Resumen del contrato</h2>
+
+          <div class="contrato-360-metrics">
+            <div>
+              <span>Antigüedad</span>
+              <strong>{{ contrato_360.get('antiguedad', '-') }}</strong>
+            </div>
+            <div>
+              <span>Días transcurridos</span>
+              <strong>{{ contrato_360.get('dias_transcurridos') if contrato_360.get('dias_transcurridos') is not none else '-' }}</strong>
+            </div>
+            <div>
+              <span>Días restantes</span>
+              <strong>{{ contrato_360.get('dias_restantes') if contrato_360.get('dias_restantes') is not none else 'Sin término' }}</strong>
+            </div>
+            <div>
+              <span>Documentos</span>
+              <strong>{{ contrato_360.get('documentos_count', 0) }}</strong>
+            </div>
+            <div>
+              <span>Sueldo base</span>
+              <strong>{{ contrato_360.get('sueldo_base_fmt', '-') }}</strong>
+            </div>
+            <div>
+              <span>Mínimo parametrizado</span>
+              <strong>{{ contrato_360.get('sueldo_minimo_fmt', 'No cargado') }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 contrato-360-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+            <div>
+              <div class="contrato-360-kicker">Siguiente paso</div>
+              <h2 class="h6 mb-0">Acciones sugeridas</h2>
+            </div>
+            <span class="badge text-bg-light border">{{ contrato_360.get('acciones', [])|length }}</span>
+          </div>
+
+          {% if contrato_360.get('acciones') %}
+            <div class="d-grid gap-2 contrato-360-actions">
+              {% for accion in contrato_360.get('acciones') %}
+                {% set accion_tipo = accion.get('tipo') %}
+                {% set accion_url = '#' %}
+                {% if accion_tipo == 'editar' %}
+                  {% set accion_url = url_for('contratos.editar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.editar_contrato', contrato_id=contrato.id) %}
+                {% elif accion_tipo == 'generar_contrato' %}
+                  {% set accion_url = url_for('contratos.generar_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('contratos.generar_contrato', contrato_id=contrato.id) %}
+                {% elif accion_tipo == 'anexo_extension' %}
+                  {% set accion_url = url_for('anexos.anexo_extension', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos.anexo_extension', contrato_id=contrato.id) %}
+                {% elif accion_tipo == 'anexo_indefinido' %}
+                  {% set accion_url = url_for('anexos_indefinidos.nuevo', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos_indefinidos.nuevo', contrato_id=contrato.id) %}
+                {% elif accion_tipo == 'cambio_sueldo' %}
+                  {% set accion_url = url_for('anexos_cambio_sueldo.nuevo', contrato_id=contrato.id, next=next_url) if next_url else url_for('anexos_cambio_sueldo.nuevo', contrato_id=contrato.id) %}
+                {% elif accion_tipo == 'ver_ficha' %}
+                  {% set accion_url = url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id, contrato_id=contrato.id, next=next_url) if next_url else url_for('trabajadores.detalle_trabajador', trabajador_id=contrato.trabajador.id, contrato_id=contrato.id) %}
+                {% endif %}
+
+                <a class="btn {{ accion.get('class', 'btn-outline-secondary') }} contrato-360-action" href="{{ accion_url }}">
+                  <span class="contrato-360-action-icon" aria-hidden="true">{{ accion.get('icono', '➡️') }}</span>
+                  <span class="contrato-360-action-body">
+                    <span class="contrato-360-action-title">{{ accion.get('label') }}</span>
+                    <span class="contrato-360-action-detail">{{ accion.get('detalle') }}</span>
+                  </span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-light border small mb-0">Sin acciones sugeridas para este contrato.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if contrato_360.get('alertas') %}
+    <div class="card shadow-sm mb-3 contrato-360-alerts-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+          <div>
+            <div class="contrato-360-kicker">Alertas y puntos de control</div>
+            <h2 class="h6 mb-0">Revisión ejecutiva del contrato</h2>
+          </div>
+          <span class="badge text-bg-light border">{{ contrato_360.get('alertas', [])|length }} alerta(s)</span>
+        </div>
+        <div class="row g-2">
+          {% for alerta in contrato_360.get('alertas') %}
+            <div class="col-12 col-lg-6">
+              <div class="contrato-360-alert is-{{ alerta.get('nivel', 'info') }}">
+                <div class="contrato-360-alert-icon">{{ alerta.get('icono', 'ℹ️') }}</div>
+                <div>
+                  <div class="fw-semibold">{{ alerta.get('titulo') }}</div>
+                  <div class="small text-muted">{{ alerta.get('detalle') }}</div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   {% set sueldo_base = contrato.sueldo_base %}
   {% set movilizacion = contrato.asignacion_movilizacion %}
   {% set colacion = contrato.asignacion_colacion %}
   {% set herramientas = contrato.asignacion_herramientas %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm h-100 contrato-docs-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+            <div>
+              <h2 class="h6 text-uppercase mb-1" style="letter-spacing:.06em; color: var(--cs-brown);">
+                Estado documental del contrato
+              </h2>
+              <div class="text-muted small">
+                Checklist operativo para generar o revisar respaldos sin salir del detalle del contrato.
+              </div>
+            </div>
+            {% if documento_checklist.get('puede_generar', false) %}
+              <span class="badge text-bg-success">Listo para generar</span>
+            {% else %}
+              <span class="badge text-bg-danger">Requiere datos</span>
+            {% endif %}
+          </div>
+
+          <div class="row g-2">
+            {% for item in documento_checklist_items %}
+              <div class="col-12 col-md-6">
+                <div class="border rounded-3 p-2 h-100 bg-light-subtle">
+                  <div class="d-flex justify-content-between gap-2 align-items-start">
+                    <div class="fw-semibold small">{{ item.label }}</div>
+                    {% if item.severity == 'success' %}
+                      <span class="badge text-bg-success">{{ item.status }}</span>
+                    {% elif item.severity == 'danger' %}
+                      <span class="badge text-bg-danger">{{ item.status }}</span>
+                    {% elif item.severity == 'warning' %}
+                      <span class="badge text-bg-warning text-dark">{{ item.status }}</span>
+                    {% else %}
+                      <span class="badge text-bg-info">{{ item.status }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="text-muted small mt-1">{{ item.detail }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 contrato-docs-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+            <div>
+              <h2 class="h6 text-uppercase mb-1" style="letter-spacing:.06em; color: var(--cs-brown);">
+                Últimos documentos
+              </h2>
+              <div class="text-muted small">Registros asociados al expediente del contrato.</div>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('documentos.documentos_por_contrato', contrato_id=contrato.id, next=next_url) if next_url else url_for('documentos.documentos_por_contrato', contrato_id=contrato.id) }}">Ver todos</a>
+          </div>
+
+          {% if documentos_registrados %}
+            <div class="list-group list-group-flush">
+              {% for doc in documentos_registrados %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between gap-2">
+                    <div class="fw-semibold small">{{ doc.nombre_archivo }}</div>
+                    <span class="badge text-bg-light border">{{ doc.tipo }}</span>
+                  </div>
+                  <div class="text-muted small">
+                    {{ doc.estado or 'VIGENTE' }}
+                    {% if doc.fecha_creacion %} · {{ doc.fecha_creacion.strftime('%d-%m-%Y') }}{% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-light border mb-0 small">
+              Aún no hay documentos registrados. Al generar el contrato desde esta pantalla, quedará archivado automáticamente en el expediente.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="card shadow-sm">
     <div class="card-body">

@@ -11,6 +11,13 @@
 
   {% set contratos_vigentes = contratos | selectattr("estado_contrato", "equalto", "VIGENTE") | list %}
   {% set total_contratos_vigentes = contratos_vigentes | length %}
+  {% set salud_expediente = salud_expediente|default({
+    'score': 0,
+    'score_label': 'Revisar',
+    'score_class': 'secondary',
+    'checks': []
+  }, true) %}
+  {% set recomendaciones_ficha = recomendaciones_ficha|default([], true) %}
 
   <div class="card shadow-sm trabajador-ficha-card">
     <div class="card-body border-bottom">
@@ -84,6 +91,81 @@
           {% else %}
             <span class="badge rounded-pill text-bg-secondary">Sin contrato vigente</span>
           {% endif %}
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4 trabajador-health-grid">
+        <div class="col-12 col-xl-7">
+          <div class="card border-0 trabajador-health-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+                <div>
+                  <div class="trabajador-card-kicker">Salud del expediente</div>
+                  <h3 class="h6 mb-0">Control documental y laboral</h3>
+                </div>
+                <span class="badge text-bg-{{ salud_expediente.get('score_class', 'secondary') }}">{{ salud_expediente.get('score_label', 'Revisar') }}</span>
+              </div>
+
+              <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center mb-3">
+                <div class="trabajador-health-score">
+                  <strong>{{ salud_expediente.get('score', 0) }}</strong>
+                  <span>/100</span>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="progress trabajador-health-progress" role="progressbar" aria-label="Salud del expediente" aria-valuenow="{{ salud_expediente.get('score', 0) }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar bg-{{ salud_expediente.get('score_class', 'secondary') }}" style="width: {{ salud_expediente.get('score', 0) }}%"></div>
+                  </div>
+                  <div class="small text-muted mt-2">Semáforo ejecutivo para priorizar acciones sin revisar toda la ficha manualmente.</div>
+                </div>
+              </div>
+
+              {% if salud_expediente.get('checks') %}
+                <div class="trabajador-health-checks">
+                  {% for check in salud_expediente.get('checks') %}
+                    <div class="trabajador-health-check is-{{ check.get('nivel', 'info') }}">
+                      <div>
+                        <strong>{{ check.get('label') }}</strong>
+                        <small>{{ check.get('detalle') }}</small>
+                      </div>
+                      <span class="badge text-bg-{{ check.get('nivel', 'secondary') if check.get('estado') != 'OK' else 'success' }}">{{ check.get('estado') }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+          <div class="card border-0 trabajador-recommendations-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+                <div>
+                  <div class="trabajador-card-kicker">Acciones sugeridas</div>
+                  <h3 class="h6 mb-0">Prioridad administrativa</h3>
+                </div>
+                <span class="badge text-bg-light border">{{ recomendaciones_ficha|length }}</span>
+              </div>
+
+              {% if recomendaciones_ficha %}
+                <div class="d-grid gap-2 trabajador-recommendations-list">
+                  {% for rec in recomendaciones_ficha %}
+                    <a href="{{ rec.url }}" class="btn {{ rec.class }} trabajador-recommendation-btn">
+                      <span>{{ rec.icono }}</span>
+                      <span>
+                        <strong>{{ rec.titulo }}</strong>
+                        <small>{{ rec.detalle }}</small>
+                      </span>
+                    </a>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="trabajador-empty compact">
+                  <p class="text-muted mb-0">Sin acciones urgentes. Expediente bajo control; el Excel no sufrió esta noche 😄.</p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
 

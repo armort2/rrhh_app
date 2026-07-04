@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, unquote, urlparse, urlunparse
 from urllib.request import Request, urlopen
 import re
 
+from ...common.navigation import safe_next_url
 from ...extensions import db
 from ...models import Contrato, DocumentoLaboral
 from ...config import DOCUMENTO_TIPOS
@@ -204,8 +205,11 @@ def nuevo_documento_contrato(contrato_id: int):
     # Permite preselección desde el botón del detalle:
     # /documentos/contrato/<id>/nuevo?tipo_documento=CONTRATO
     tipo_preseleccion = (request.args.get("tipo_documento") or "").strip() or None
+    tipos_validos = {v for v, _label in DOCUMENTO_TIPOS}
+    if tipo_preseleccion and tipo_preseleccion not in tipos_validos:
+        tipo_preseleccion = None
 
-    nombre_desde_enlace_actual = _extraer_nombre_archivo_desde_enlace(documento.ruta_archivo)
+    next_url = safe_next_url(request.args.get("next") or request.form.get("next"), fallback=None)
 
     if request.method == "POST":
         tipo = (request.form.get("tipo_documento") or "").strip()
@@ -225,7 +229,6 @@ def nuevo_documento_contrato(contrato_id: int):
             return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id, tipo_documento=tipo_preseleccion or ""))
 
         # Validar que el tipo exista en el catálogo
-        tipos_validos = {v for v, _label in DOCUMENTO_TIPOS}
         if tipo not in tipos_validos:
             flash("Tipo de documento inválido. Revisa el catálogo de tipos.", "danger")
             return redirect(url_for("documentos.nuevo_documento_contrato", contrato_id=contrato.id, tipo_documento=tipo_preseleccion or ""))
@@ -253,13 +256,14 @@ def nuevo_documento_contrato(contrato_id: int):
             flash(f"Documento registrado correctamente. Nombre detectado: {nombre_desde_enlace}", "success")
         else:
             flash("Documento registrado correctamente. No se pudo detectar el nombre real desde el enlace; puedes editarlo manualmente.", "warning")
-        return redirect(url_for("documentos.documentos_por_contrato", contrato_id=contrato.id))
+        return redirect(next_url or url_for("documentos.documentos_por_contrato", contrato_id=contrato.id))
 
     return render_template(
         "documentos/nuevo_documento_contrato.html",
         contrato=contrato,
         documento_tipos=DOCUMENTO_TIPOS,
         tipo_preseleccion=tipo_preseleccion,
+        next_url=next_url,
     )
 
 @bp.route("/contrato/<int:contrato_id>/documento/<int:documento_id>/editar", methods=["GET", "POST"])

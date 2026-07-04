@@ -1,6 +1,7 @@
 # web/app/blueprints/admin/routes.py
 
 import re
+from datetime import datetime
 
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import login_required, current_user
@@ -8,6 +9,13 @@ from flask_login import login_required, current_user
 from ...extensions import db
 from ...models import User, Role, Obra
 from ...services.system_health import build_system_health
+from ...services.access_control import (
+    ADMIN_PERMISSIONS,
+    PERMISSION_GROUPS,
+    PERMISSION_LABELS,
+    get_blueprint_permission_rules,
+    get_role_definitions,
+)
 from . import bp
 
 
@@ -46,6 +54,10 @@ def _require_admin():
         abort(401)
     if not getattr(current_user, "has_role", None) or not current_user.has_role("ADMIN"):
         abort(403)
+
+
+def _role_definitions_by_name():
+    return {definition.name: definition for definition in get_role_definitions()}
 
 
 @bp.get("/")
@@ -98,6 +110,7 @@ def users_new():
         obras=obras,
         selected_role_ids=[],
         selected_obra_ids=[],
+        role_definitions_by_name=_role_definitions_by_name(),
     )
 
 
@@ -180,6 +193,7 @@ def users_edit(user_id):
         obras=obras,
         selected_role_ids=selected_role_ids,
         selected_obra_ids=selected_obra_ids,
+        role_definitions_by_name=_role_definitions_by_name(),
     )
 
 
@@ -276,9 +290,175 @@ def users_reset_password(user_id):
     return redirect(url_for("admin.users_edit", user_id=user_id))
 
 
+
+
+@bp.get("/roles-matriz")
+@login_required
+def roles_matriz():
+    _require_admin()
+
+    role_definitions = get_role_definitions()
+    permission_groups = PERMISSION_GROUPS
+    permission_labels = PERMISSION_LABELS
+    blueprint_rules = get_blueprint_permission_rules()
+    total_roles = len(role_definitions)
+    total_permissions = len(ADMIN_PERMISSIONS)
+    total_blueprint_rules = len(blueprint_rules)
+
+    return render_template(
+        "admin/roles_matriz.html",
+        role_definitions=role_definitions,
+        permission_groups=permission_groups,
+        permission_labels=permission_labels,
+        blueprint_rules=blueprint_rules,
+        total_roles=total_roles,
+        total_permissions=total_permissions,
+        total_blueprint_rules=total_blueprint_rules,
+    )
+
+
 @bp.get("/salud-sistema")
 @login_required
 def salud_sistema():
     _require_admin()
     health = build_system_health()
     return render_template("admin/salud_sistema.html", health=health)
+
+
+def _parse_date_yyyy_mm_dd(value: str | None):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value.strip(), "%Y-%m-%d")
+    except Exception:
+        return None
+
+
+@bp.get("/auditoria")
+@login_required
+def auditoria():
+    _require_admin()
+
+    from datetime import timedelta
+    from sqlalchemy import func
+    from ...models import AuditLog
+
+    page = max(int(request.args.get("page") or 1), 1)
+    per_page = 100
+
+    user_id = (request.args.get("user_id") or "").strip()
+    section = (request.args.get("section") or "").strip()
+    event_type = (request.args.get("event_type") or "").strip()
+    method = (request.args.get("method") or "").strip().upper()
+    q = (request.args.get("q") or "").strip()
+    desde = (request.args.get("desde") or "").strip()
+    hasta = (request.args.get("hasta") or "").strip()
+
+    query = AuditLog.query
+
+    if user_id.isdigit():
+        query = query.filter(AuditLog.user_id == int(user_id))
+    if section:
+        query = query.filter(AuditLog.section == section)
+    if event_type:
+        query = query.filter(AuditLog.event_type == event_type)
+    if method:
+        query = query.filter(AuditLog.method == method)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            db.or_(
+                AuditLog.username.ilike(like),
+                AuditLog.nombre.ilike(like),
+                AuditLog.path.ilike(like),
+                AuditLog.endpoint.ilike(like),
+                AuditLog.action.ilike(like),
+                AuditLog.ip_address.ilike(like),
+            )
+        )
+
+    desde_dt = _parse_date_yyyy_mm_dd(desde)
+    hasta_dt = _parse_date_yyyy_mm_dd(hasta)
+    if desde_dt:
+        query = query.filter(AuditLog.created_at >= desde_dt)
+    if hasta_dt:
+        query = query.filter(AuditLog.created_at < hasta_dt + timedelta(days=1))
+
+    pagination = query.order_by(AuditLog.created_at.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
+
+    base_for_stats = query.subquery()
+    total = db.session.query(func.count()).select_from(base_for_stats).scalar() or 0
+
+    usuarios_activos = (
+        db.session.query(AuditLog.username, AuditLog.nombre, func.count(AuditLog.id).label("total"))
+        .filter(AuditLog.created_at >= datetime.utcnow() - timedelta(days=7))
+        .group_by(AuditLog.username, AuditLog.nombre)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(8)
+        .all()
+    )
+
+    secciones_top = (
+        db.session.query(AuditLog.section, func.count(AuditLog.id).label("total"))
+        .filter(AuditLog.created_at >= datetime.utcnow() - timedelta(days=7))
+        .group_by(AuditLog.section)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(8)
+        .all()
+    )
+
+    negocios_ultimos_7 = (
+        db.session.query(func.count(AuditLog.id))
+        .filter(AuditLog.event_type == "business")
+        .filter(AuditLog.created_at >= datetime.utcnow() - timedelta(days=7))
+        .scalar()
+        or 0
+    )
+
+    negocios_top = (
+        db.session.query(AuditLog.section, AuditLog.action, func.count(AuditLog.id).label("total"))
+        .filter(AuditLog.event_type == "business")
+        .filter(AuditLog.created_at >= datetime.utcnow() - timedelta(days=30))
+        .group_by(AuditLog.section, AuditLog.action)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(8)
+        .all()
+    )
+
+    sections = [
+        row[0]
+        for row in db.session.query(AuditLog.section)
+        .filter(AuditLog.section.isnot(None))
+        .distinct()
+        .order_by(AuditLog.section.asc())
+        .all()
+    ]
+    users = User.query.order_by(User.username.asc()).all()
+
+    filtros = {
+        "user_id": user_id,
+        "section": section,
+        "event_type": event_type,
+        "method": method,
+        "q": q,
+        "desde": desde,
+        "hasta": hasta,
+    }
+
+    return render_template(
+        "admin/auditoria.html",
+        logs=pagination.items,
+        pagination=pagination,
+        filtros=filtros,
+        users=users,
+        sections=sections,
+        total=total,
+        usuarios_activos=usuarios_activos,
+        secciones_top=secciones_top,
+        negocios_ultimos_7=negocios_ultimos_7,
+        negocios_top=negocios_top,
+    )

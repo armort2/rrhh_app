@@ -136,3 +136,57 @@ def obra_required(param_name: str = "obra_id", abort_code: int = 403):
         return wrapper
 
     return decorator
+
+
+def permission_required(permission: str, abort_code: int = 403):
+    """
+    Restringe acceso por permiso RBAC.
+
+    Uso:
+      @permission_required("documentos.editar")
+      def generar_contrato(...):
+          ...
+
+    Esta V9 usa principalmente una barrera central por blueprint, pero este
+    decorador queda disponible para la V10 de acciones críticas específicas.
+    """
+    permission_norm = (permission or "").strip()
+
+    def decorator(fn):
+        @wraps(fn)
+        @login_required
+        def wrapper(*args, **kwargs):
+            if not getattr(current_user, "is_active", False):
+                abort(abort_code)
+            if not permission_norm:
+                abort(abort_code)
+            if not current_user.can(permission_norm):
+                abort(abort_code)
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def any_permission_required(*permissions: str, abort_code: int = 403):
+    """
+    Restringe acceso permitiendo cualquiera de los permisos indicados (OR).
+    """
+    permissions_norm = tuple(p.strip() for p in permissions if (p or "").strip())
+
+    def decorator(fn):
+        @wraps(fn)
+        @login_required
+        def wrapper(*args, **kwargs):
+            if not getattr(current_user, "is_active", False):
+                abort(abort_code)
+            if not permissions_norm:
+                abort(abort_code)
+            if not current_user.has_any_permission(*permissions_norm):
+                abort(abort_code)
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

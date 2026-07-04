@@ -1,7 +1,7 @@
 # web/app/__init__.py
 from __future__ import annotations
 
-from flask import Flask, redirect, request, url_for, render_template
+from flask import Flask, abort, redirect, request, url_for, render_template
 from flask_login import current_user
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +9,7 @@ import os
 
 from .config import DevConfig
 from .extensions import db, login_manager
+from .services.audit import audit_after_request, mark_audit_start
 
 from .services.rut_format import rut_con_puntos
 
@@ -48,7 +49,7 @@ def _read_system_version() -> str:
     if env_version and env_version.strip() and env_version.strip().lower() not in {"dev", "development"}:
         return env_version.strip()
 
-    return "2026.06.03-v3"
+    return "2026.06.03-v9"
 
 def create_app(config_class=DevConfig):
     app = Flask(__name__)
@@ -114,6 +115,8 @@ def create_app(config_class=DevConfig):
     from .blueprints.anexos_cambio_cargo import bp as anexos_cambio_cargo_bp
     from .blueprints.prevencion_riesgos import bp as prevencion_riesgos_bp
     from .blueprints.reporteria import bp as reporteria_bp
+    from .blueprints.cumplimiento_laboral import bp as cumplimiento_laboral_bp
+    from .blueprints.gestion_rrhh import bp as gestion_rrhh_bp
 
 
     # ---------------------------
@@ -152,6 +155,8 @@ def create_app(config_class=DevConfig):
     app.register_blueprint(anexos_cambio_cargo_bp)
     app.register_blueprint(prevencion_riesgos_bp)
     app.register_blueprint(reporteria_bp)
+    app.register_blueprint(cumplimiento_laboral_bp)
+    app.register_blueprint(gestion_rrhh_bp)
     
     # Auth blueprint
     from .auth import auth as auth_bp
@@ -165,6 +170,18 @@ def create_app(config_class=DevConfig):
     @login_manager.user_loader
     def load_user(user_id: str):
         return User.query.get(int(user_id))
+
+    # ---------------------------
+    # Auditoría / Bitácora
+    # ---------------------------
+    @app.before_request
+    def audit_start():
+        mark_audit_start()
+        return None
+
+    @app.after_request
+    def audit_request(response):
+        return audit_after_request(response)
 
     # ---------------------------
     # Login requerido (global)
@@ -184,6 +201,29 @@ def create_app(config_class=DevConfig):
         # Forzar autenticación
         if not current_user.is_authenticated:
             return redirect(url_for("auth.login", next=path))
+
+        return None
+
+    @app.before_request
+    def require_module_permission():
+        """Barrera RBAC V9 por módulo.
+
+        El navbar ya oculta accesos según permisos, pero esta capa evita que un
+        usuario entre manualmente escribiendo una URL directa.
+        """
+        path = request.path or ""
+
+        if path.startswith("/static/"):
+            return None
+        if path.startswith("/auth/login") or path.startswith("/auth/logout"):
+            return None
+        if not current_user.is_authenticated:
+            return None
+
+        from .services.access_control import user_can_access_request
+
+        if not user_can_access_request(current_user, request.blueprint, request.endpoint, request.method):
+            abort(403)
 
         return None
 
@@ -297,6 +337,22 @@ def create_app(config_class=DevConfig):
     # ---------------------------
     # Context processors
     # ---------------------------
+
+    @app.context_processor
+    def _inject_access_control():
+        from .services.access_control import (
+            get_role_definitions,
+            user_can,
+            user_has_any_permission,
+            user_permissions,
+        )
+        return {
+            "current_user_can": lambda permission: user_can(current_user, permission),
+            "current_user_has_any_permission": lambda *permissions: user_has_any_permission(current_user, *permissions),
+            "current_user_permissions": lambda: user_permissions(current_user),
+            "system_role_definitions": get_role_definitions,
+        }
+
     @app.context_processor
     def _inject_config():
         """Inyecta `config` en el contexto de Jinja para plantillas que lo esperan."""

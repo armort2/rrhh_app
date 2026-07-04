@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Tuple
 import re
+import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Tuple
@@ -25,7 +26,7 @@ from ...models import (
     DesvinculacionDocInputs,
     Inasistencia,
     Obra,
-    VacacionMovimiento, Feriado,
+    Vacacion, VacacionMovimiento, Feriado,
 )
 from ...services.desvinculaciones_docs import build_carta_aviso_docx, build_finiquito_docx
 from ...services.paths_nextcloud import get_nc_paths
@@ -34,6 +35,7 @@ from ...services.storage_nextcloud_fs import ensure_dir
 from ...utils import parse_date, parse_int
 
 from ...services.finiquitos_calc import calcular_resumen_finiquito
+from ...services.audit import audit_business_event
 
 bp = Blueprint("desvinculaciones", __name__, url_prefix="/desvinculaciones")
 
@@ -43,6 +45,46 @@ bp = Blueprint("desvinculaciones", __name__, url_prefix="/desvinculaciones")
 # ---------------------------
 
 _RUT_CLEAN_RE = re.compile(r"[^0-9kK]")
+
+
+def _norm_laboral_txt(raw: str | None) -> str:
+    txt = str(raw or "")
+    txt = "".join(
+        ch for ch in unicodedata.normalize("NFD", txt)
+        if unicodedata.category(ch) != "Mn"
+    )
+    return txt.upper()
+
+
+def _causal_texto_normalizado(desv: Desvinculacion) -> str:
+    c = getattr(desv, "causal", None)
+    if c is None:
+        return ""
+    return _norm_laboral_txt(" ".join([
+        str(getattr(c, "causal_resumida", "") or ""),
+        str(getattr(c, "causal_finiquito", "") or ""),
+    ]))
+
+
+def _default_flags_finiquito(desv: Desvinculacion) -> dict:
+    """
+    Sugerencia conservadora para indemnizaciones legales del asistente.
+    El usuario puede desmarcar cuando la causal sí permite, pero no se fuerza
+    aviso previo/años de servicio en causales que normalmente no los generan
+    (por ejemplo art. 160, art. 159, renuncia, plazo fijo u obra/faena).
+    """
+    txt = _causal_texto_normalizado(desv)
+
+    aplica_161 = (
+        "161" in txt
+        or "NECESIDADES" in txt
+        or "DESAHUCIO" in txt
+    )
+
+    return {
+        "aplicar_aviso_previo": bool(aplica_161),
+        "aplicar_anios_servicio": bool(aplica_161),
+    }
 
 
 def _split_rut(raw: str) -> tuple[str, str]:
@@ -365,7 +407,9 @@ def _compute_tiempo_servido(desv: Desvinculacion) -> dict:
         }
 
     fecha_fin = desv.fecha_termino or date.today()
-    y, m, d = _diff_ymd(fecha_inicio, fecha_fin)
+    # Para RRHH/finiquito el período servido se muestra inclusivo: se cuenta
+    # tanto la fecha de ingreso como la fecha efectiva de término.
+    y, m, d = _diff_ymd(fecha_inicio, fecha_fin + timedelta(days=1))
 
     return {
         "contrato_fecha_inicio": fecha_inicio,
@@ -1631,6 +1675,12 @@ def calcular_finiquito_ajax(desvinculacion_id: int):
     aplicar_aviso_previo = (request.form.get("aplicar_aviso_previo") or "").strip() in {"1", "true", "on", "si", "SI"}
     aplicar_anios_servicio = (request.form.get("aplicar_anios_servicio") or "").strip() in {"1", "true", "on", "si", "SI"}
 
+    flags_causal = _default_flags_finiquito(desv)
+    if not flags_causal["aplicar_aviso_previo"]:
+        aplicar_aviso_previo = False
+    if not flags_causal["aplicar_anios_servicio"]:
+        aplicar_anios_servicio = False
+
     incluir_colacion_base = (request.form.get("incluir_colacion_base") or "").strip() in {"1", "true", "on"}
     incluir_movilizacion_base = (request.form.get("incluir_movilizacion_base") or "").strip() in {"1", "true", "on"}
 
@@ -1658,11 +1708,21 @@ def calcular_finiquito_ajax(desvinculacion_id: int):
         .all()
     )
 
+    vacaciones_emitidas = (
+        Vacacion.query
+        .filter(Vacacion.contrato_id == desv.contrato_id)
+        .filter(Vacacion.estado == "EMITIDO")
+        .filter(Vacacion.fecha_inicio <= desv.fecha_termino)
+        .order_by(Vacacion.fecha_inicio.asc(), Vacacion.id.asc())
+        .all()
+    )
+
     try:
         resumen = calcular_resumen_finiquito(
             desv=desv,
             movimientos=movimientos,
             feriados_rows=feriados_rows,
+            vacaciones_emitidas=vacaciones_emitidas,
             tipo_remuneracion=tipo_remuneracion,
             var1=var1 or None,
             var2=var2 or None,
@@ -1744,6 +1804,7 @@ def generar_finiquito(desvinculacion_id: int):
 
         meta = dict(desv.meta or {})
         calculo_finiquito_meta = meta.get("calculo_finiquito") if isinstance(meta.get("calculo_finiquito"), dict) else {}
+        finiquito_flags = _default_flags_finiquito(desv)
 
         return render_template(
             "desvinculaciones/finiquito_generar.html",
@@ -1755,6 +1816,7 @@ def generar_finiquito(desvinculacion_id: int):
             tiempo_servido_fmt=tiempo_servido_fmt,
             tiempo_servido_hint=tiempo_servido_hint,
             calculo_finiquito_meta=calculo_finiquito_meta,
+            finiquito_flags=finiquito_flags,
         )
 
     # =========================
@@ -1912,6 +1974,17 @@ def generar_finiquito(desvinculacion_id: int):
 
         _commit_or_rollback(f"generar_finiquito archivos desv={desv.id}")
 
+        audit_business_event(
+            section="Desvinculaciones",
+            action=(
+                f"Finiquito generado en {formato} · "
+                f"total pago ${total_pago} · "
+                f"trabajador {getattr(desv.trabajador, 'nombres', '') or ''} {getattr(desv.trabajador, 'ap_paterno', '') or ''}".strip()
+            ),
+            entity_type="desvinculacion",
+            entity_id=desv.id,
+        )
+
         if formato == "DOCX":
             flash("Finiquito generado y guardado en Nextcloud: DOCX", "success")
         elif formato == "PDF":
@@ -1958,6 +2031,13 @@ def anular(desvinculacion_id: int):
     _push_meta(desv, "anulacion", {"prev_estado": prev_estado, "motivo": motivo})
 
     db.session.commit()
+
+    audit_business_event(
+        section="Desvinculaciones",
+        action=f"Desvinculación anulada · estado anterior {prev_estado} · motivo {motivo[:80]}",
+        entity_type="desvinculacion",
+        entity_id=desv.id,
+    )
 
     flash("Desvinculación anulada.", "success")
     return redirect(url_for("desvinculaciones.detalle", desvinculacion_id=desv.id))
@@ -2028,6 +2108,17 @@ def pago_finiquito_post(desvinculacion_id: int):
     )
 
     db.session.commit()
+
+    audit_business_event(
+        section="Desvinculaciones",
+        action=(
+            f"Pago de finiquito actualizado · estado {estado_pago or '-'} · "
+            f"fecha {fecha_pago or '-'} · medio {medio or '-'}"
+        ),
+        entity_type="desvinculacion",
+        entity_id=desv.id,
+    )
+
     flash("Control de pago de finiquito actualizado.", "success")
 
     next_url = (request.form.get("next") or "").strip()

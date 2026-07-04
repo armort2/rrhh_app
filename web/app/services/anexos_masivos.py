@@ -42,6 +42,42 @@ def _formato_clp_sin_decimales(valor) -> str:
         return "0"
 
 
+def _decimal_clp(valor, *, default=None):
+    """Normaliza montos CLP recibidos desde formularios o código."""
+    if valor is None:
+        return default
+
+    if isinstance(valor, Decimal):
+        return valor
+
+    texto = str(valor).strip()
+    if not texto:
+        return default
+
+    # Acepta $553.553, 553553, 553.553,00, 553553.00
+    texto = texto.replace("$", "").replace(" ", "")
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    elif texto.count(".") > 1:
+        texto = texto.replace(".", "")
+    elif "." in texto and len(texto.rsplit(".", 1)[-1]) == 3:
+        texto = texto.replace(".", "")
+
+    try:
+        return Decimal(texto)
+    except Exception:
+        return default
+
+
+def _decimal_to_meta(valor) -> str | None:
+    if valor is None:
+        return None
+    try:
+        return str(Decimal(valor).quantize(Decimal("1")))
+    except Exception:
+        return str(valor)
+
+
 UNIDADES = (
     "", "uno", "dos", "tres", "cuatro", "cinco", "seis",
     "siete", "ocho", "nueve", "diez", "once", "doce",
@@ -132,7 +168,47 @@ def obtener_parametro_vigente_para_fecha(fecha_referencia):
     )
 
 
-def obtener_candidatos_sueldo_minimo(*, sueldo_objetivo, horas_minimas=40, obra_ids=None):
+def obtener_candidatos_sueldo_minimo(
+    *,
+    sueldo_objetivo,
+    horas_minimas=40,
+    obra_ids=None,
+    sueldo_base_actual_requerido=None,
+    modo_filtro_sueldo: str = "INFERIOR",
+):
+    """
+    Obtiene contratos candidatos para reajuste de sueldo mínimo.
+
+    Modo INFERIOR: contratos vigentes con sueldo base menor al objetivo.
+    Modo EXACTO: contratos vigentes cuyo sueldo base actual coincide exactamente
+    con el monto requerido (útil para procesos de reajuste legal por fecha).
+    """
+    sueldo_objetivo = _decimal_clp(sueldo_objetivo, default=Decimal("0"))
+    sueldo_base_actual_requerido = _decimal_clp(sueldo_base_actual_requerido)
+    modo_filtro_sueldo = (modo_filtro_sueldo or "INFERIOR").strip().upper()
+
+    filtros = [
+        Trabajador.estado_trabajador == "VIGENTE",
+        Contrato.estado_contrato == "VIGENTE",
+        Contrato.sueldo_base.isnot(None),
+    ]
+
+    try:
+        horas_minimas = int(horas_minimas or 0)
+    except Exception:
+        horas_minimas = 0
+
+    if horas_minimas > 0:
+        filtros.extend([
+            Contrato.horas_semanales.isnot(None),
+            Contrato.horas_semanales >= horas_minimas,
+        ])
+
+    if modo_filtro_sueldo == "EXACTO" and sueldo_base_actual_requerido is not None:
+        filtros.append(Contrato.sueldo_base == sueldo_base_actual_requerido)
+    else:
+        filtros.append(Contrato.sueldo_base < sueldo_objetivo)
+
     query = (
         Contrato.query
         .options(
@@ -144,14 +220,7 @@ def obtener_candidatos_sueldo_minimo(*, sueldo_objetivo, horas_minimas=40, obra_
         )
         .join(Trabajador, Contrato.trabajador_id == Trabajador.id)
         .join(Obra, Contrato.obra_id == Obra.id)
-        .filter(
-            Trabajador.estado_trabajador == "VIGENTE",
-            Contrato.estado_contrato == "VIGENTE",
-            Contrato.horas_semanales.isnot(None),
-            Contrato.horas_semanales >= horas_minimas,
-            Contrato.sueldo_base.isnot(None),
-            Contrato.sueldo_base < sueldo_objetivo,
-        )
+        .filter(*filtros)
     )
 
     if obra_ids:
@@ -182,14 +251,49 @@ def crear_proceso_sueldo_minimo(
     formato_generacion: str = "AMBOS",
     descripcion: str | None = None,
     observaciones: str | None = None,
+    sueldo_base_objetivo=None,
+    sueldo_base_actual_requerido=None,
+    modo_filtro_sueldo: str = "INFERIOR",
 ):
-    parametro = obtener_parametro_vigente_para_fecha(fecha_vigencia)
-    if not parametro:
-        raise ValueError("No existe un parámetro laboral vigente para la fecha indicada.")
+    modo_filtro_sueldo = (modo_filtro_sueldo or "INFERIOR").strip().upper()
+    if modo_filtro_sueldo not in ("INFERIOR", "EXACTO"):
+        modo_filtro_sueldo = "INFERIOR"
 
-    sueldo_objetivo = parametro.renta_minima_dependiente
+    parametro = obtener_parametro_vigente_para_fecha(fecha_vigencia)
+
+    sueldo_objetivo = _decimal_clp(sueldo_base_objetivo)
     if sueldo_objetivo is None:
-        raise ValueError("El parámetro laboral vigente no tiene informada la renta mínima dependiente.")
+        if not parametro:
+            raise ValueError("No existe un parámetro laboral vigente para la fecha indicada.")
+        sueldo_objetivo = parametro.renta_minima_dependiente
+
+    if sueldo_objetivo is None:
+        raise ValueError("No se pudo determinar el sueldo mínimo objetivo del proceso.")
+
+    sueldo_base_actual_requerido = _decimal_clp(sueldo_base_actual_requerido)
+    if modo_filtro_sueldo == "EXACTO" and sueldo_base_actual_requerido is None:
+        raise ValueError("Para el filtro exacto debes indicar el sueldo base actual requerido.")
+
+    try:
+        horas_minimas = int(horas_minimas or 0)
+    except Exception:
+        horas_minimas = 0
+
+    if horas_minimas < 0:
+        raise ValueError("Las horas semanales mínimas no pueden ser negativas.")
+
+    if not descripcion:
+        if modo_filtro_sueldo == "EXACTO":
+            descripcion = (
+                f"Contratos vigentes con sueldo base exacto de "
+                f"${_formato_clp_sin_decimales(sueldo_base_actual_requerido)} "
+                f"reajustados a ${_formato_clp_sin_decimales(sueldo_objetivo)}."
+            )
+        else:
+            descripcion = (
+                f"Contratos vigentes con sueldo base inferior a "
+                f"${_formato_clp_sin_decimales(sueldo_objetivo)}."
+            )
 
     proceso = ProcesoAnexoMasivo(
         tipo_proceso="SUELDO_MINIMO",
@@ -197,11 +301,11 @@ def crear_proceso_sueldo_minimo(
         descripcion=descripcion,
         fecha_anexo=fecha_anexo,
         fecha_vigencia=fecha_vigencia,
-        parametro_laboral_id=parametro.id,
+        parametro_laboral_id=parametro.id if parametro else None,
         sueldo_base_objetivo=sueldo_objetivo,
         filtrar_solo_vigentes=True,
         horas_semanales_minimas=horas_minimas,
-        solo_sueldos_inferiores_objetivo=True,
+        solo_sueldos_inferiores_objetivo=(modo_filtro_sueldo != "EXACTO"),
         ley_s_minimo_nro=(ley_s_minimo_nro or "").strip() or None,
         ley_s_minimo_fecha_publicacion=ley_s_minimo_fecha_publicacion,
         usar_articulo_tercero=bool(usar_articulo_tercero),
@@ -217,6 +321,8 @@ def crear_proceso_sueldo_minimo(
         sueldo_objetivo=sueldo_objetivo,
         horas_minimas=horas_minimas,
         obra_ids=obra_ids,
+        sueldo_base_actual_requerido=sueldo_base_actual_requerido,
+        modo_filtro_sueldo=modo_filtro_sueldo,
     )
 
     for contrato in contratos:
@@ -231,6 +337,8 @@ def crear_proceso_sueldo_minimo(
             estado="PENDIENTE",
             formato=proceso.formato_generacion,
             meta={
+                "modo_filtro_sueldo": modo_filtro_sueldo,
+                "sueldo_base_actual_requerido": _decimal_to_meta(sueldo_base_actual_requerido),
                 "generacion": {
                     "ultimo_resultado": None,
                     "ultimo_formato": None,
@@ -242,7 +350,6 @@ def crear_proceso_sueldo_minimo(
 
     db.session.commit()
     return proceso
-
 
 def marcar_detalles_proceso(proceso: ProcesoAnexoMasivo, detalle_ids_seleccionados: list[int]):
     seleccionados = set(detalle_ids_seleccionados or [])
@@ -257,8 +364,15 @@ def marcar_detalles_proceso(proceso: ProcesoAnexoMasivo, detalle_ids_seleccionad
     db.session.commit()
 
 
-def _get_tpl_anexo_sueldo_minimo() -> Path:
+def _get_tpl_anexo_sueldo_minimo(proceso: ProcesoAnexoMasivo | None = None) -> Path:
     templates_root = Path(current_app.root_path) / "document_templates" / "anexos"
+
+    # Proceso publicado el 22-06-2026: usa plantilla específica con artículo tercero retroactivo.
+    if proceso and (proceso.ley_s_minimo_nro or "").strip() == "21.830":
+        tpl_especifica = templates_root / "anexo_sueldo_minimo_22-06-2026.docx"
+        if tpl_especifica.exists():
+            return tpl_especifica
+
     return templates_root / "anexo_sueldo_minimo.docx"
 
 
@@ -278,8 +392,10 @@ def _build_variables_anexo_sueldo_minimo(
 
     monto_nuevo_int = int(detalle.sueldo_base_nuevo or 0)
 
-    art_tercero_label = "TERCERO:" if proceso.usar_articulo_tercero and proceso.articulo_tercero_texto else ""
-    art_tercero_texto = (proceso.articulo_tercero_texto or "").strip() if art_tercero_label else ""
+    tiene_art_tercero = bool(proceso.usar_articulo_tercero and proceso.articulo_tercero_texto)
+    art_tercero_label = "TERCERO" if tiene_art_tercero else ""
+    art_tercero_label_con_dos_puntos = "TERCERO:" if tiene_art_tercero else ""
+    art_tercero_texto = (proceso.articulo_tercero_texto or "").strip() if tiene_art_tercero else ""
 
     return {
         "{{EMPLEADOR_RAZON_SOCIAL}}": empleador.razon_social if empleador else "",
@@ -302,7 +418,8 @@ def _build_variables_anexo_sueldo_minimo(
         "{{SUELDO_MINIMO_FECHA_VIGENCIA}}": fecha_larga_es(proceso.fecha_vigencia),
         "{{SUELDO_MINIMO_MONTO}}": _formato_clp_sin_decimales(detalle.sueldo_base_nuevo),
         "{{SUELDO_MINIMO_MONTO_PALABRAS}}": numero_a_palabras_es(monto_nuevo_int),
-        "{{ART_TERCERO:}}": art_tercero_label,
+        "{{ART_TERCERO}}": art_tercero_label,
+        "{{ART_TERCERO:}}": art_tercero_label_con_dos_puntos,
         "{{ART_TERCERO_TEXTO}}": art_tercero_texto,
     }
 
@@ -362,10 +479,10 @@ def generar_archivos_detalle_sueldo_minimo(
     if not getattr(contrato.obra, "centro_costo", None):
         raise RuntimeError(f"La obra '{contrato.obra.nombre}' no tiene centro de costo definido.")
 
-    tpl = _get_tpl_anexo_sueldo_minimo()
+    tpl = _get_tpl_anexo_sueldo_minimo(proceso)
     if not tpl.exists():
         raise RuntimeError(
-            "No se encontró la plantilla 'anexo_sueldo_minimo.docx' en 'document_templates/anexos/'."
+            "No se encontró la plantilla de sueldo mínimo en 'document_templates/anexos/'."
         )
 
     formato = _norm_formato(formato or detalle.formato or proceso.formato_generacion, default="AMBOS")

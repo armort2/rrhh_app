@@ -289,14 +289,14 @@
 
           <div class="col-12 col-md-4 d-flex align-items-end">
             <div class="form-check me-3">
-              <input class="form-check-input" type="checkbox" id="asis_aplicar_aviso_previo" checked>
+              <input class="form-check-input" type="checkbox" id="asis_aplicar_aviso_previo" {% if finiquito_flags.aplicar_aviso_previo %}checked{% endif %}>
               <label class="form-check-label" for="asis_aplicar_aviso_previo">Calcular aviso previo</label>
             </div>
           </div>
 
           <div class="col-12 col-md-4 d-flex align-items-end">
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="asis_aplicar_anios_servicio" checked>
+              <input class="form-check-input" type="checkbox" id="asis_aplicar_anios_servicio" {% if finiquito_flags.aplicar_anios_servicio %}checked{% endif %}>
               <label class="form-check-label" for="asis_aplicar_anios_servicio">Calcular años de servicio</label>
             </div>
           </div>
@@ -323,7 +323,7 @@
                   <div class="col-12 col-md-3">
                     <div class="form-check">
                       <input class="form-check-input" type="checkbox" id="asis_incluir_gratificacion_base">
-                      <label class="form-check-label" for="asis_incluir_gratificacion_base">Incluir gratificación</label>
+                      <label class="form-check-label" for="asis_incluir_gratificacion_base">Incluir gratificación <span class="text-muted small">(solo indemnizaciones)</span></label>
                     </div>
                   </div>
 
@@ -373,6 +373,10 @@
                   <div class="col-12 col-md-3">
                     <label class="form-label">Días corridos equivalentes</label>
                     <input class="form-control" id="asis_out_dias_corridos" readonly>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Días inhábiles</label>
+                    <input class="form-control" id="asis_out_dias_inhabiles" readonly>
                   </div>
                   <div class="col-12 col-md-3">
                     <label class="form-label">Feriado proporcional</label>
@@ -431,6 +435,11 @@
                   </div>
 
                   <div class="col-12 col-md-3">
+                    <label class="form-label">Período proporcional</label>
+                    <input class="form-control" id="asis_out_periodo_prop" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
                     <label class="form-label">Días corridos del tramo</label>
                     <input class="form-control" id="asis_out_dias_tramo_prop" readonly>
                   </div>
@@ -448,6 +457,21 @@
                   <div class="col-12 col-md-3">
                     <label class="form-label">Ajuste</label>
                     <input class="form-control" id="asis_out_dias_ajuste" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Usados por movimientos</label>
+                    <input class="form-control" id="asis_out_dias_usados_mov" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Usados respaldo vacaciones</label>
+                    <input class="form-control" id="asis_out_dias_usados_vac" readonly>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Devengo en movimientos</label>
+                    <input class="form-control" id="asis_out_devengo_mov" readonly>
                   </div>
                 </div>
               </div>
@@ -512,6 +536,8 @@
 <div id="finiquito-generar-config"
      data-desvinculacion-id="{{ desv.id }}"
      data-contrato-id="{{ desv.contrato_id }}"
+     data-aplica-aviso-previo="{{ '1' if finiquito_flags.aplicar_aviso_previo else '0' }}"
+     data-aplica-anios-servicio="{{ '1' if finiquito_flags.aplicar_anios_servicio else '0' }}"
      data-calcular-url="{{ url_for('desvinculaciones.calcular_finiquito_ajax', desvinculacion_id=desv.id) }}"></div>
 
 {% endblock %}

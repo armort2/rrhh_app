@@ -1,0 +1,405 @@
+{# web/app/templates/cumplimiento_laboral/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Cumplimiento Laboral · Sistema Grupo CS{% endblock %}
+
+{% macro action_url(accion) -%}
+  {%- if accion.params is defined and accion.params -%}
+    {{ url_for(accion.endpoint, **accion.params) }}
+  {%- else -%}
+    {{ url_for(accion.endpoint) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro contrato_table(rows, empty_text, tipo) %}
+  {% if rows %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0 cumplimiento-table">
+        <thead>
+          <tr>
+            <th>Trabajador</th>
+            <th>Obra</th>
+            <th class="text-nowrap">Término</th>
+            {% if tipo == 'jornada' %}<th class="text-nowrap">Horas</th>{% endif %}
+            {% if tipo == 'sueldo' %}<th class="text-nowrap">Sueldo</th><th class="text-nowrap">Brecha</th>{% endif %}
+            <th class="text-end">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ row.trabajador }}</div>
+                <div class="small text-muted">{{ row.rut }} · #{{ row.id }} · {{ row.tipo_contrato }}</div>
+              </td>
+              <td>
+                <div>{{ row.obra }}</div>
+                <div class="small text-muted">{{ row.cargo }}</div>
+              </td>
+              <td class="text-nowrap">
+                {{ row.fecha_termino }}
+                {% if row.dias_restantes is not none %}
+                  <div class="small {% if row.dias_restantes < 0 %}text-danger{% elif row.dias_restantes <= 30 %}text-warning{% else %}text-muted{% endif %}">
+                    {{ row.dias_restantes }} día(s)
+                  </div>
+                {% endif %}
+              </td>
+              {% if tipo == 'jornada' %}
+                <td class="text-nowrap fw-semibold">{{ row.horas_semanales or '-' }}</td>
+              {% endif %}
+              {% if tipo == 'sueldo' %}
+                <td class="text-nowrap fw-semibold">{{ row.sueldo_base }}</td>
+                <td class="text-nowrap text-danger fw-semibold">{{ row.brecha_sueldo }}</td>
+              {% endif %}
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('contratos.contrato_detalle', contrato_id=row.id) }}">Ver</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="cumplimiento-empty">{{ empty_text }}</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro docs_table(rows, empty_text) %}
+  {% if rows %}
+    <div class="list-group list-group-flush">
+      {% for row in rows %}
+        <a class="list-group-item list-group-item-action cumplimiento-list-row" href="{{ url_for('prevencion_riesgos.documento_detalle', documento_id=row.id) }}">
+          <div class="d-flex justify-content-between gap-3">
+            <div>
+              <div class="fw-semibold">{{ row.tipo }}</div>
+              <div class="small text-muted">{{ row.trabajador }} · {{ row.obra }}</div>
+            </div>
+            <div class="text-end small text-nowrap">
+              <div>{{ row.fecha_vencimiento }}</div>
+              <div class="text-muted">{{ row.estado }}</div>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="cumplimiento-empty">{{ empty_text }}</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro epp_table(rows, empty_text) %}
+  {% if rows %}
+    <div class="list-group list-group-flush">
+      {% for row in rows %}
+        <a class="list-group-item list-group-item-action cumplimiento-list-row" href="{{ url_for('prevencion_riesgos.epp_detalle', entrega_id=row.entrega_id) }}">
+          <div class="d-flex justify-content-between gap-3">
+            <div>
+              <div class="fw-semibold">{{ row.tipo }}</div>
+              <div class="small text-muted">{{ row.trabajador }} · {{ row.obra }}</div>
+            </div>
+            <div class="text-end small text-nowrap">
+              <div>{{ row.fecha_reposicion }}</div>
+              <div class="text-muted">Reposición</div>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="cumplimiento-empty">{{ empty_text }}</div>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="container-fluid py-3 cs-list-page cumplimiento-page">
+
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3 card cs-list-hero p-3 cumplimiento-hero">
+    <div>
+      <div class="cs-module-eyebrow">🧭 Sistema Grupo CS</div>
+      <h1 class="section-title">Cumplimiento Laboral</h1>
+      <div class="section-divider"></div>
+      <p class="text-muted mb-0">
+        Panel ejecutivo para controlar contratos, jornada, sueldo mínimo, parámetros laborales y prevención.
+      </p>
+      <div class="small text-muted mt-2">
+        Ventana de alerta: {{ panel.ventana_dias }} días · Corte: {{ panel.hoy.strftime('%d-%m-%Y') }}
+      </div>
+    </div>
+
+    <div class="cumplimiento-score-box text-end">
+      <div class="small text-muted">Estado general</div>
+      <div class="d-flex align-items-center justify-content-end gap-2">
+        <span class="badge text-bg-{{ panel.score.class }}">{{ panel.score.label }}</span>
+        <span class="cumplimiento-score-number">{{ panel.score.score }}/100</span>
+      </div>
+      <div class="progress cumplimiento-score-progress mt-2" role="progressbar" aria-label="Salud de cumplimiento" aria-valuenow="{{ panel.score.score }}" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar bg-{{ panel.score.class }}" style="width: {{ panel.score.score }}%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cumplimiento-kpi-card">
+        <div class="card-body">
+          <div class="cumplimiento-kpi-icon">👥</div>
+          <div class="text-muted small">Trabajadores / contratos vigentes</div>
+          <div class="display-6 fw-bold">{{ panel.metricas.trabajadores_vigentes }} / {{ panel.metricas.contratos_vigentes }}</div>
+          <div class="small text-muted">Base laboral activa visible para tu usuario.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cumplimiento-kpi-card border-warning-subtle">
+        <div class="card-body">
+          <div class="cumplimiento-kpi-icon">⏳</div>
+          <div class="text-muted small">Contratos por vencer</div>
+          <div class="display-6 fw-bold text-warning">{{ panel.metricas.contratos_por_vencer }}</div>
+          <div class="small text-muted">Dentro de los próximos {{ panel.ventana_dias }} días.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cumplimiento-kpi-card {% if panel.metricas.contratos_sobre_42 %}border-warning-subtle{% endif %}">
+        <div class="card-body">
+          <div class="cumplimiento-kpi-icon">🕒</div>
+          <div class="text-muted small">Jornadas sobre 42 horas</div>
+          <div class="display-6 fw-bold {% if panel.metricas.contratos_sobre_42 %}text-warning{% endif %}">{{ panel.metricas.contratos_sobre_42 }}</div>
+          <div class="small text-muted">Control preventivo de jornada semanal.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100 cumplimiento-kpi-card {% if panel.metricas.contratos_bajo_minimo %}border-danger-subtle{% endif %}">
+        <div class="card-body">
+          <div class="cumplimiento-kpi-icon">💰</div>
+          <div class="text-muted small">Bajo mínimo parametrizado</div>
+          <div class="display-6 fw-bold {% if panel.metricas.contratos_bajo_minimo %}text-danger{% endif %}">{{ panel.metricas.contratos_bajo_minimo }}</div>
+          <div class="small text-muted">Mínimo referencial: {{ panel.sueldo_minimo_fmt }}.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+            <div>
+              <div class="cumplimiento-kicker">Mesa de control</div>
+              <h2 class="h5 mb-0">Alertas ejecutivas</h2>
+            </div>
+            <span class="badge text-bg-light border">{{ panel.metricas.alertas_con_gestion }} con gestión</span>
+          </div>
+
+          <div class="row g-2">
+            {% for alerta in panel.alertas %}
+              <div class="col-12 col-md-6">
+                <div class="cumplimiento-alert is-{{ alerta.nivel }} {% if alerta.count == 0 %}is-ok{% endif %}">
+                  <div class="cumplimiento-alert-icon">{{ alerta.icono }}</div>
+                  <div class="cumplimiento-alert-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <strong>{{ alerta.titulo }}</strong>
+                      <span class="badge {% if alerta.count %}text-bg-{{ alerta.nivel if alerta.nivel in ['danger','warning','info'] else 'secondary' }}{% else %}text-bg-success{% endif %}">{{ alerta.count }}</span>
+                    </div>
+                    <div class="small text-muted">{{ alerta.detalle }}</div>
+                    {% if alerta.count %}
+                      <div class="small fw-semibold mt-1">{{ alerta.accion }}</div>
+                    {% else %}
+                      <div class="small text-success mt-1">Sin observaciones en este punto.</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Acciones rápidas</div>
+          <h2 class="h5 mb-3">Gestión recomendada</h2>
+          <div class="d-grid gap-2">
+            {% for accion in panel.acciones_rapidas %}
+              {% set can_action = not accion.requires or current_user_can(accion.requires) %}
+              {% if can_action %}
+                <a class="btn {{ accion.class }} cumplimiento-action" href="{{ action_url(accion) }}">
+                  <span class="cumplimiento-action-icon">{{ accion.icono }}</span>
+                  <span class="cumplimiento-action-body">
+                    <span class="cumplimiento-action-title">{{ accion.label }}</span>
+                    <span class="cumplimiento-action-detail">{{ accion.detalle }}</span>
+                  </span>
+                </a>
+              {% else %}
+                <div class="cumplimiento-action disabled-action">
+                  <span class="cumplimiento-action-icon">{{ accion.icono }}</span>
+                  <span class="cumplimiento-action-body">
+                    <span class="cumplimiento-action-title">{{ accion.label }}</span>
+                    <span class="cumplimiento-action-detail">Requiere permiso adicional: {{ accion.requires }}.</span>
+                  </span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <hr>
+          <div class="small text-muted">
+            Parámetro del período {{ panel.periodo_actual }}:
+            {% if panel.parametro_actual %}
+              <span class="badge text-bg-success">Cargado</span>
+            {% elif panel.parametro_referencial %}
+              <span class="badge text-bg-warning text-dark">Usando referencia anterior</span>
+            {% else %}
+              <span class="badge text-bg-danger">No cargado</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if panel.top_obras %}
+    <div class="card shadow-sm mb-3 cumplimiento-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+          <div>
+            <div class="cumplimiento-kicker">Priorización</div>
+            <h2 class="h5 mb-0">Obras con mayor carga de gestión</h2>
+          </div>
+          <span class="badge text-bg-light border">Puntaje interno de alertas</span>
+        </div>
+        <div class="row g-2">
+          {% for obra in panel.top_obras %}
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="cumplimiento-obra-chip is-{{ obra.nivel }}">
+                <span>{{ obra.obra }}</span>
+                <strong>{{ obra.puntos }}</strong>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div>
+            <div class="cumplimiento-kicker">Contratos</div>
+            <h2 class="h5 mb-0">Vigentes con fecha vencida</h2>
+          </div>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('contratos_vencimientos.listado') }}">Ver vencimientos</a>
+        </div>
+        {{ contrato_table(panel.listas.contratos_vencidos, 'Sin contratos vigentes vencidos. Nada que perseguir con linterna 🔦.', 'vencimiento') }}
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div>
+            <div class="cumplimiento-kicker">Contratos</div>
+            <h2 class="h5 mb-0">Próximos a vencer</h2>
+          </div>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('contratos_vencimientos.listado') }}">Gestionar</a>
+        </div>
+        {{ contrato_table(panel.listas.contratos_por_vencer, 'Sin vencimientos dentro de la ventana de alerta.', 'vencimiento') }}
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div>
+            <div class="cumplimiento-kicker">Jornada</div>
+            <h2 class="h5 mb-0">Contratos sobre 42 horas</h2>
+          </div>
+          {% if current_user_can('documentos.editar') %}
+            <a class="btn btn-sm btn-outline-warning" href="{{ url_for('anexos_masivos.nuevo_ley_40_horas') }}">Crear anexo masivo</a>
+          {% endif %}
+        </div>
+        {{ contrato_table(panel.listas.contratos_42, 'Sin contratos sobre 42 horas semanales.', 'jornada') }}
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div>
+            <div class="cumplimiento-kicker">Remuneraciones</div>
+            <h2 class="h5 mb-0">Sueldos bajo mínimo</h2>
+          </div>
+          {% if current_user_can('documentos.editar') %}
+            <a class="btn btn-sm btn-outline-success" href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo', proceso='2026-06-22') }}">Crear anexo masivo</a>
+          {% endif %}
+        </div>
+        {{ contrato_table(panel.listas.contratos_bajo_minimo, 'Sin contratos bajo el mínimo parametrizado.', 'sueldo') }}
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-body">
+          <div class="cumplimiento-kicker">Calidad de datos</div>
+          <h2 class="h5 mb-3">Puntos administrativos</h2>
+          <div class="cumplimiento-mini-list">
+            <div><span>Contratos sin sueldo base</span><strong>{{ panel.metricas.contratos_sin_sueldo }}</strong></div>
+            <div><span>Contratos sin horas semanales</span><strong>{{ panel.metricas.contratos_sin_horas }}</strong></div>
+            <div><span>Contratos con datos maestros incompletos</span><strong>{{ panel.metricas.contratos_sin_datos }}</strong></div>
+            <div><span>Charlas del mes</span><strong>{{ panel.metricas.charlas_mes }}</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-header bg-white">
+          <div class="cumplimiento-kicker">Prevención</div>
+          <h2 class="h5 mb-0">Documentos vencidos</h2>
+        </div>
+        {{ docs_table(panel.listas.docs_vencidos, 'Sin documentos preventivos vencidos registrados.') }}
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100 cumplimiento-card">
+        <div class="card-header bg-white">
+          <div class="cumplimiento-kicker">Prevención</div>
+          <h2 class="h5 mb-0">EPP con reposición vencida</h2>
+        </div>
+        {{ epp_table(panel.listas.epp_vencidos, 'Sin reposiciones de EPP vencidas.') }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm cumplimiento-card cumplimiento-karin-card">
+    <div class="card-body">
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-xl-8">
+          <div class="cumplimiento-kicker">Ley Karin</div>
+          <h2 class="h5 mb-2">Protocolo operativo en preparación</h2>
+          <p class="text-muted mb-0">
+            Base para llevar checklist de recepción, resguardo, investigación, hitos, plazos y documentos asociados.
+            Esta fase deja el tablero listo para el próximo módulo transaccional.
+          </p>
+        </div>
+        <div class="col-12 col-xl-4 text-xl-end">
+          <a class="btn btn-outline-danger" href="{{ url_for('cumplimiento_laboral.ley_karin') }}">Ver checklist Ley Karin</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -184,10 +184,10 @@
             <div class="fw-semibold">Solo documental</div>
           {% elif es_ley_40_horas %}
             <div class="text-muted small">Horas actuales mínimas</div>
-            <div class="fw-semibold">{{ proceso.horas_semanales_minimas }} hrs</div>
+            <div class="fw-semibold">{% if proceso.horas_semanales_minimas and proceso.horas_semanales_minimas > 0 %}{{ proceso.horas_semanales_minimas }} hrs{% else %}Sin filtro{% endif %}</div>
           {% else %}
             <div class="text-muted small">Horas mínimas</div>
-            <div class="fw-semibold">{{ proceso.horas_semanales_minimas }} hrs</div>
+            <div class="fw-semibold">{% if proceso.horas_semanales_minimas and proceso.horas_semanales_minimas > 0 %}{{ proceso.horas_semanales_minimas }} hrs{% else %}Sin filtro{% endif %}</div>
           {% endif %}
         </div>
       </div>
@@ -301,6 +301,13 @@
           Este proceso es únicamente documental: no modifica sueldo, cargo, jornada contractual permanente ni condiciones generales del contrato.
         </div>
       </div>
+    </div>
+  {% endif %}
+
+  {% if proceso.descripcion %}
+    <div class="alert alert-info border mb-3">
+      <strong>Regla del proceso:</strong><br>
+      {{ proceso.descripcion }}
     </div>
   {% endif %}
 

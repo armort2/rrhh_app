@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
@@ -13,6 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from ...auth.decorators import role_required
+from ...common.navigation import safe_next_url
 from ...config import generar_nombre_documento
 from ...extensions import db
 from ...models import (
@@ -27,6 +28,9 @@ from ...models import (
     Trabajador,
     Desvinculacion,
 )
+from ...services.documentos_laborales import build_contract_document_checklist, register_generated_document
+from ...services.audit import audit_business_event
+from ...services.expediente_laboral import build_contrato_360
 from ...services.docx_engine import build_contract_docx
 from ...services.paths_nextcloud import get_nc_paths
 from ...services.pdf_convert import convert_docx_to_pdf
@@ -297,7 +301,7 @@ def lista_contratos():
 @bp.route("/nuevo", methods=["GET", "POST"])
 @role_required("ADMIN", "OPERADOR")
 def nuevo_contrato():
-    next_url = request.args.get("next") or request.form.get("next")
+    next_url = safe_next_url(request.args.get("next") or request.form.get("next"), fallback=None)
 
     trabajador_id_param = request.args.get("trabajador_id") or request.form.get("trabajador_id")
     trabajador = None
@@ -334,7 +338,7 @@ def nuevo_contrato():
 
         horas_semanales = parse_int(request.form.get("horas_semanales"))
         if not horas_semanales and tipo_contrato:
-            horas_semanales = 18 if tipo_contrato == "PART_TIME" else 44
+            horas_semanales = 18 if tipo_contrato == "PART_TIME" else 42
 
         sueldo_base = parse_decimal(request.form.get("sueldo_base"))
         asignacion_movilizacion = parse_decimal(request.form.get("asignacion_movilizacion"))
@@ -496,7 +500,7 @@ def editar_contrato(contrato_id):
 
         horas_semanales = parse_int(request.form.get("horas_semanales"))
         if not horas_semanales and tipo_contrato:
-            horas_semanales = 18 if tipo_contrato == "PART_TIME" else 44
+            horas_semanales = 18 if tipo_contrato == "PART_TIME" else 42
 
         sueldo_base = parse_decimal(request.form.get("sueldo_base"))
         asignacion_movilizacion = parse_decimal(request.form.get("asignacion_movilizacion"))
@@ -637,10 +641,58 @@ def contrato_detalle(contrato_id):
 
     trabajador = contrato.trabajador
     rut_trabajador_formateado = format_rut(trabajador.rut or "", trabajador.dv or "")
+
+    try:
+        documento_checklist = build_contract_document_checklist(contrato)
+    except Exception:
+        current_app.logger.exception(
+            "No se pudo construir checklist documental para contrato_id=%s",
+            getattr(contrato, "id", None),
+        )
+        documento_checklist = {
+            "puede_generar": False,
+            "items": [
+                {
+                    "label": "Checklist documental",
+                    "status": "Revisar",
+                    "severity": "warning",
+                    "detail": "No se pudo construir el checklist. La pantalla queda operativa para no bloquear la gestión.",
+                }
+            ],
+        }
+
+    try:
+        documentos_registrados = sorted(
+            list(getattr(contrato, "documentos", []) or []),
+            key=lambda d: (
+                getattr(d, "fecha_creacion", None) is None,
+                getattr(d, "fecha_creacion", None),
+                getattr(d, "id", 0),
+            ),
+            reverse=True,
+        )[:5]
+    except Exception:
+        current_app.logger.exception(
+            "No se pudieron cargar documentos registrados para contrato_id=%s",
+            getattr(contrato, "id", None),
+        )
+        documentos_registrados = []
+
+    contrato_360 = build_contrato_360(
+        contrato,
+        documento_checklist=documento_checklist,
+        documentos_registrados=documentos_registrados,
+        fecha_ref=date.today(),
+    )
+
     return render_template(
         "contratos/contrato_detalle.html",
         contrato=contrato,
         rut_trabajador_formateado=rut_trabajador_formateado,
+        documento_checklist=documento_checklist,
+        documento_checklist_items=documento_checklist.get("items", []) if isinstance(documento_checklist, dict) else [],
+        documentos_registrados=documentos_registrados,
+        contrato_360=contrato_360,
     )
 
 
@@ -772,7 +824,7 @@ def generar_contrato(contrato_id):
         flash(f"La obra '{getattr(contrato.obra, 'nombre', 'SIN_NOMBRE')}' no tiene centro de costo definido.", "error")
         return redirect(url_for("contratos.contrato_detalle", contrato_id=contrato.id))
 
-    next_url = request.args.get("next") or request.form.get("next")
+    next_url = safe_next_url(request.args.get("next") or request.form.get("next"), fallback=None)
 
     templates_root = Path(current_app.root_path) / "document_templates" / "contratos"
     base_tpl = templates_root / "contrato_base.docx"
@@ -901,9 +953,12 @@ def generar_contrato(contrato_id):
             output_path=docx_tmp,
         )
 
+        documentos_generados = []
+
         # Guardar DOCX en Nextcloud SOLO si corresponde
         if formato in ("DOCX", "AMBOS"):
             docx_final.write_bytes(docx_tmp.read_bytes())
+            documentos_generados.append((docx_final, "docx"))
 
         # Convertir y guardar PDF SOLO si corresponde
         if formato in ("PDF", "AMBOS"):
@@ -911,16 +966,63 @@ def generar_contrato(contrato_id):
             ensure_dir(pdf_tmp_dir)
             pdf_tmp = convert_docx_to_pdf(docx_tmp, pdf_tmp_dir)
             pdf_final.write_bytes(pdf_tmp.read_bytes())
+            documentos_generados.append((pdf_final, "pdf"))
+
+        for ruta_final, extension in documentos_generados:
+            register_generated_document(
+                contrato=contrato,
+                tipo="CONTRATOS",
+                ruta_archivo=str(ruta_final),
+                nombre_archivo=ruta_final.name,
+                fecha_ref=contrato.fecha_inicio,
+                extension=extension,
+                estado="VIGENTE",
+            )
+
+        if documentos_generados:
+            evento = EventoLaboral(
+                trabajador_id=trabajador.id,
+                contrato_id=contrato.id,
+                obra_id=contrato.obra_id,
+                empleador_id=contrato.empleador_id,
+                categoria="DOCUMENTO",
+                tipo="CONTRATO_GENERADO",
+                titulo=f"Contrato generado (Contrato #{contrato.id})",
+                fecha_evento=contrato.fecha_inicio or datetime.now().date(),
+                estado="VIGENTE",
+                nombre_archivo=documentos_generados[-1][0].name,
+                ruta_archivo=str(documentos_generados[-1][0]),
+                meta={
+                    "contrato_id": contrato.id,
+                    "formato": formato,
+                    "documentos": [str(ruta) for ruta, _ext in documentos_generados],
+                },
+            )
+            db.session.add(evento)
+
+        db.session.commit()
+
+        audit_business_event(
+            section="Contratos",
+            action=(
+                f"Contrato generado en {formato} · "
+                f"trabajador {trabajador.nombres or ''} {trabajador.ap_paterno or ''} {trabajador.ap_materno or ''}".strip()
+                + f" · archivos {len(documentos_generados)}"
+            ),
+            entity_type="contrato",
+            entity_id=contrato.id,
+        )
 
         # Mensajes consistentes
         if formato == "DOCX":
-            flash("Contrato generado y guardado en Nextcloud: DOCX", "success")
+            flash("Contrato generado, guardado en Nextcloud y registrado en expediente: DOCX", "success")
         elif formato == "PDF":
-            flash("Contrato generado y guardado en Nextcloud: PDF", "success")
+            flash("Contrato generado, guardado en Nextcloud y registrado en expediente: PDF", "success")
         else:
-            flash("Contrato generado y guardado en Nextcloud: DOCX + PDF", "success")
+            flash("Contrato generado, guardado en Nextcloud y registrado en expediente: DOCX + PDF", "success")
 
     except Exception as e:
+        db.session.rollback()
         flash(f"No se pudo generar/guardar el contrato: {e}", "error")
 
     return redirect(

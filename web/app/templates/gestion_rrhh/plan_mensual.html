@@ -1,0 +1,247 @@
+{# web/app/templates/gestion_rrhh/plan_mensual.html #}
+{% extends "base.html" %}
+
+{% block title %}Plan mensual RRHH · Sistema Grupo CS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 gestion-rrhh-page gestion-month-page">
+  <div class="card shadow-sm gestion-hero mb-3 gestion-month-hero">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+          <div class="gestion-eyebrow">Sistema Grupo CS</div>
+          <h1 class="section-title mb-1">Plan mensual RRHH</h1>
+          <p class="text-muted mb-0">
+            Seguimiento operativo mensual basado en la bandeja de gestión, cumplimiento laboral y alertas vigentes.
+          </p>
+          <p class="small text-muted mb-0 mt-1">
+            Período referencial: {{ plan.periodo_label }} · Corte: {{ plan.fecha.strftime('%d-%m-%Y') if plan.fecha else '-' }}.
+          </p>
+        </div>
+        <div class="gestion-hero-actions">
+          <a class="btn btn-outline-secondary" href="{{ url_for('gestion_rrhh.index') }}">🧭 Volver a bandeja</a>
+          <a class="btn btn-outline-secondary" href="{{ url_for('cumplimiento_laboral.index') }}">📊 Cumplimiento</a>
+          <a class="btn btn-primary" href="{{ url_for('gestion_rrhh.plan_mensual_exportar_csv', prioridad=filtros.prioridad, categoria=filtros.categoria, q=filtros.q) }}">⬇️ Exportar plan CSV</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Tareas visibles</div>
+          <div class="gestion-kpi-value">{{ plan.resumen.total_visible }}</div>
+          <div class="gestion-kpi-note">Según filtros aplicados al plan.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100 is-danger">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Vencidas / hoy</div>
+          <div class="gestion-kpi-value">{{ plan.resumen.vencidas_hoy }}</div>
+          <div class="gestion-kpi-note">Primera prioridad de gestión.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100 is-warning">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Próximos 7 días</div>
+          <div class="gestion-kpi-value">{{ plan.resumen.semana }}</div>
+          <div class="gestion-kpi-note">Casos para reunión semanal.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm gestion-kpi-card h-100 is-info">
+        <div class="card-body">
+          <div class="gestion-kpi-label">Prioridad alta</div>
+          <div class="gestion-kpi-value">{{ plan.resumen.altas }}</div>
+          <div class="gestion-kpi-note">Tareas que conviene cerrar primero.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm gestion-filter-card">
+        <div class="card-body">
+          <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label">Prioridad</label>
+              <select class="form-select" name="prioridad">
+                <option value="todas" {% if filtros.prioridad == 'todas' %}selected{% endif %}>Todas</option>
+                {% for key, label in plan.prioridades.items() %}
+                  <option value="{{ key }}" {% if filtros.prioridad == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Categoría</label>
+              <select class="form-select" name="categoria">
+                <option value="todas" {% if filtros.categoria == 'todas' %}selected{% endif %}>Todas</option>
+                {% for key, label in plan.categorias.items() %}
+                  <option value="{{ key }}" {% if filtros.categoria == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Buscar</label>
+              <input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Trabajador, obra, detalle, estado...">
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+              <button class="btn btn-primary" type="submit">Filtrar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm gestion-side-card h-100">
+        <div class="card-body">
+          <div class="gestion-eyebrow">Acciones masivas</div>
+          <h2 class="h6 mb-3">Atajos recomendados</h2>
+          {% if plan.acciones_masivas %}
+            <div class="gestion-month-actions">
+              {% for accion in plan.acciones_masivas %}
+                <a class="gestion-month-action is-{{ accion.class }}" href="{{ accion.url or '#' }}">
+                  <span class="gestion-month-action-icon">{{ accion.icono }}</span>
+                  <span class="gestion-month-action-body">
+                    <strong>{{ accion.titulo }}</strong>
+                    <small>{{ accion.detalle }}</small>
+                    <em>{{ accion.label }}</em>
+                  </span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-success mb-0 small">Sin acciones masivas sugeridas por ahora. Bonito momento para respirar y guardar respaldo 😄</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm gestion-list-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+            <div>
+              <div class="gestion-eyebrow">Calendario operativo</div>
+              <h2 class="h5 mb-0">Gestiones por horizonte</h2>
+            </div>
+            <span class="badge text-bg-light border">{{ plan.tareas|length }} tarea(s)</span>
+          </div>
+
+          <div class="gestion-month-groups">
+            {% for grupo in plan.grupos %}
+              <section class="gestion-month-group is-{{ grupo.class }}">
+                <div class="gestion-month-group-head">
+                  <div class="gestion-month-group-title">
+                    <span>{{ grupo.icono }}</span>
+                    <div>
+                      <h3>{{ grupo.titulo }}</h3>
+                      <p>{{ grupo.descripcion }}</p>
+                    </div>
+                  </div>
+                  <span class="badge text-bg-light border">{{ grupo.count }}</span>
+                </div>
+
+                {% if grupo.items %}
+                  <div class="gestion-month-task-list">
+                    {% for t in grupo.items %}
+                      <article class="gestion-month-task is-{{ t.prioridad }}">
+                        <div class="gestion-month-task-main">
+                          <div class="gestion-task-meta mb-2">
+                            <span class="badge text-bg-{{ t.prioridad_class }}">{{ t.prioridad_label }}</span>
+                            <span class="badge text-bg-light border">{{ t.categoria_label }}</span>
+                            <span class="badge text-bg-light border">{{ t.estado }}</span>
+                          </div>
+                          <h4>{{ t.icono }} {{ t.titulo }}</h4>
+                          <p>{{ t.detalle }}</p>
+                          {% if t.contexto %}
+                            <div class="gestion-task-context">{{ t.contexto }}</div>
+                          {% endif %}
+                        </div>
+                        <div class="gestion-month-task-side">
+                          <span class="gestion-task-deadline">{{ t.dias_texto }}</span>
+                          {% if t.fecha_objetivo %}
+                            <small>{{ t.fecha_objetivo.strftime('%d-%m-%Y') }}</small>
+                          {% else %}
+                            <small>Sin fecha</small>
+                          {% endif %}
+                          <div class="gestion-task-actions mt-2">
+                            {% if t.url %}
+                              <a class="btn btn-sm btn-primary" href="{{ t.url }}">{{ t.action_label }}</a>
+                            {% endif %}
+                            {% if t.secondary_url %}
+                              <a class="btn btn-sm btn-outline-secondary" href="{{ t.secondary_url }}">{{ t.secondary_label }}</a>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </article>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="gestion-month-empty">Sin gestiones en este horizonte.</div>
+                {% endif %}
+              </section>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm gestion-side-card mb-3">
+        <div class="card-body">
+          <div class="gestion-eyebrow">Ritmo de trabajo</div>
+          <h2 class="h6 mb-3">Checklist operativo mensual</h2>
+          <div class="gestion-month-routine">
+            {% for item in plan.rutinas %}
+              <div class="gestion-month-routine-item">
+                <div class="gestion-month-routine-icon">{{ item.icono }}</div>
+                <div class="gestion-month-routine-body">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <span>{{ item.bloque }}</span>
+                    <strong class="badge text-bg-{{ item.class }}">{{ item.estado }}</strong>
+                  </div>
+                  <h3>{{ item.titulo }}</h3>
+                  <p>{{ item.detalle }}</p>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm gestion-side-card">
+        <div class="card-body">
+          <div class="gestion-eyebrow">Uso sugerido</div>
+          <h2 class="h6 mb-3">Cómo cerrar el mes</h2>
+          <ol class="gestion-priority-list mb-0">
+            <li>
+              <strong>Resolver vencidos y tareas de hoy</strong>
+              <small>Partir por lo rojo. Lo urgente primero; la estética después, aunque nos duela un poquito.</small>
+            </li>
+            <li>
+              <strong>Programar la semana</strong>
+              <small>Asignar responsables para contratos, jornada, prevención y parámetros.</small>
+            </li>
+            <li>
+              <strong>Exportar evidencia</strong>
+              <small>Guardar CSV del plan y de la bandeja como respaldo de control interno.</small>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -71,11 +71,14 @@
     const calcularUrl = config?.dataset.calcularUrl || "";
     const desvinculacionId = config?.dataset.desvinculacionId || "";
     const contratoId = config?.dataset.contratoId || "";
+    const causalPermiteAviso = (config?.dataset.aplicaAvisoPrevio || "0") === "1";
+    const causalPermiteAnios = (config?.dataset.aplicaAniosServicio || "0") === "1";
 
     const out = {
       base: document.getElementById("asis_out_base"),
       dias: document.getElementById("asis_out_dias_feriado"),
       diasCorridos: document.getElementById("asis_out_dias_corridos"),
+      diasInhabiles: document.getElementById("asis_out_dias_inhabiles"),
       feriado: document.getElementById("asis_out_feriado"),
       aviso: document.getElementById("asis_out_aviso"),
       anios: document.getElementById("asis_out_anios"),
@@ -84,9 +87,13 @@
       finCorridos: document.getElementById("asis_out_fin_corridos"),
       finHabilesRef: document.getElementById("asis_out_fin_habiles_ref"),
       fechaBaseProp: document.getElementById("asis_out_fecha_base_prop"),
+      periodoProp: document.getElementById("asis_out_periodo_prop"),
       diasTramoProp: document.getElementById("asis_out_dias_tramo_prop"),
       devengoTeorico: document.getElementById("asis_out_devengo_teorico"),
+      devengoMov: document.getElementById("asis_out_devengo_mov"),
       diasUsados: document.getElementById("asis_out_dias_usados"),
+      diasUsadosMov: document.getElementById("asis_out_dias_usados_mov"),
+      diasUsadosVac: document.getElementById("asis_out_dias_usados_vac"),
       diasAjuste: document.getElementById("asis_out_dias_ajuste"),
       indemSueldoBase: document.getElementById("asis_out_indem_sueldo_base"),
       indemGratificacion: document.getElementById("asis_out_indem_gratificacion"),
@@ -109,24 +116,46 @@
       varsWrap.classList.toggle("d-none", !(v === "VARIABLE" || v === "MIXTA"));
     }
 
+    function aplicarRestriccionesCausal() {
+      const chkAviso = document.getElementById("asis_aplicar_aviso_previo");
+      const chkAnios = document.getElementById("asis_aplicar_anios_servicio");
+
+      if (chkAviso && !causalPermiteAviso) {
+        chkAviso.checked = false;
+        chkAviso.disabled = true;
+        chkAviso.title = "La causal registrada no genera indemnización sustitutiva de aviso previo.";
+      }
+
+      if (chkAnios && !causalPermiteAnios) {
+        chkAnios.checked = false;
+        chkAnios.disabled = true;
+        chkAnios.title = "La causal registrada no genera indemnización por años de servicio.";
+      }
+    }
+
     function setResultados(resumen) {
       if (!resumen) return;
 
       setValue(out.base, resumen.base_calculo || "");
       setValue(out.dias, resumen.dias_feriado_habiles || "");
       setValue(out.diasCorridos, resumen.dias_feriado_corridos || "");
+      setValue(out.diasInhabiles, resumen.feriado_dias_inhabiles || "");
       setValue(out.feriado, resumen.monto_feriado || "");
-      setValue(out.aviso, resumen.aviso_previo || "");
-      setValue(out.anios, resumen.anios_servicio || "");
-      setValue(out.meses, resumen.meses_indemnizables ?? "");
+      setValue(out.aviso, causalPermiteAviso ? (resumen.aviso_previo || "") : "");
+      setValue(out.anios, causalPermiteAnios ? (resumen.anios_servicio || "") : "");
+      setValue(out.meses, causalPermiteAnios ? (resumen.meses_indemnizables ?? "") : "0");
       setValue(out.inicioCorridos, resumen.fecha_inicio_corridos || "");
       setValue(out.finCorridos, resumen.fecha_fin_corridos || "");
       setValue(out.finHabilesRef, resumen.fecha_fin_habiles_ref || "");
 
       setValue(out.fechaBaseProp, resumen.fecha_base_proporcional || "");
+      setValue(out.periodoProp, resumen.periodo_proporcional_txt || "");
       setValue(out.diasTramoProp, resumen.dias_corridos_tramo_proporcional ?? "");
       setValue(out.devengoTeorico, resumen.feriado_devengado_teorico_habiles || "");
+      setValue(out.devengoMov, resumen.feriado_devengado_movimientos || "");
       setValue(out.diasUsados, resumen.feriado_dias_usados_habiles || "");
+      setValue(out.diasUsadosMov, resumen.feriado_dias_usados_movimientos || "");
+      setValue(out.diasUsadosVac, resumen.feriado_dias_usados_fallback_vacaciones || "");
       setValue(out.diasAjuste, resumen.feriado_dias_ajuste || "");
 
       const indem = resumen.detalle_base_indemnizacion || {};
@@ -213,8 +242,8 @@
 
       if (dias) dias.value = ultimoResumen.dias_feriado_habiles || "";
       if (feriado) feriado.value = ultimoResumen.monto_feriado || "";
-      if (aviso) aviso.value = ultimoResumen.aviso_previo || "";
-      if (anios) anios.value = ultimoResumen.anios_servicio || "";
+      if (aviso) aviso.value = causalPermiteAviso ? (ultimoResumen.aviso_previo || "") : "";
+      if (anios) anios.value = causalPermiteAnios ? (ultimoResumen.anios_servicio || "") : "";
 
       if (hiddenCalc && ultimoPayloadCompleto) {
         hiddenCalc.value = JSON.stringify(ultimoPayloadCompleto);
@@ -253,6 +282,7 @@
 
           if (chkAviso) chkAviso.checked = !!p.aplicar_aviso_previo;
           if (chkAnios) chkAnios.checked = !!p.aplicar_anios_servicio;
+          aplicarRestriccionesCausal();
           if (chkCol) chkCol.checked = !!p.incluir_colacion_base;
           if (chkMov) chkMov.checked = !!p.incluir_movilizacion_base;
           if (chkGrat) chkGrat.checked = !!p.incluir_gratificacion_base;
@@ -281,7 +311,9 @@
 
     tipoRem?.addEventListener("change", toggleVars);
     toggleVars();
+    aplicarRestriccionesCausal();
     cargarCalculoPrevio();
+    aplicarRestriccionesCausal();
   }
 
   document.addEventListener("DOMContentLoaded", function () {

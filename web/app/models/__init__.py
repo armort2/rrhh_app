@@ -77,6 +77,11 @@ globals()["PrevCharlaSeguridad"] = PrevCharlaSeguridad
 globals()["PrevCharlaAsistente"] = PrevCharlaAsistente
 globals()["PrevDocumentoPreventivo"] = PrevDocumentoPreventivo
 
+
+# Auditoría / Bitácora del sistema
+from .audit import AuditLog  # noqa: F401
+globals()["AuditLog"] = AuditLog
+
 # ------------------------------------------------------------
 # 3) __all__
 # ------------------------------------------------------------

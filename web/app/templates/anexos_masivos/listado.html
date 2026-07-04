@@ -16,9 +16,36 @@
 
     {% if current_user.has_role("ADMIN", "OPERADOR") %}
       <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo') }}" class="btn btn-primary">
-          <i class="bi bi-plus-circle me-1"></i> Nuevo proceso sueldo mínimo
-        </a>
+        <div class="btn-group">
+          <button
+            type="button"
+            class="btn btn-primary dropdown-toggle"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            <i class="bi bi-plus-circle me-1"></i> Nuevo sueldo mínimo
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li><h6 class="dropdown-header">Procesos por fecha</h6></li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo', proceso='2026-06-22') }}">
+                22-06-2026 · Ley 21.830 · $553.553
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo', proceso='2026-01-14') }}">
+                14-01-2026 · Proceso histórico · $539.000
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('anexos_masivos.nuevo_sueldo_minimo') }}">
+                Proceso personalizado
+              </a>
+            </li>
+          </ul>
+        </div>
+
         <a href="{{ url_for('anexos_masivos.nuevo_ley_40_horas') }}" class="btn btn-outline-primary">
           <i class="bi bi-clock-history me-1"></i> Nuevo proceso ley 40 horas
         </a>

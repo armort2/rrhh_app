@@ -18,6 +18,7 @@
 
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-secondary" href="{{ url_for('admin.users_list') }}">⬅ Volver</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('admin.roles_matriz') }}">🔐 Roles y permisos</a>
     </div>
   </div>
 
@@ -109,15 +110,21 @@
               <div class="card-body">
                 <div class="border rounded-3 p-2 overflow-auto" style="max-height: 260px;">
                   {% for r in roles %}
-                    <div class="form-check d-flex align-items-center gap-2 m-0 py-1 ps-0">
-                      <input class="form-check-input m-0 mt-0 ms-0"
+                    {% set role_def = role_definitions_by_name.get(r.name) if role_definitions_by_name else none %}
+                    <div class="form-check role-check-row m-0 py-2">
+                      <input class="form-check-input"
                              type="checkbox"
                              name="roles"
                              id="role_{{ r.id }}"
                              value="{{ r.id }}"
                              {% if (r.id|string) in selected_role_ids %}checked{% endif %}>
-                      <label class="form-check-label" for="role_{{ r.id }}">
-                        {{ r.name }}
+                      <label class="form-check-label w-100" for="role_{{ r.id }}">
+                        <span class="fw-semibold">{{ r.name }}</span>
+                        {% if role_def %}
+                          <span class="d-block text-muted small">{{ role_def.label }} · {{ role_def.description }}</span>
+                        {% elif r.name in ["OPERADOR", "REVISOR"] %}
+                          <span class="d-block text-muted small">Rol histórico de compatibilidad.</span>
+                        {% endif %}
                       </label>
                     </div>
                   {% endfor %}

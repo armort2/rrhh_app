@@ -3744,3 +3744,1402 @@ fieldset:disabled .btn {
   }
 }
 /* FIN UI NORMALIZACIÓN GLOBAL · BOTONES Y DROPDOWNS · V5 */
+
+/* ============================================================
+   Admin · Bitácora / Auditoría
+   ============================================================ */
+.cs-admin-audit-page .card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+}
+
+.cs-audit-metric-card {
+  background: linear-gradient(135deg, rgba(139, 31, 31, 0.04), rgba(255, 255, 255, 0.98));
+}
+
+.cs-audit-metric-card .display-6 {
+  color: var(--cs-red, #8b1f1f);
+  letter-spacing: -0.04em;
+}
+
+.cs-audit-table th {
+  white-space: nowrap;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.cs-audit-table td {
+  vertical-align: top;
+}
+
+.cs-audit-table td:nth-child(5) {
+  min-width: 260px;
+}
+
+/* ============================================================
+   V8 · Roles y permisos
+   ============================================================ */
+.role-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.role-card .role-name {
+  font-size: .82rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  color: #0f172a;
+}
+
+.role-card .role-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.roles-matrix-table th {
+  font-size: .76rem;
+  letter-spacing: .02em;
+  vertical-align: middle;
+}
+
+.roles-matrix-table td {
+  vertical-align: middle;
+}
+
+.role-check-row {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  gap: .65rem;
+  align-items: start;
+  border-bottom: 1px solid rgba(15, 23, 42, .08);
+}
+
+.role-check-row:last-child {
+  border-bottom: 0;
+}
+
+.role-check-row .form-check-input {
+  margin-left: 0;
+  margin-top: .25rem;
+}
+
+.cs-alert-soft {
+  border-radius: 1rem;
+  border-color: rgba(13, 110, 253, .18);
+  background: rgba(13, 110, 253, .07);
+}
+
+/* ============================================================
+   Fase 2 · Expediente Laboral 360 / Contrato 360
+   ============================================================ */
+.trabajador-health-card,
+.trabajador-recommendations-card,
+.contrato-360-card,
+.contrato-360-alerts-card {
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 1rem;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+}
+
+.trabajador-health-card {
+  background: linear-gradient(135deg, rgba(139, 31, 31, 0.055), rgba(255, 255, 255, 0.98));
+}
+
+.trabajador-recommendations-card,
+.contrato-360-score-card {
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.07), rgba(255, 255, 255, 0.98));
+}
+
+.trabajador-health-score,
+.contrato-360-score {
+  display: flex;
+  align-items: baseline;
+  gap: .25rem;
+  white-space: nowrap;
+}
+
+.trabajador-health-score strong,
+.contrato-360-score strong {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.07em;
+  color: var(--cs-red, #8b1f1f);
+}
+
+.trabajador-health-score span,
+.contrato-360-score span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.trabajador-health-progress,
+.contrato-360-progress {
+  height: .65rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.trabajador-health-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.trabajador-health-check {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  align-items: flex-start;
+  padding: .7rem .75rem;
+  border-radius: .85rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.trabajador-health-check strong,
+.trabajador-recommendation-btn strong,
+.contrato-360-action strong {
+  display: block;
+  font-size: .88rem;
+}
+
+.trabajador-health-check small,
+.trabajador-recommendation-btn small,
+.contrato-360-action small {
+  display: block;
+  font-size: .76rem;
+  color: #64748b;
+  line-height: 1.25;
+  margin-top: .1rem;
+  white-space: normal;
+}
+
+.trabajador-recommendation-btn,
+.contrato-360-action {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: .65rem;
+  align-items: start;
+  text-align: left;
+  justify-content: start;
+  white-space: normal;
+  border-radius: .85rem;
+  padding: .70rem .80rem;
+  width: 100%;
+}
+
+.contrato-360-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.08);
+  font-size: .95rem;
+  line-height: 1;
+  margin-top: .05rem;
+}
+
+.contrato-360-action-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  gap: .12rem;
+}
+
+.contrato-360-action-title {
+  display: block;
+  font-size: .92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.contrato-360-action-detail {
+  display: block;
+  font-size: .78rem;
+  color: #64748b;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.contrato-360-kicker {
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--cs-brown, #7a4b2b);
+}
+
+.contrato-360-status {
+  border-radius: .9rem;
+  padding: .75rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .85);
+}
+
+.contrato-360-status.is-success {
+  border-color: rgba(25, 135, 84, .22);
+  background: rgba(25, 135, 84, .07);
+}
+
+.contrato-360-status.is-warning {
+  border-color: rgba(255, 193, 7, .28);
+  background: rgba(255, 193, 7, .10);
+}
+
+.contrato-360-status.is-danger {
+  border-color: rgba(220, 53, 69, .22);
+  background: rgba(220, 53, 69, .07);
+}
+
+.contrato-360-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .7rem;
+}
+
+.contrato-360-metrics > div {
+  border-radius: .85rem;
+  padding: .65rem .75rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .86);
+}
+
+.contrato-360-metrics span {
+  display: block;
+  font-size: .72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: .15rem;
+}
+
+.contrato-360-metrics strong {
+  display: block;
+  font-size: .95rem;
+  color: #0f172a;
+}
+
+.contrato-360-alert {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: .65rem;
+  align-items: start;
+  min-height: 100%;
+  padding: .75rem;
+  border-radius: .9rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .9);
+}
+
+.contrato-360-alert-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: .75rem;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, .06);
+}
+
+.contrato-360-alert.is-danger {
+  border-color: rgba(220, 53, 69, .24);
+  background: rgba(220, 53, 69, .055);
+}
+
+.contrato-360-alert.is-warning {
+  border-color: rgba(255, 193, 7, .32);
+  background: rgba(255, 193, 7, .08);
+}
+
+.contrato-360-alert.is-info {
+  border-color: rgba(13, 110, 253, .20);
+  background: rgba(13, 110, 253, .055);
+}
+
+@media (max-width: 991.98px) {
+  .trabajador-health-checks,
+  .contrato-360-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================
+   Fase 3 · Cumplimiento Laboral
+   ========================================================== */
+
+.cumplimiento-page {
+  overflow-x: hidden;
+}
+
+.cumplimiento-page .card,
+.cumplimiento-page .card-body,
+.cumplimiento-page .card-header {
+  min-width: 0;
+}
+
+.cumplimiento-page h1,
+.cumplimiento-page h2,
+.cumplimiento-page p,
+.cumplimiento-page span,
+.cumplimiento-page strong,
+.cumplimiento-page small,
+.cumplimiento-page td,
+.cumplimiento-page th {
+  overflow-wrap: break-word;
+}
+
+.cumplimiento-card .card-header {
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.cumplimiento-card .card-header .btn {
+  flex: 0 0 auto;
+}
+.cumplimiento-page .cumplimiento-hero {
+  border: 1px solid rgba(120, 68, 34, .12);
+}
+
+.cumplimiento-score-box {
+  min-width: 230px;
+}
+
+.cumplimiento-score-number {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #1f2937;
+}
+
+.cumplimiento-score-progress {
+  height: .65rem;
+  min-width: 210px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .08);
+}
+
+.cumplimiento-card,
+.cumplimiento-kpi-card {
+  border: 1px solid rgba(120, 68, 34, .10);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.cumplimiento-kicker {
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--cs-brown, #7a4b2b);
+}
+
+.cumplimiento-kpi-icon {
+  width: 2.3rem;
+  height: 2.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(120, 68, 34, .08);
+  margin-bottom: .45rem;
+}
+
+.cumplimiento-alert {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: .7rem;
+  height: 100%;
+  padding: .8rem;
+  border-radius: .95rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .86);
+}
+
+.cumplimiento-alert.is-danger {
+  border-color: rgba(220, 53, 69, .28);
+  background: rgba(220, 53, 69, .045);
+}
+
+.cumplimiento-alert.is-warning {
+  border-color: rgba(255, 193, 7, .38);
+  background: rgba(255, 193, 7, .06);
+}
+
+.cumplimiento-alert.is-info {
+  border-color: rgba(13, 202, 240, .25);
+  background: rgba(13, 202, 240, .045);
+}
+
+.cumplimiento-alert.is-ok {
+  border-color: rgba(25, 135, 84, .22);
+  background: rgba(25, 135, 84, .045);
+}
+
+.cumplimiento-alert-icon,
+.cumplimiento-action-icon {
+  width: 2.15rem;
+  height: 2.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .06);
+  line-height: 1;
+}
+
+.cumplimiento-alert-body {
+  min-width: 0;
+}
+
+.cumplimiento-action {
+  display: grid;
+  grid-template-columns: 2.15rem minmax(0, 1fr);
+  align-items: start;
+  gap: .7rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+  white-space: normal;
+  border-radius: .9rem;
+  padding: .72rem .85rem;
+  text-decoration: none;
+}
+
+.cumplimiento-action-icon {
+  flex: 0 0 auto;
+  min-width: 2.15rem;
+}
+
+.cumplimiento-action-body {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start;
+  justify-content: center;
+  gap: .12rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.cumplimiento-action-title,
+.cumplimiento-action-detail,
+.cumplimiento-action-body strong,
+.cumplimiento-action-body small {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.cumplimiento-action-title,
+.cumplimiento-action-body strong {
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.cumplimiento-action-detail,
+.cumplimiento-action-body small {
+  color: #64748b;
+  font-size: .78rem;
+  line-height: 1.28;
+}
+
+.disabled-action {
+  border: 1px dashed rgba(15, 23, 42, .16);
+  color: #64748b;
+  background: rgba(248, 250, 252, .85);
+}
+
+.cumplimiento-obra-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-radius: .9rem;
+  padding: .75rem .85rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255,255,255,.9);
+  min-height: 100%;
+}
+
+.cumplimiento-obra-chip span {
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
+
+.cumplimiento-obra-chip strong {
+  min-width: 2rem;
+  text-align: center;
+  border-radius: 999px;
+  padding: .2rem .45rem;
+  background: rgba(15,23,42,.06);
+}
+
+.cumplimiento-obra-chip.is-danger {
+  border-color: rgba(220, 53, 69, .28);
+}
+
+.cumplimiento-obra-chip.is-warning {
+  border-color: rgba(255, 193, 7, .38);
+}
+
+.cumplimiento-table td,
+.cumplimiento-table th {
+  padding: .75rem .85rem;
+}
+
+.cumplimiento-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.cumplimiento-list-row {
+  padding: .85rem 1rem;
+}
+
+.cumplimiento-list-row .d-flex {
+  min-width: 0;
+}
+
+.cumplimiento-list-row .fw-semibold,
+.cumplimiento-list-row .text-muted {
+  overflow-wrap: break-word;
+}
+
+.cumplimiento-table {
+  width: 100%;
+}
+
+.cumplimiento-table td,
+.cumplimiento-table th {
+  vertical-align: top;
+}
+
+.cumplimiento-table .btn {
+  white-space: nowrap;
+}
+
+.cumplimiento-kpi-card .display-6 {
+  font-size: clamp(2rem, 3vw, 2.7rem);
+  line-height: 1.05;
+}
+
+.cumplimiento-mini-list {
+  display: grid;
+  gap: .55rem;
+}
+
+.cumplimiento-mini-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .75rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: .8rem;
+  background: rgba(248, 250, 252, .8);
+}
+
+.cumplimiento-mini-list span {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.cumplimiento-mini-list strong {
+  min-width: 1.8rem;
+  text-align: right;
+  font-weight: 800;
+}
+
+.cumplimiento-karin-card {
+  background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,248,240,.92));
+}
+
+.cumplimiento-checklist {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+  display: grid;
+  gap: .55rem;
+}
+
+.cumplimiento-checklist li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  gap: .45rem;
+  color: #475569;
+}
+
+.cumplimiento-field-card {
+  height: 100%;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: .85rem;
+  padding: .75rem .85rem;
+  background: rgba(248, 250, 252, .85);
+}
+
+.cumplimiento-field-card strong,
+.cumplimiento-field-card small {
+  display: block;
+}
+
+.cumplimiento-field-card small {
+  margin-top: .25rem;
+  color: #64748b;
+  line-height: 1.25;
+}
+
+@media (max-width: 767.98px) {
+  .cumplimiento-score-box {
+    width: 100%;
+    text-align: left !important;
+  }
+
+  .cumplimiento-score-box .d-flex {
+    justify-content: flex-start !important;
+  }
+
+  .cumplimiento-score-progress {
+    min-width: 100%;
+  }
+}
+
+/* Fase 4 · Auditoría de negocio */
+.cs-audit-action-text {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.cs-audit-table td {
+  vertical-align: top;
+}
+
+.cs-audit-table .fw-semibold {
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   Hotfix Fase 4 · Auditoría UI · más aire visual
+   ============================================================ */
+.cs-admin-audit-page {
+  --audit-card-pad-x: 1.25rem;
+  --audit-card-pad-y: 1.05rem;
+}
+
+.cs-admin-audit-page .section-subtitle {
+  max-width: 980px;
+  line-height: 1.45;
+}
+
+.cs-admin-audit-page .card {
+  overflow: hidden;
+}
+
+.cs-admin-audit-page .card-header {
+  padding: 1rem var(--audit-card-pad-x) .85rem;
+}
+
+.cs-admin-audit-page .card-body:not(.p-0) {
+  padding: var(--audit-card-pad-y) var(--audit-card-pad-x);
+}
+
+.cs-audit-metric-card .card-body {
+  min-height: 6.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: .18rem;
+}
+
+.cs-audit-metric-card .display-6 {
+  line-height: 1;
+  margin: .08rem 0 .12rem;
+}
+
+.cs-admin-audit-page .list-group-flush > .list-group-item {
+  padding: .72rem .2rem;
+  line-height: 1.28;
+}
+
+.cs-admin-audit-page .list-group-flush > .list-group-item:first-child {
+  padding-top: .1rem;
+}
+
+.cs-admin-audit-page .list-group-flush > .list-group-item:last-child {
+  padding-bottom: .1rem;
+}
+
+.cs-admin-audit-page .list-group-item strong,
+.cs-admin-audit-page .list-group-item .small,
+.cs-audit-action-text {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.cs-admin-audit-page .list-group-item .badge {
+  flex: 0 0 auto;
+  margin-left: .5rem;
+}
+
+.cs-admin-audit-page form .form-label {
+  margin-bottom: .35rem;
+  font-size: .78rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+
+.cs-admin-audit-page form .form-control,
+.cs-admin-audit-page form .form-select {
+  min-height: 2.55rem;
+}
+
+.cs-admin-audit-page form .btn {
+  min-height: 2.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-audit-table th,
+.cs-audit-table td {
+  padding: .72rem .85rem;
+  line-height: 1.32;
+}
+
+.cs-audit-table td:nth-child(2),
+.cs-audit-table td:nth-child(3),
+.cs-audit-table td:nth-child(4),
+.cs-audit-table td:nth-child(5) {
+  overflow-wrap: anywhere;
+}
+
+.cs-audit-table td:nth-child(5) {
+  min-width: 320px;
+}
+
+.cs-audit-table .badge {
+  white-space: nowrap;
+}
+
+.cs-admin-audit-page .alert.alert-info {
+  padding: 1rem 1.25rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 767.98px) {
+  .cs-admin-audit-page {
+    --audit-card-pad-x: 1rem;
+    --audit-card-pad-y: .95rem;
+  }
+
+  .cs-audit-table th,
+  .cs-audit-table td {
+    padding: .68rem .75rem;
+  }
+
+  .cs-audit-table td:nth-child(5) {
+    min-width: 260px;
+  }
+}
+
+
+/* =========================================================
+   Fase 5 · Bandeja de Gestión RRHH
+   ========================================================= */
+.gestion-rrhh-page {
+  max-width: 1500px;
+  margin-inline: auto;
+}
+
+.gestion-hero,
+.gestion-kpi-card,
+.gestion-filter-card,
+.gestion-plan-card,
+.gestion-list-card,
+.gestion-side-card {
+  border: 1px solid rgba(112, 77, 45, .16);
+  border-radius: 1.15rem;
+  overflow: hidden;
+}
+
+.gestion-hero .card-body,
+.gestion-kpi-card .card-body,
+.gestion-filter-card .card-body,
+.gestion-plan-card .card-body,
+.gestion-list-card .card-body,
+.gestion-side-card .card-body {
+  padding: 1.15rem 1.25rem;
+}
+
+.gestion-eyebrow {
+  color: var(--cs-brown, #7a4b2b);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: .2rem;
+}
+
+.gestion-hero-actions {
+  display: flex;
+  gap: .65rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.gestion-kpi-card {
+  background: rgba(255, 255, 255, .94);
+}
+
+.gestion-kpi-card.is-danger {
+  border-left: 5px solid rgba(220, 53, 69, .8);
+}
+
+.gestion-kpi-card.is-warning {
+  border-left: 5px solid rgba(255, 193, 7, .9);
+}
+
+.gestion-kpi-card.is-info {
+  border-left: 5px solid rgba(13, 202, 240, .8);
+}
+
+.gestion-kpi-label {
+  color: #6b7280;
+  font-size: .82rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.gestion-kpi-value {
+  color: #1f2937;
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1.05;
+  margin-top: .25rem;
+}
+
+.gestion-kpi-note {
+  color: #6b7280;
+  font-size: .82rem;
+  line-height: 1.3;
+  margin-top: .35rem;
+}
+
+.gestion-priority-list {
+  padding-left: 1.25rem;
+}
+
+.gestion-priority-list li {
+  margin-bottom: .65rem;
+  padding-left: .15rem;
+}
+
+.gestion-priority-list li:last-child {
+  margin-bottom: 0;
+}
+
+.gestion-priority-list strong,
+.gestion-priority-list small {
+  display: block;
+  line-height: 1.25;
+  margin-top: .18rem;
+}
+
+.gestion-priority-list small {
+  color: #6b7280;
+  font-size: .78rem;
+}
+
+.gestion-task-stack {
+  display: grid;
+  gap: .85rem;
+}
+
+.gestion-task-card {
+  display: grid;
+  grid-template-columns: 2.65rem minmax(0, 1fr);
+  gap: .85rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid rgba(112, 77, 45, .14);
+  border-left-width: 5px;
+}
+
+.gestion-task-card.is-alta {
+  border-left-color: rgba(220, 53, 69, .85);
+}
+
+.gestion-task-card.is-media {
+  border-left-color: rgba(255, 193, 7, .95);
+}
+
+.gestion-task-card.is-baja {
+  border-left-color: rgba(13, 202, 240, .9);
+}
+
+.gestion-task-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 999px;
+  background: rgba(112, 77, 45, .08);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.gestion-task-main {
+  min-width: 0;
+}
+
+.gestion-task-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .85rem;
+}
+
+.gestion-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem;
+  margin-bottom: .35rem;
+}
+
+.gestion-task-card h3 {
+  font-size: 1rem;
+  line-height: 1.25;
+  margin: 0;
+  color: #1f2937;
+}
+
+.gestion-task-deadline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 0 0 auto;
+  max-width: 10rem;
+  padding: .35rem .55rem;
+  border-radius: 999px;
+  background: rgba(248, 249, 250, .95);
+  border: 1px solid rgba(15, 23, 42, .08);
+  color: #374151;
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.gestion-task-detail {
+  color: #4b5563;
+  font-size: .88rem;
+  line-height: 1.45;
+  margin: .55rem 0 .45rem;
+  overflow-wrap: anywhere;
+}
+
+.gestion-task-context {
+  color: #6b7280;
+  font-size: .8rem;
+  line-height: 1.35;
+  padding: .48rem .62rem;
+  border-radius: .75rem;
+  background: rgba(112, 77, 45, .06);
+  overflow-wrap: anywhere;
+}
+
+.gestion-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .75rem;
+}
+
+.gestion-category-list {
+  display: grid;
+  gap: .5rem;
+}
+
+.gestion-category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .75rem;
+  border-radius: .8rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .82);
+  color: inherit;
+  text-decoration: none;
+}
+
+.gestion-category-row:hover {
+  background: rgba(112, 77, 45, .06);
+}
+
+.gestion-category-row span {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.gestion-category-row strong {
+  min-width: 2rem;
+  text-align: center;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .06);
+}
+
+.gestion-empty-state {
+  text-align: center;
+  padding: 2.25rem 1rem;
+  border-radius: 1rem;
+  border: 1px dashed rgba(112, 77, 45, .25);
+  background: rgba(255, 255, 255, .65);
+}
+
+.gestion-empty-icon {
+  font-size: 2.2rem;
+  margin-bottom: .65rem;
+}
+
+.gestion-empty-state h3 {
+  font-size: 1.05rem;
+  margin-bottom: .35rem;
+}
+
+.gestion-empty-state p {
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 767.98px) {
+  .gestion-task-card {
+    grid-template-columns: 1fr;
+  }
+
+  .gestion-task-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gestion-task-deadline {
+    max-width: none;
+  }
+
+  .gestion-hero-actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .gestion-hero-actions .btn {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   Fase 6 · Plan mensual RRHH
+   ========================================================= */
+.gestion-month-page {
+  max-width: 1500px;
+}
+
+.gestion-month-hero {
+  background: linear-gradient(135deg, rgba(255, 255, 255, .96), rgba(253, 246, 236, .92));
+}
+
+.gestion-month-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.gestion-month-group {
+  border: 1px solid rgba(112, 77, 45, .14);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, .82);
+  overflow: hidden;
+}
+
+.gestion-month-group.is-danger {
+  border-left: 5px solid rgba(220, 53, 69, .85);
+}
+
+.gestion-month-group.is-warning {
+  border-left: 5px solid rgba(255, 193, 7, .95);
+}
+
+.gestion-month-group.is-info {
+  border-left: 5px solid rgba(13, 202, 240, .9);
+}
+
+.gestion-month-group.is-secondary,
+.gestion-month-group.is-light {
+  border-left: 5px solid rgba(112, 77, 45, .25);
+}
+
+.gestion-month-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .85rem;
+  padding: 1rem 1rem .85rem;
+  border-bottom: 1px solid rgba(112, 77, 45, .10);
+  background: rgba(248, 249, 250, .72);
+}
+
+.gestion-month-group-title {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  gap: .65rem;
+  align-items: start;
+}
+
+.gestion-month-group-title > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: rgba(112, 77, 45, .08);
+  font-size: 1.1rem;
+}
+
+.gestion-month-group h3 {
+  font-size: 1rem;
+  line-height: 1.25;
+  margin: 0;
+  color: #1f2937;
+}
+
+.gestion-month-group p {
+  color: #6b7280;
+  font-size: .82rem;
+  line-height: 1.35;
+  margin: .15rem 0 0;
+}
+
+.gestion-month-task-list {
+  display: grid;
+  gap: .75rem;
+  padding: 1rem;
+}
+
+.gestion-month-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12rem;
+  gap: .85rem;
+  padding: .9rem;
+  border-radius: .9rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .95);
+}
+
+.gestion-month-task.is-alta {
+  box-shadow: inset 4px 0 0 rgba(220, 53, 69, .85);
+}
+
+.gestion-month-task.is-media {
+  box-shadow: inset 4px 0 0 rgba(255, 193, 7, .95);
+}
+
+.gestion-month-task.is-baja {
+  box-shadow: inset 4px 0 0 rgba(13, 202, 240, .9);
+}
+
+.gestion-month-task h4 {
+  color: #1f2937;
+  font-size: .96rem;
+  line-height: 1.3;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.gestion-month-task p {
+  color: #4b5563;
+  font-size: .84rem;
+  line-height: 1.42;
+  margin: .45rem 0 .45rem;
+  overflow-wrap: anywhere;
+}
+
+.gestion-month-task-main {
+  min-width: 0;
+}
+
+.gestion-month-task-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: .25rem;
+  min-width: 0;
+}
+
+.gestion-month-task-side small {
+  color: #6b7280;
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.gestion-month-empty {
+  color: #6b7280;
+  font-size: .84rem;
+  margin: 1rem;
+  padding: .85rem 1rem;
+  border-radius: .9rem;
+  background: rgba(16, 185, 129, .08);
+  border: 1px solid rgba(16, 185, 129, .16);
+}
+
+.gestion-month-actions,
+.gestion-month-routine {
+  display: grid;
+  gap: .75rem;
+}
+
+.gestion-month-action {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: .65rem;
+  align-items: start;
+  padding: .85rem;
+  border-radius: .95rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, .9);
+}
+
+.gestion-month-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 .35rem .9rem rgba(15, 23, 42, .08);
+}
+
+.gestion-month-action.is-warning {
+  border-left: 4px solid rgba(255, 193, 7, .95);
+}
+
+.gestion-month-action.is-success {
+  border-left: 4px solid rgba(25, 135, 84, .85);
+}
+
+.gestion-month-action.is-primary {
+  border-left: 4px solid rgba(13, 110, 253, .8);
+}
+
+.gestion-month-action.is-danger {
+  border-left: 4px solid rgba(220, 53, 69, .85);
+}
+
+.gestion-month-action-icon,
+.gestion-month-routine-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: rgba(112, 77, 45, .08);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.gestion-month-action-body,
+.gestion-month-routine-body {
+  min-width: 0;
+}
+
+.gestion-month-action-body strong,
+.gestion-month-routine-body h3 {
+  display: block;
+  color: #1f2937;
+  font-size: .9rem;
+  line-height: 1.25;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.gestion-month-action-body small,
+.gestion-month-routine-body p {
+  display: block;
+  color: #6b7280;
+  font-size: .78rem;
+  line-height: 1.35;
+  margin: .2rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.gestion-month-action-body em {
+  display: inline-flex;
+  align-items: center;
+  margin-top: .35rem;
+  color: var(--cs-brown, #7a4b2b);
+  font-size: .76rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.gestion-month-routine-item {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: .65rem;
+  align-items: start;
+  padding: .8rem;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: .95rem;
+  background: rgba(255, 255, 255, .86);
+}
+
+.gestion-month-routine-body > div > span {
+  color: var(--cs-brown, #7a4b2b);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 991.98px) {
+  .gestion-month-task {
+    grid-template-columns: 1fr;
+  }
+
+  .gestion-month-task-side {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .gestion-month-group-head,
+  .gestion-month-group-title,
+  .gestion-month-action,
+  .gestion-month-routine-item {
+    grid-template-columns: 1fr;
+  }
+
+  .gestion-month-group-head {
+    flex-direction: column;
+  }
+}
